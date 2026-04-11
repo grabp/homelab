@@ -11,7 +11,7 @@
   disko.devices = {
     disk.main = {
       type = "disk";
-      device = "/dev/sda";  # ⚠ VERIFY: check actual device path with lsblk
+      device = "/dev/nvme0n1";
       content = {
         type = "gpt";
         partitions = {
