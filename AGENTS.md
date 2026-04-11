@@ -1,8 +1,11 @@
 # AGENTS.md
 
 ## Project
-NixOS bare-metal homelab for HP Elitedesk 705 G4 (AMD Ryzen, 16GB RAM, single SSD).
-Single flake managing all services. Target: nixos-25.11.
+NixOS bare-metal homelab. Single flake managing all services. Target: nixos-25.11.
+
+**Machines:**
+- `pebble` — HP ProDesk (homelab server, deployed)
+- `boulder` — HP EliteDesk (future, different purposes)
 
 ## Current State
 Read PROGRESS.md first. It tracks what's done and what's next.
@@ -25,6 +28,6 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 ## Commands
 - `just build` — build without switching
 - `just switch` — build and switch locally
-- `just deploy elitedesk` — remote deploy via deploy-rs
+- `just deploy pebble` — remote deploy via deploy-rs
 - `just check` — flake check
 - `just edit-secrets` — edit sops secrets

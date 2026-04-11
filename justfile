@@ -15,7 +15,7 @@ debug:
     nixos-rebuild switch --flake . --use-remote-sudo --show-trace --verbose
 
 # ── Remote Deployment ─────────────────────────
-deploy host="elitedesk":
+deploy host="pebble":
     nix run github:serokell/deploy-rs -- -s .#{{host}}
 
 deploy-all:
@@ -66,9 +66,9 @@ repl:
 disko-install disk:
     sudo nix run github:nix-community/disko/latest -- \
       --mode destroy,format,mount \
-      ./machines/nixos/elitedesk/disko.nix \
-      --arg diskoFile ./machines/nixos/elitedesk/disko.nix
+      ./machines/nixos/pebble/disko.nix \
+      --arg diskoFile ./machines/nixos/pebble/disko.nix
 
-# Generate hostId for networking.hostId in elitedesk/default.nix
+# Generate hostId for networking.hostId in pebble/default.nix
 gen-hostid:
     head -c4 /dev/urandom | od -A none -t x4 | tr -d ' \n' && echo

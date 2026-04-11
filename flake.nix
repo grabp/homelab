@@ -26,7 +26,7 @@
       inherit (helpers) mkMerge mkNixos;
     in
     mkMerge [
-      (mkNixos "elitedesk" inputs.nixpkgs [
+      (mkNixos "pebble" inputs.nixpkgs [
         disko.nixosModules.disko
         sops-nix.nixosModules.sops
         ./homelab

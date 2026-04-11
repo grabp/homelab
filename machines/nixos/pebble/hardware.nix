@@ -1,4 +1,4 @@
-# Hardware configuration for HP Elitedesk 705 G4
+# Hardware configuration for HP ProDesk (pebble)
 # Generated from nixos-generate-config
 { config, lib, pkgs, modulesPath, ... }:
 {

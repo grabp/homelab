@@ -1,4 +1,4 @@
-# Declarative disk layout for HP Elitedesk 705 G4
+# Declarative disk layout for HP ProDesk (pebble)
 # Uses ZFS on a single SSD via disko
 #
 # ⚠ VERIFY disk device path before installation:

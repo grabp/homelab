@@ -4,7 +4,7 @@
     ./hardware.nix
   ];
 
-  networking.hostName = "elitedesk";
+  networking.hostName = "pebble";
 
   # ZFS requires a unique hostId — generate with:
   # head -c4 /dev/urandom | od -A none -t x4 | tr -d ' \n'

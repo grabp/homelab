@@ -12,9 +12,9 @@
 - `flakeHelpers.nix` — `mkNixos` + `mkMerge` helpers
 - `machines/nixos/vars.nix` — domain, serverIP, timezone, etc.
 - `machines/nixos/_common/` — nix-settings, ssh, users, locale
-- `machines/nixos/elitedesk/default.nix` — ZFS boot, static IP, firewall
-- `machines/nixos/elitedesk/disko.nix` — ZFS pool (zroot) on `/dev/nvme0n1`
-- `machines/nixos/elitedesk/hardware.nix` — generated for HP Elitedesk 705 G4
+- `machines/nixos/pebble/default.nix` — ZFS boot, static IP, firewall
+- `machines/nixos/pebble/disko.nix` — ZFS pool (zroot) on `/dev/nvme0n1`
+- `machines/nixos/pebble/hardware.nix` — generated for HP ProDesk
 - `homelab/default.nix` — stub for future service modules
 - `modules/networking/default.nix` — `my.networking.staticIPv4` custom module
 - `users/admin/default.nix` — admin user with SSH key, passwordless sudo
@@ -45,7 +45,7 @@
 3. `age-keygen` (on dev machine) → get admin age key
 4. Create `.sops.yaml` with both keys
 5. `sops secrets/secrets.yaml` to create initial test secret
-6. Add sops module config to `machines/nixos/elitedesk/default.nix`
+6. Add sops module config to `machines/nixos/pebble/default.nix`
 
 ---
 

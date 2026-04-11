@@ -6,7 +6,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **What gets built:** Bootable NixOS on ZFS via disko, SSH access, admin user with sudo, static IP on 192.168.10.0/24, basic firewall, flake structure with `flakeHelpers.nix`.
 
-**Key files:** `flake.nix`, `flakeHelpers.nix`, `machines/nixos/elitedesk/{default,disko,hardware}.nix`, `machines/nixos/_common/`, `users/admin/`, `machines/nixos/vars.nix`
+**Key files:** `flake.nix`, `flakeHelpers.nix`, `machines/nixos/pebble/{default,disko,hardware}.nix`, `machines/nixos/_common/`, `users/admin/`, `machines/nixos/vars.nix`
 
 **Dependencies:** NixOS installer ISO, network connectivity, target disk identified (`/dev/sda` or `/dev/nvme0n1`).
 
@@ -144,7 +144,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Verification steps:**
 - `zfs list -t snapshot` shows automatic snapshots
-- `just deploy elitedesk` deploys successfully from dev machine
+- `just deploy pebble` deploys successfully from dev machine
 - `just build` builds without switching
 - Restic backup completes: `restic -r /mnt/nas/backup/restic/homelab snapshots`
 - Test restore: `restic restore latest --target /tmp/test-restore`

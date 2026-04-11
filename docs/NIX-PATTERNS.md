@@ -34,7 +34,7 @@ Every pattern below is verified against official documentation or production rep
       inherit (helpers) mkMerge mkNixos;
     in
     mkMerge [
-      (mkNixos "elitedesk" inputs.nixpkgs [
+      (mkNixos "pebble" inputs.nixpkgs [
         disko.nixosModules.disko
         sops-nix.nixosModules.sops
         ./homelab
@@ -98,7 +98,7 @@ in
 ## Pattern 3: disko single-disk ZFS with ephemeral root
 
 ```nix
-# machines/nixos/elitedesk/disko.nix
+# machines/nixos/pebble/disko.nix
 {
   disko.devices = {
     disk.main = {
@@ -317,13 +317,13 @@ in
 ```yaml
 keys:
   - &admin age1yourkeyhere
-  - &elitedesk age1serverkeyhere
+  - &pebble age1serverkeyhere
 creation_rules:
   - path_regex: secrets/secrets\.yaml$
     key_groups:
       - age:
         - *admin
-        - *elitedesk
+        - *pebble
 ```
 
 **Source:** sops-nix README (github:Mic92/sops-nix) ✅. Secrets decrypted to `/run/secrets/<name>`. Use `config.sops.secrets."name".path` to reference in services.
@@ -444,7 +444,7 @@ debug:
     nixos-rebuild switch --flake . --use-remote-sudo --show-trace --verbose
 
 # ── Remote Deployment ─────────────────────────
-deploy host="elitedesk":
+deploy host="pebble":
     nix run github:serokell/deploy-rs -- -s .#{{host}}
 
 deploy-all:
