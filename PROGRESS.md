@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 2 — Secrets Management
+## Current Stage: 3 — DNS (Pi-hole)
 ## Status: NOT STARTED
 
 ---
@@ -35,17 +35,22 @@
 
 ---
 
-## Stage 2: Secrets Management — NOT STARTED
+## Stage 2: Secrets Management — COMPLETE (verified 2026-04-11)
 
-**Prerequisites:** SSH host key on deployed machine (for age key derivation)
+**Files created:**
+- `.sops.yaml` — age keys for admin (koksownik) and pebble
+- `secrets/secrets.yaml` — encrypted secrets file
 
-**What to do:**
-1. Deploy Stage 1 first (get SSH host key)
-2. `ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub` (on server) → get server age key
-3. `age-keygen` (on dev machine) → get admin age key
-4. Create `.sops.yaml` with both keys
-5. `sops secrets/secrets.yaml` to create initial test secret
-6. Add sops module config to `machines/nixos/pebble/default.nix`
+**Configuration:**
+- sops-nix configured in `machines/nixos/pebble/default.nix`
+- Age key derived from SSH host key (`/etc/ssh/ssh_host_ed25519_key`)
+- Admin key stored at `~/.config/sops/age/keys.txt` on koksownik
+
+**Verification (all passed):**
+- [x] `sops secrets/secrets.yaml` opens editor and encrypts on save
+- [x] `nixos-rebuild switch` decrypts secrets successfully
+- [x] `cat /run/secrets/test_secret` shows decrypted value
+- [x] Secret file permissions correct (readable by root)
 
 ---
 
