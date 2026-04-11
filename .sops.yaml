@@ -1,0 +1,10 @@
+keys:
+  - &admin age1pvhdtd73kzap707an0g8fqpr3jqjjfh6x6dez4gw4hza7helffcsym6sgm
+  - &pebble age1967s7ux5z32ak6yn2gzs0pghs7gm7qe4smrgyhge0xa3l2xgzuhsszwrfn
+
+creation_rules:
+  - path_regex: secrets/secrets\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *pebble

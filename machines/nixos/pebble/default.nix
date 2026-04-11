@@ -4,6 +4,17 @@
     ./hardware.nix
   ];
 
+  # Secrets management via sops-nix
+  sops = {
+    defaultSopsFile = ../../../secrets/secrets.yaml;
+    defaultSopsFormat = "yaml";
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+
+    secrets = {
+      "test_secret" = { };
+    };
+  };
+
   networking.hostName = "pebble";
 
   # ZFS requires a unique hostId — generate with:
