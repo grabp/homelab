@@ -8,11 +8,11 @@
 
   # ZFS requires a unique hostId — generate with:
   # head -c4 /dev/urandom | od -A none -t x4 | tr -d ' \n'
-  networking.hostId = "6598dd18";
+  networking.hostId = "8423e349";
 
   # ZFS configuration (see docs/ARCHITECTURE.md)
   boot.supportedFilesystems = [ "zfs" ];
-  boot.zfs.forceImportRoot = false;
+  boot.zfs.forceImportRoot = true;
   boot.kernelParams = [
     "nohibernate"
     "zfs.zfs_arc_max=4294967296"  # Cap ARC at 4GB, leaving ~12GB for services
