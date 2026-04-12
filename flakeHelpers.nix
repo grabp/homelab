@@ -1,8 +1,16 @@
 inputs:
 let
+  vars = import ./machines/nixos/vars.nix;
+
+  # Resolve deploy hostname: pebble uses static IP, vps uses its DNS name
+  deployHostname = hostname:
+    if hostname == "pebble" then vars.serverIP
+    else if hostname == "vps" then "netbird.${vars.domain}"
+    else hostname;
+
   mkNixos = hostname: nixpkgsVersion: extraModules: {
     deploy.nodes.${hostname} = {
-      hostname = hostname;
+      hostname = deployHostname hostname;
       profiles.system = {
         user = "root";
         sshUser = "admin";
