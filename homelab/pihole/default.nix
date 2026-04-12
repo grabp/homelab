@@ -37,8 +37,10 @@ in
     # discarding everything after the first '='.
     system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
       mkdir -p /var/lib/pihole-dnsmasq
-      echo "address=/${vars.domain}/${vars.serverIP}" \
-        > /var/lib/pihole-dnsmasq/04-grab-lab.conf
+      {
+        # Wildcard split DNS: *.grab-lab.gg → Caddy
+        echo "address=/${vars.domain}/${vars.serverIP}"
+      } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
     '';
 
     virtualisation.oci-containers.containers.pihole = {
@@ -65,6 +67,11 @@ in
         # (disabled by default in v6; our 04-grab-lab.conf is written there via
         # system.activationScripts)
         FTLCONF_misc_etc_dnsmasq_d = "true";
+        # Conditional forwarding for .lan/.local → router (UniFi hostnames, DHCP names).
+        # server=/domain/ip in dnsmasq conf-dir files is a known Pi-hole v6 bug (#6279)
+        # that returns 0ms NXDOMAIN without forwarding. FTLCONF_dns_revServers is the
+        # correct Pi-hole v6 mechanism. Format: "enable,CIDR,server#port,domain"
+        FTLCONF_dns_revServers = "true,192.168.1.0/24,${vars.routerIP}#53,lan;true,192.168.1.0/24,${vars.routerIP}#53,local";
       };
 
       # Contains FTLCONF_webserver_api_password — decrypted by sops at /run/secrets/pihole/env

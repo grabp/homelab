@@ -70,6 +70,7 @@
 - Web UI: port 8089 (mapped from container port 80)
 - Split DNS: `address=/grab-lab.gg/192.168.10.50` written to `/var/lib/pihole-dnsmasq/04-grab-lab.conf` via `system.activationScripts`; `FTLCONF_misc_etc_dnsmasq_d=true` enables reading `/etc/dnsmasq.d/` (off by default in v6)
 - `FTLCONF_misc_dnsmasq_lines` is unusable for `address=` directives — Pi-hole v6 splits array items on `=`, discarding everything after the first `=`
+- Conditional forwarding (.lan/.local → router): `server=/domain/ip` in dnsmasq conf-dir files is a known Pi-hole v6 bug (#6279, returns 0ms NXDOMAIN without forwarding); use `FTLCONF_dns_revServers` instead — format: `"true,CIDR,server#port,domain"`, semicolon-separated for multiple domains
 - Secret: `pihole/env` in `secrets/secrets.yaml` must contain `FTLCONF_webserver_api_password=<password>`
 - `services.resolved.enable = false` — Stage 6b (NetBird) re-enables it with `DNSStubListener=no`
 - `deploy.nodes.*.hostname` must be the actual IP/FQDN — fixed via `deployHostname` in `flakeHelpers.nix`
@@ -85,7 +86,8 @@ just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-pass
 - [x] `dig @192.168.10.50 google.com` returns results (upstream DNS works)
 - [x] `dig @192.168.10.50 grafana.grab-lab.gg` returns `192.168.10.50` (split DNS works)
 - [x] Pi-hole admin UI at `http://192.168.10.50:8089/admin` loads
-- [ ] Set UniFi DHCP DNS to `192.168.10.50`; verify clients resolve via Pi-hole
+- [x] Set UniFi DHCP DNS to `192.168.10.50`; verify clients resolve via Pi-hole
+- [x] `dig @192.168.10.50 unifi.lan` returns router answer (conditional forwarding works)
 ## Stage 4: Reverse Proxy (Caddy) — NOT STARTED
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
 ## Stage 6a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
