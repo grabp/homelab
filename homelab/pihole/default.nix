@@ -130,6 +130,18 @@ in
     #     https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
     # -------------------------------------------------------------------------
 
+    # When nixos-rebuild switch reloads the firewall (e.g. a new port was opened),
+    # NixOS flushes and rewrites ALL iptables chains — including the NETAVARK_*
+    # chains that Podman/Netavark wrote for port 53 DNAT. If podman-pihole is not
+    # restarted afterward, the DNAT rules are gone and external DNS queries time out
+    # even though the container is running.
+    # partOf: restart this service whenever firewall.service restarts.
+    # after:  ensure we start after the firewall so rules are added last.
+    systemd.services.podman-pihole = {
+      after = [ "firewall.service" ];
+      partOf = [ "firewall.service" ];
+    };
+
     networking.firewall.allowedTCPPorts = [ 53 cfg.webPort ];
     networking.firewall.allowedUDPPorts = [ 53 ];
 

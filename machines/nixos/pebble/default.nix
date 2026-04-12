@@ -43,16 +43,18 @@
     address = vars.serverIP;
     prefixLength = 24;
     gateway = "192.168.10.1";
-    nameservers = [ "127.0.0.1" ];
+    # Pi-hole primary; 1.1.1.1 fallback for pebble's own lookups
+    # (avoids ACME/deploy failures when Pi-hole restarts during nixos-rebuild)
+    nameservers = [ "127.0.0.1" "1.1.1.1" ];
   };
 
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
 
   my.services.pihole.enable = true;
+  my.services.caddy.enable = true;
 
   # Services enabled in later stages:
-  # my.services.caddy.enable = true;    # Stage 4
   # my.services.grafana.enable = true;  # Stage 5
   # my.services.prometheus.enable = true;
   # my.services.loki.enable = true;

@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 4 — Reverse Proxy (Caddy)
+## Current Stage: 5 — Monitoring (Prometheus + Grafana + Loki)
 ## Status: NOT STARTED
 
 ---
@@ -73,6 +73,7 @@
 - Conditional forwarding (.lan/.local → router): `server=/domain/ip` in dnsmasq conf-dir files is a known Pi-hole v6 bug (#6279, returns 0ms NXDOMAIN without forwarding); use `FTLCONF_dns_revServers` instead — format: `"true,CIDR,server#port,domain"`, semicolon-separated for multiple domains
 - Secret: `pihole/env` in `secrets/secrets.yaml` must contain `FTLCONF_webserver_api_password=<password>`
 - `services.resolved.enable = false` — Stage 6b (NetBird) re-enables it with `DNSStubListener=no`
+- **Netavark/firewall ordering bug:** when `nixos-rebuild switch` reloads `firewall.service` (any change to `networking.firewall.*`), NixOS flushes all iptables chains including `NETAVARK_*`. If the Pi-hole container isn't restarted, its DNAT rules for port 53 are gone and external DNS queries time out. Fixed via `systemd.services.podman-pihole = { after = ["firewall.service"]; partOf = ["firewall.service"]; }` — applies to ALL future OCI containers that publish ports.
 - `deploy.nodes.*.hostname` must be the actual IP/FQDN — fixed via `deployHostname` in `flakeHelpers.nix`
 - `nix.settings.trusted-users = ["root" "admin"]` required for deploy-rs to push store paths
 
@@ -88,7 +89,30 @@ just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-pass
 - [x] Pi-hole admin UI at `http://192.168.10.50:8089/admin` loads
 - [x] Set UniFi DHCP DNS to `192.168.10.50`; verify clients resolve via Pi-hole
 - [x] `dig @192.168.10.50 unifi.lan` returns router answer (conditional forwarding works)
-## Stage 4: Reverse Proxy (Caddy) — NOT STARTED
+## Stage 4: Reverse Proxy (Caddy) — COMPLETE (2026-04-13)
+
+**Files created:**
+- `homelab/caddy/default.nix` — Caddy module: `withPlugins` Cloudflare DNS build, wildcard cert, Pi-hole reverse proxy
+
+**Files modified:**
+- `homelab/default.nix` — enabled `./caddy` import
+- `machines/nixos/pebble/default.nix` — `my.services.caddy.enable = true`; added `1.1.1.1` fallback nameserver
+- `homelab/pihole/default.nix` — added `partOf`/`after firewall.service` to `podman-pihole` (Netavark fix)
+
+**Configuration notes:**
+- `pkgs.caddy.withPlugins` compiles in `caddy-dns/cloudflare` for DNS-01 ACME — standard `pkgs.caddy` has no DNS plugins
+- Plugin pinned to `a8737d095ad5` (2026-03-23) — compatible with libdns v1.1.0 / Caddy 2.11.x; old July 2024 commit broke on `libdns.Record` field renames
+- Wildcard cert `*.grab-lab.gg` via Cloudflare DNS-01; `resolvers 1.1.1.1` in TLS block bypasses Pi-hole so ACME lookups don't loop
+- `CLOUDFLARE_API_TOKEN` injected from sops secret `caddy/env` via `EnvironmentFile` on the caddy systemd service
+- Token scopes required: Zone:Zone:Read + Zone:DNS:Edit (scoped to grab-lab.gg zone only)
+- **Netavark fix** (see Stage 3 notes): `podman-pihole` now restarts with `firewall.service`; apply the same `partOf`/`after` pattern to every future OCI container that publishes ports (ESPHome, Matter Server, Home Assistant)
+
+**Verification:**
+- [x] `curl https://pihole.grab-lab.gg/admin` loads Pi-hole UI with valid TLS
+- [x] Let's Encrypt wildcard cert `*.grab-lab.gg`, issuer E8 CA, valid 2026-04-12 → 2026-07-11
+- [x] Certificate files present in `/var/lib/caddy/.local/share/caddy/certificates/`
+- [ ] ACME account registration retry loop — resolves after deploying `1.1.1.1` DNS fallback
+
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
 ## Stage 6a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
 ## Stage 6b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
