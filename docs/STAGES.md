@@ -117,22 +117,41 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Low. Well-documented NixOS module with structured config.
 
-## Stage 8: Services — Home Assistant + Uptime Kuma
+## Stage 8a: Services — Mosquitto + HACS + Home Assistant + Uptime Kuma
 
-**What gets built:** Home Assistant (Podman container with `--network=host`), Uptime Kuma (native NixOS module), Caddy virtual hosts, UniFi integration in HA.
+**What gets built:** Mosquitto MQTT broker (native), Home Assistant (Podman container with `--network=host`), HACS auto-installed via systemd oneshot, Uptime Kuma (native NixOS module), Caddy virtual hosts for HA and Uptime Kuma, UniFi integration in HA.
 
-**Key files:** `homelab/home-assistant/default.nix`, `homelab/uptime-kuma/default.nix`
+**Key files:** `homelab/mosquitto/default.nix`, `homelab/home-assistant/default.nix`, `homelab/uptime-kuma/default.nix`
 
-**Dependencies:** Stage 4 (Caddy), Stage 2 (secrets for HA). For UniFi integration: local admin user on UniFi controller.
+**Dependencies:** Stage 4 (Caddy), Stage 2 (secrets for HA). For UniFi integration: local admin user on UniFi controller. Mosquitto password hashes generated locally with `mosquitto_passwd`.
 
 **Verification steps:**
 - `https://ha.grab-lab.gg` loads Home Assistant onboarding
 - Home Assistant UniFi integration discovers devices
+- `systemctl status mosquitto` shows active; HA MQTT integration connects to `127.0.0.1:1883`
+- `cat /var/lib/homeassistant/custom_components/hacs/__init__.py` confirms HACS installed
 - `https://uptime.grab-lab.gg` loads Uptime Kuma
-- Uptime Kuma monitors configured for all services
 - `podman ps` shows homeassistant container running
 
-**Estimated complexity:** Medium. Home Assistant with `--network=host` needs firewall adjustment. HA onboarding is interactive (not fully declarative).
+**Estimated complexity:** Medium. Home Assistant `--network=host` needs firewall adjustment. HA onboarding is interactive (not fully declarative). HACS requires completing GitHub OAuth device flow in HA UI after first boot.
+
+## Stage 8b: Services — Voice Pipeline + ESPHome + Matter Server
+
+**What gets built:** Wyoming voice pipeline (Faster-Whisper STT, Piper TTS, OpenWakeWord — all native NixOS modules), ESPHome dashboard (Podman container with `--network=host`), Matter Server (Podman container with `--network=host`), Avahi mDNS, Wyoming integrations configured in HA UI.
+
+**Key files:** `homelab/wyoming/default.nix`, `homelab/matter-server/default.nix`; ESPHome added to `homelab/home-assistant/default.nix` or its own module.
+
+**Dependencies:** Stage 8a (Home Assistant running). Avahi required for ESPHome mDNS device discovery. IPv6 enabled on host for Matter.
+
+**Verification steps:**
+- `systemctl status wyoming-faster-whisper-main wyoming-piper-main wyoming-openwakeword` — all active
+- In HA UI: Settings → Voice assistants → create pipeline using Whisper + Piper + OpenWakeWord
+- Hold the microphone button in the HA mobile app and speak a command — HA responds with TTS
+- `https://esphome.grab-lab.gg` (or direct port 6052) loads ESPHome dashboard; existing ESP devices discovered
+- Matter integration configured at `ws://127.0.0.1:5580/ws`; commissioning a Matter device succeeds
+- `podman ps` shows esphome and matter-server containers running
+
+**Estimated complexity:** Medium. The ProcSubset fix for faster-whisper is critical (see docs/NIX-PATTERNS.md Pattern 10 and docs/ARCHITECTURE.md). ESPHome's `--network=host` avoids mDNS issues. Matter requires IPv6 enabled and IPv6 forwarding disabled.
 
 ## Stage 9: Hardening, backups, deploy-rs, and Justfile
 

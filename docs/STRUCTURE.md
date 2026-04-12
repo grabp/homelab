@@ -43,6 +43,12 @@ homelab/
 │   │   └── default.nix
 │   ├── netbird/
 │   │   └── default.nix
+│   ├── mosquitto/
+│   │   └── default.nix        # MQTT broker (native, Stage 8a)
+│   ├── wyoming/
+│   │   └── default.nix        # Voice pipeline: Whisper STT + Piper TTS + OpenWakeWord (native, Stage 8b)
+│   ├── matter-server/
+│   │   └── default.nix        # Matter Server OCI container (Stage 8b)
 │   └── backup/
 │       └── default.nix        # Sanoid, syncoid, restic
 │
@@ -90,14 +96,19 @@ homelab/
     ./grafana
     ./prometheus
     ./loki
-    ./home-assistant
+    ./home-assistant      # Stage 8a — includes ESPHome container config
     ./uptime-kuma
     ./homepage
     ./netbird
+    ./mosquitto           # Stage 8a
+    ./wyoming             # Stage 8b — Whisper + Piper + OpenWakeWord
+    ./matter-server       # Stage 8b
     ./backup
   ];
 }
 ```
+
+**Voice services in a single `wyoming/` module:** All three Wyoming services (faster-whisper, piper, openwakeword) are grouped in one `homelab/wyoming/default.nix` because they share the `services.wyoming.*` namespace, are always deployed together as a voice pipeline, and together require the single `ProcSubset` workaround. Splitting them into separate files would add boilerplate with no benefit at this scale.
 
 **`machines/nixos/pebble/default.nix`** enables services:
 ```nix

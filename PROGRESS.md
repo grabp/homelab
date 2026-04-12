@@ -59,5 +59,46 @@
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
 ## Stage 6: VPN (NetBird) — NOT STARTED
 ## Stage 7: Homepage Dashboard — NOT STARTED
-## Stage 8: Services (Home Assistant + Uptime Kuma) — NOT STARTED
+## Stage 8a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
+## Stage 8b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
 ## Stage 9: Hardening, Backups, deploy-rs — NOT STARTED
+
+---
+
+## Documentation Updates
+
+### HA Companion Services Research — incorporated 2026-04-12
+
+Researched all six HA companion services. Findings incorporated into all architecture docs:
+
+**docs/HA-COMPANION-SERVICES.md** — primary research document (new)
+
+**docs/SERVICE-CONFIGS.md** additions:
+- Updated Home Assistant entry with companion services reference
+- New sections: Mosquitto, Wyoming Whisper, Wyoming Piper, Wyoming OpenWakeWord, ESPHome, Matter Server
+- Updated service module verification summary table
+
+**docs/ARCHITECTURE.md** additions:
+- Service isolation table extended with 6 new services (Mosquitto + 3 Wyoming + ESPHome + Matter Server)
+- Port assignments table extended (ports 1883, 10200, 10300, 10400, 6052, 5580)
+- Added `mDNS and host networking` section with Avahi config
+- Added faster-whisper ProcSubset bug warning and fix
+
+**docs/STAGES.md** changes:
+- Stage 8 split into Stage 8a (Mosquitto + HACS + HA + Uptime Kuma) and Stage 8b (voice pipeline + ESPHome + Matter Server) for safer incremental deployment
+
+**docs/NIX-PATTERNS.md** additions:
+- Pattern 10: Native Wyoming service with systemd ProcSubset override
+- Pattern 11: HACS auto-installation via systemd oneshot (two approaches: download-on-boot and pinned/Nix-pure)
+
+**docs/STRUCTURE.md** additions:
+- `homelab/mosquitto/`, `homelab/wyoming/`, `homelab/matter-server/` added to directory tree
+- Rationale for single `wyoming/` module documented
+- homelab/default.nix imports example updated
+
+**Key decisions recorded:**
+- ESPHome and Matter Server → Podman containers (native has bugs/broken deps)
+- Wyoming Whisper, Piper, OpenWakeWord, Mosquitto → Native NixOS modules
+- HACS → systemd oneshot (Approach A for simplicity)
+- Voice services grouped in single `homelab/wyoming/` module
+- ProcSubset fix is mandatory for faster-whisper

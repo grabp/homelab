@@ -40,6 +40,17 @@ boot.kernelParams = [ "nohibernate" "zfs.zfs_arc_max=4294967296" ];
 | NetBird | Native | Comprehensive module (client + server) |
 | **Pi-hole** | **Podman** | No NixOS module — must use OCI |
 | **Home Assistant** | **Podman** | Complex ecosystem, frequent updates, plugin dependencies, upstream unsupported on NixOS |
+| Mosquitto | Native | Mature module; `per_listener_settings true` behavior; latency-sensitive MQTT |
+| Wyoming Whisper | Native | Good module; **apply ProcSubset fix** or inference is ~7× slower (see note below) |
+| Wyoming Piper | Native | Well-maintained; no known bugs |
+| Wyoming OpenWakeWord | Native | Very lightweight; verify model name against package version |
+| **ESPHome** | **Podman** | Three unresolved native bugs: DynamicUser path, pyserial missing, font component |
+| **Matter Server** | **Podman** | CHIP SDK requires pre-built binary wheels; intractable to build natively |
+
+⚠️ **Native module gotcha — faster-whisper `ProcSubset` (nixpkgs PR #372898):** The systemd hardening sets `ProcSubset=pid`, which blocks CTranslate2 from reading `/proc/cpuinfo` and forces a slow fallback code path. A 3-second audio clip takes ~20 s instead of ~3 s. Always override in the machine config:
+```nix
+systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
+```
 
 **Podman setup:**
 ```nix
@@ -51,7 +62,7 @@ virtualisation.podman = {
 };
 ```
 
-**Gotchas:** Podman rootless on ZFS requires `acltype=posixacl` on underlying datasets. Home Assistant needs `--network=host` for mDNS device discovery. Container volumes must reside on persistent ZFS datasets.
+**Gotchas:** Podman rootless on ZFS requires `acltype=posixacl` on underlying datasets. Home Assistant, ESPHome, and Matter Server all use `--network=host` for mDNS and IPv6 multicast device discovery — they share the host network namespace and communicate with native Wyoming/Mosquitto services over `localhost`. Container volumes must reside on persistent ZFS datasets.
 
 ## Network architecture: localhost binding with Caddy as the single entry point
 
@@ -80,6 +91,24 @@ The host gets a static IP on `192.168.10.0/24`. DNS flows: LAN clients → Pi-ho
 | Uptime Kuma | 3001 | — |
 | Homepage | 3010 | Remapped from 3000 to avoid Grafana conflict |
 | NetBird | 51821 | WireGuard UDP |
+| Mosquitto | 1883 | MQTT broker |
+| Wyoming Whisper | 10300 | Speech-to-text (Wyoming protocol) |
+| Wyoming Piper | 10200 | Text-to-speech (Wyoming protocol) |
+| Wyoming OpenWakeWord | 10400 | Wake word detection (Wyoming protocol) |
+| ESPHome | 6052 | ESP device dashboard |
+| Matter Server | 5580 | Matter WebSocket API |
+
+**mDNS and host networking:** ESPHome, Matter Server, and Home Assistant use `--network=host` in their Podman containers, giving them direct access to the host network stack for mDNS and IPv6 multicast. Enable Avahi on the host for `.local` resolution and ESPHome device discovery:
+
+```nix
+services.avahi = {
+  enable = true;
+  nssmdns4 = true;  # Use nssmdns4 (not nssmdns) — avoids slow lookups for non-.local domains
+  publish = { enable = true; addresses = true; };
+};
+```
+
+⚠️ IPv6 forwarding must be **disabled** when running Matter Server (`boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0`) — if enabled, Matter devices experience up to 30-minute reachability outages on network changes.
 
 
 ## sops-nix with age backend provides the best balance of flexibility and simplicity

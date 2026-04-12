@@ -300,6 +300,8 @@ services.promtail = {
 - Configure `http.use_x_forwarded_for: true` and `trusted_proxies: [127.0.0.1]` for Caddy reverse proxy
 - HA onboarding is interactive — not fully declarative
 
+**Companion services (Stage 8b):** Deploy Mosquitto (MQTT), the Wyoming voice pipeline (Whisper STT, Piper TTS, OpenWakeWord), ESPHome, and Matter Server alongside HA. HACS is auto-installed via a systemd oneshot. All companion services connect to HA over `localhost` since HA uses `--network=host`. See dedicated sections below for each service.
+
 ```nix
 # OCI container approach (recommended)
 virtualisation.oci-containers.containers.homeassistant = {
@@ -362,6 +364,199 @@ services.uptime-kuma = {
 };
 ```
 
+## Mosquitto — native module, mature and fully declarative
+
+**Module status:** ✅ `services.mosquitto` EXISTS. Options: `enable`, `listeners`, `persistence`, `settings`, `bridges`.
+
+**Package:** `pkgs.mosquitto`
+
+**Ports:** 1883/tcp (MQTT)
+
+**Secrets:** Hashed passwords stored inline (generated with `mosquitto_passwd`, not a secret file)
+
+**Isolation:** Native NixOS module
+
+**Known gotchas:**
+- Module sets `per_listener_settings true` globally — users and ACLs must be defined per listener, not globally
+- Password hashes go directly in the Nix config (pre-hashed), not via sops; generate with: `nix shell nixpkgs#mosquitto --command mosquitto_passwd -c /tmp/passwd homeassistant`
+- Container alternative: `eclipse-mosquitto:2.0.22` — ⚠️ VERIFY tag on Docker Hub
+
+```nix
+services.mosquitto = {
+  enable = true;
+  listeners = [{
+    port = 1883;
+    users = {
+      homeassistant = {
+        acl = [ "readwrite #" ];
+        hashedPassword = "$7$101$XXXX$XXXX";  # Generate with mosquitto_passwd
+      };
+      iot = {
+        acl = [
+          "read homeassistant/command/#"
+          "write sensors/#"
+        ];
+        hashedPassword = "$7$101$YYYY$YYYY";
+      };
+    };
+  }];
+};
+
+networking.firewall.allowedTCPPorts = [ 1883 ];
+```
+
+## Wyoming Faster-Whisper — native module, apply ProcSubset fix
+
+**Module status:** ✅ `services.wyoming.faster-whisper` EXISTS. Multi-instance pattern: `servers.<name>`.
+
+**Package:** `pkgs.wyoming-faster-whisper`
+
+**Ports:** 10300/tcp (Wyoming protocol, configurable per instance)
+
+**Secrets:** None
+
+**Isolation:** Native NixOS module
+
+**Recommended model:** `small-int8` — best latency/accuracy balance for AMD Ryzen + 16 GB RAM (~500–600 MB RAM, 2–4 s per utterance)
+
+**Known gotchas:**
+- ⚠️ **ProcSubset performance bug (nixpkgs PR #372898):** systemd hardening sets `ProcSubset=pid`, blocking faster-whisper from reading `/proc/cpuinfo`. CTranslate2 falls back to a slow code path — a 3-second audio clip takes ~20 s instead of ~3 s. **Always apply the workaround:**
+  ```nix
+  systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
+  ```
+- `device = "cuda"` will fail — nixpkgs CTranslate2 is not compiled with CUDA. Use `device = "cpu"`.
+- Container alternative: `rhasspy/wyoming-whisper:3.1.0` — ⚠️ VERIFY tag
+
+```nix
+services.wyoming.faster-whisper.servers."main" = {
+  enable = true;
+  uri = "tcp://0.0.0.0:10300";
+  model = "small-int8";
+  language = "en";
+  device = "cpu";
+};
+
+# CRITICAL: fix ProcSubset performance bug (see NIX-PATTERNS.md Pattern 10)
+systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
+```
+
+## Wyoming Piper — native module, no known bugs
+
+**Module status:** ✅ `services.wyoming.piper` EXISTS. Multi-instance pattern: `servers.<name>`.
+
+**Package:** `pkgs.wyoming-piper`
+
+**Ports:** 10200/tcp
+
+**Secrets:** None
+
+**Isolation:** Native NixOS module
+
+**Recommended voice:** `en_US-lessac-medium` (~65 MB, clear female voice). Models auto-download from HuggingFace on first use.
+
+**Known gotchas:**
+- Container alternative: `rhasspy/wyoming-piper:2.2.2`
+
+```nix
+services.wyoming.piper.servers."main" = {
+  enable = true;
+  uri = "tcp://0.0.0.0:10200";
+  voice = "en_US-lessac-medium";
+};
+```
+
+## Wyoming OpenWakeWord — native module, single-instance
+
+**Module status:** ✅ `services.wyoming.openwakeword` EXISTS. Single instance (no `servers.<name>` pattern).
+
+**Package:** `pkgs.wyoming-openwakeword`
+
+**Ports:** 10400/tcp
+
+**Secrets:** None
+
+**Isolation:** Native NixOS module
+
+**Built-in wake words:** `okay_nabu`, `hey_jarvis`, `alexa`, `hey_mycroft`, `hey_rhasspy`. Custom `.tflite` models via `customModelsDirectories`.
+
+**Known gotchas:**
+- ⚠️ OpenWakeWord v2.0.0 (Oct 2025) **renamed `ok_nabu` to `okay_nabu`** and removed `--preload-model` flag. Use correct model name for your nixpkgs channel's package version.
+- Container alternative: `rhasspy/wyoming-openwakeword:2.1.0`
+
+```nix
+services.wyoming.openwakeword = {
+  enable = true;
+  uri = "tcp://0.0.0.0:10400";
+  preloadModels = [ "okay_nabu" ];  # ⚠️ VERIFY: "ok_nabu" on older package versions
+};
+```
+
+## ESPHome — container required, native module has multiple bugs
+
+**Module status:** ✅ `services.esphome` EXISTS but has three unresolved packaging bugs.
+
+**Package:** `pkgs.esphome`
+
+**Ports:** 6052/tcp (dashboard)
+
+**Isolation:** Podman OCI container (recommended)
+
+**Known gotchas:**
+- **DynamicUser path bug (nixpkgs #339557):** State directory at `/var/lib/private/esphome` breaks PlatformIO compilation
+- **Missing pyserial (nixpkgs #370611):** `esptool` cannot find pyserial; `firmware.factory.bin` not created, blocks ESP32 compilation
+- **Missing font component (nixpkgs #272334):** Pillow version mismatches break the `font:` component
+- Use `--network=host` for mDNS device discovery; or set `usePing = true` for static-IP devices (bypasses mDNS)
+- HA integration: Settings → Devices & Services → ESPHome → enter host IP and port 6052
+
+```nix
+virtualisation.oci-containers.containers.esphome = {
+  image = "ghcr.io/esphome/esphome:2026.3.1";  # ⚠️ VERIFY tag
+  extraOptions = [ "--network=host" ];
+  environment.TZ = vars.timeZone;
+  volumes = [
+    "/var/lib/esphome:/config"
+    "/etc/localtime:/etc/localtime:ro"
+  ];
+  # For USB flashing, add: "--device=/dev/ttyUSB0:/dev/ttyUSB0"
+};
+```
+
+## Matter Server — container required, CHIP SDK build issues
+
+**Module status:** ✅ `services.matter-server` EXISTS but CHIP SDK build is intractable natively.
+
+**Package:** `pkgs.python-matter-server`
+
+**Ports:** 5580/tcp (WebSocket API)
+
+**Isolation:** Podman OCI container (recommended)
+
+**Known gotchas:**
+- **CHIP SDK (home-assistant-chip-core):** Requires architecture-specific binary wheels with non-standard build system (CIPD + GN) — building natively on NixOS is extremely difficult (nixpkgs #255774)
+- **Host networking is mandatory** — Matter uses IPv6 link-local multicast. Bridge networking breaks device discovery.
+- **D-Bus access required** for Bluetooth commissioning: mount `/run/dbus:/run/dbus:ro`
+- **IPv6 forwarding must be disabled:** `boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0` — if enabled, Matter devices experience up to 30-minute reachability outages
+- **Project in transition:** python-matter-server is in maintenance mode; rewrite to `matter.js` in progress. Current Python version (8.x) remains stable and API-compatible.
+- HA integration: Settings → Devices & Services → Matter → `ws://127.0.0.1:5580/ws`
+
+```nix
+virtualisation.oci-containers.containers.matter-server = {
+  image = "ghcr.io/home-assistant-libs/python-matter-server:stable";  # or pin "8.1.2"
+  extraOptions = [
+    "--network=host"
+    "--security-opt=label=disable"  # Required for Bluetooth/D-Bus access
+  ];
+  volumes = [
+    "/var/lib/matter-server:/data"
+    "/run/dbus:/run/dbus:ro"
+  ];
+};
+
+# Required host config for Matter
+networking.enableIPv6 = true;
+boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0;
+```
+
 ## Verified flake input URLs
 
 | Input | URL | Status |
@@ -387,5 +582,11 @@ services.uptime-kuma = {
 | Home Assistant | ✅ `services.home-assistant` | ✅ `home-assistant` | Podman recommended |
 | Uptime Kuma | ✅ `services.uptime-kuma` | ✅ `uptime-kuma` | Native |
 | Authelia | ✅ `services.authelia` | ✅ `authelia` | Native (future) |
+| Mosquitto | ✅ `services.mosquitto` | ✅ `mosquitto` | Native |
+| Wyoming Whisper | ✅ `services.wyoming.faster-whisper` | ✅ `wyoming-faster-whisper` | Native + ProcSubset fix |
+| Wyoming Piper | ✅ `services.wyoming.piper` | ✅ `wyoming-piper` | Native |
+| Wyoming OpenWakeWord | ✅ `services.wyoming.openwakeword` | ✅ `wyoming-openwakeword` | Native |
+| ESPHome | ✅ `services.esphome` (buggy) | ✅ `esphome` | Podman (3 native bugs) |
+| Matter Server | ✅ `services.matter-server` (broken deps) | ✅ `python-matter-server` | Podman (CHIP SDK) |
 
 ---
