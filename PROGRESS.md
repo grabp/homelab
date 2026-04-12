@@ -57,7 +57,8 @@
 ## Stage 3: DNS (Pi-hole) — NOT STARTED
 ## Stage 4: Reverse Proxy (Caddy) — NOT STARTED
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
-## Stage 6: VPN (NetBird) — NOT STARTED
+## Stage 6a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
+## Stage 6b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
 ## Stage 7: Homepage Dashboard — NOT STARTED
 ## Stage 8a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
 ## Stage 8b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
@@ -102,3 +103,49 @@ Researched all six HA companion services. Findings incorporated into all archite
 - HACS → systemd oneshot (Approach A for simplicity)
 - Voice services grouped in single `homelab/wyoming/` module
 - ProcSubset fix is mandatory for faster-whisper
+
+---
+
+### NetBird Self-Hosted VPN Research — incorporated 2026-04-12
+
+Researched self-hosting NetBird behind CGNAT. Findings incorporated into all architecture docs. **Scope change: flake now manages two machines** (pebble homelab + Hetzner VPS).
+
+**docs/NETBIRD-SELFHOSTED.md** — primary research document (new)
+
+**docs/ARCHITECTURE.md** additions:
+- Split NetBird row in isolation table: client (native, pebble) vs server (Docker Compose, VPS)
+- Updated network topology diagram to show VPS, CGNAT boundary, relay/P2P paths
+- New section: "VPS control plane" — CGNAT implications, Hetzner CX22 recommendation, VPS ports, DNS records, split DNS via match-domain, `DNSStubListener=no` coexistence solution, security model
+
+**docs/STRUCTURE.md** changes:
+- `machines/nixos/vps/` added alongside `pebble/` (default.nix, disko.nix, netbird-server.nix)
+- `secrets/vps.yaml` added for VPS secrets
+- `.sops.yaml` note: must contain age keys for all three identities (admin, pebble, VPS)
+- flake.nix and flakeHelpers.nix descriptions updated for two-machine setup
+
+**docs/STAGES.md** changes:
+- Stage 6 split into Stage 6a (VPS provisioning + NetBird server) and Stage 6b (homelab client + routes + DNS + ACLs)
+- Stage 9 updated with VPS hardening and NetBird ACL policy requirements
+
+**docs/NIX-PATTERNS.md** additions:
+- Pattern 12: Multi-machine flake with deploy-rs (pebble + VPS)
+- Pattern 13: nixos-anywhere VPS provisioning + minimal ext4 disko
+- Pattern 14: NetBird client with sops-nix setup key + self-hosted management URL
+- Pattern 15: systemd-resolved with DNSStubListener=no (NetBird + Pi-hole coexistence)
+
+**docs/SERVICE-CONFIGS.md** changes:
+- NetBird entry completely rewritten: server (VPS, Docker Compose primary / NixOS module experimental) + client (homelab, native)
+- All VPS ports, DNS records, management URL requirement, embedded Dex IdP documented
+
+**justfile** additions:
+- `provision-vps IP` — nixos-anywhere initial provisioning
+- `deploy-vps` — deploy-rs to VPS
+- `ssh-vps` — SSH to VPS
+- `netbird-status` — run `netbird-wt0 status -d` on homelab
+
+**Key decisions recorded:**
+- VPS: Hetzner CX22 at €3.79/month
+- VPS deployment: Docker Compose initially (lower risk), migrate to NixOS in Stage 9
+- DNSStubListener=no is the correct Pi-hole + NetBird coexistence solution
+- Route advertisement (192.168.10.0/24) configured in NetBird Dashboard, not NixOS
+- Stage 6 prerequisite: VPS must be running before homelab client can connect

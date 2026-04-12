@@ -66,37 +66,139 @@ services.caddy = {
 };
 ```
 
-## NetBird — native module with comprehensive options
+## NetBird — self-hosted control plane (VPS) + client (homelab)
 
-**Module status:** ✅ `services.netbird` EXISTS. Client: `services.netbird.clients.<name>`. Server: `services.netbird.server` (~90 options across 22 option sets).
+This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The homelab (pebble) runs the NetBird client and acts as a routing peer advertising `192.168.10.0/24`. Full research: `docs/NETBIRD-SELFHOSTED.md`.
+
+---
+
+### NetBird server — VPS (`machines/nixos/vps/netbird-server.nix`)
+
+**Module status:** ✅ `services.netbird.server` EXISTS (~41 options). ⚠️ **Documentation is sparse** — treat all options as requiring verification. Docker Compose is the lower-risk initial deployment path.
+
+**Package:** `pkgs.netbird` (server components)
+
+**VPS ports:** 80/tcp (ACME), 443/tcp (management + signal + relay WebSocket), 3478/udp (STUN/TURN), 49152–65535/udp (TURN relay range)
+
+**Secrets:** `netbird-turn-password`, `netbird-encryption-key`, `netbird-relay-secret` in `secrets/vps.yaml`
+
+**DNS record:** A record `netbird.grab-lab.gg → <VPS_PUBLIC_IP>` — set to **DNS only** in Cloudflare (gray cloud). Cloudflare proxying breaks gRPC.
+
+**Identity provider:** Embedded Dex IdP (built into `netbird-server` since v0.62.0) — no external IdP needed. Setup wizard at `/setup` on first deploy.
+
+**RAM:** ~300–500 MB idle (4 containers: netbird-server, dashboard, coturn, reverse proxy)
+
+**Deployment option A — Docker Compose (recommended to start):**
+
+```bash
+export NETBIRD_DOMAIN=netbird.grab-lab.gg
+curl -fsSL https://github.com/netbirdio/netbird/releases/latest/download/getting-started.sh | bash
+```
+
+Generates `docker-compose.yml`, `config.yaml`, `turnserver.conf` automatically with embedded Dex IdP. Commit generated files to git. Migrate to NixOS module in Stage 9 hardening.
+
+**Deployment option B — NixOS module (⚠️ verify options):**
+
+```nix
+# machines/nixos/vps/netbird-server.nix
+{ config, vars, ... }:
+let netbirdDomain = "netbird.${vars.domain}"; in
+{
+  sops.secrets = {
+    netbird-turn-password  = { sopsFile = ../../../secrets/vps.yaml; };
+    netbird-encryption-key = { sopsFile = ../../../secrets/vps.yaml; };
+    netbird-relay-secret   = { sopsFile = ../../../secrets/vps.yaml; };
+  };
+
+  services.netbird.server = {
+    enable  = true;
+    domain  = netbirdDomain;
+    coturn  = { enable = true; passwordFile = config.sops.secrets.netbird-turn-password.path; };
+    signal.enable    = true;
+    dashboard.enable = true;
+    management = {
+      enable                    = true;
+      domain                    = netbirdDomain;
+      turnDomain                = netbirdDomain;
+      singleAccountModeDomain   = netbirdDomain;
+      # ⚠️ VERIFY: oidcConfigEndpoint needed? Or handled by embedded Dex automatically?
+      settings = {
+        DataStoreEncryptionKey._secret =
+          config.sops.secrets.netbird-encryption-key.path;
+        TURNConfig.Secret._secret =
+          config.sops.secrets.netbird-turn-password.path;
+        Relay = {
+          Addresses  = [ "rels://${netbirdDomain}:443" ];
+          Secret._secret = config.sops.secrets.netbird-relay-secret.path;
+        };
+      };
+    };
+  };
+
+  security.acme = { acceptTerms = true; defaults.email = vars.adminEmail; };
+  networking.firewall = {
+    allowedTCPPorts = [ 80 443 ];
+    allowedUDPPorts = [ 3478 ];
+    allowedUDPPortRanges = [{ from = 49152; to = 65535; }];
+  };
+}
+```
+
+---
+
+### NetBird client — homelab pebble (`homelab/netbird/default.nix`)
+
+**Module status:** ✅ `services.netbird.clients.<name>` EXISTS. Module reworked in nixpkgs PR #354032.
 
 **Package:** `pkgs.netbird`
 
-**Ports:** 51821/udp (WireGuard, configurable), outbound HTTPS (443) to control plane, STUN 3478/udp
+**Ports:** 51820/udp outbound to VPS (WireGuard); no inbound ports needed (CGNAT)
 
-**Secrets:** Setup key via `setupKeyFile`
-
-**Isolation:** Native NixOS module
+**Secrets:** `netbird-setup-key` in `secrets/secrets.yaml`
 
 **Known gotchas:**
-- **Requires `services.resolved.enable = true`** for DNS to work — conflicts with Pi-hole which needs `resolved` disabled. Resolution: bind Pi-hole to the host's LAN IP only (`192.168.10.X:53`), let `systemd-resolved` handle the loopback (`127.0.0.53:53`), and configure resolved to forward to Pi-hole.
-- ⚠ **VERIFY:** The coexistence of `systemd-resolved` + Pi-hole + NetBird on the same host requires careful DNS binding configuration. Test this thoroughly.
-- Module changed from `services.netbird.enable` to `services.netbird.clients.<name>` pattern
-- `useRoutingFeatures = "both"` required for advertising LAN routes to VPN peers
-- Configure Pi-hole as DNS nameserver in NetBird dashboard for VPN clients
+- **`DNSStubListener=no` is required** for Pi-hole + NetBird coexistence. See Pattern 15 in `docs/NIX-PATTERNS.md`. Pi-hole holds port 53; resolved runs as routing daemon only for NetBird's `resolvectl` calls.
+- ⚠️ **Management URL:** `login.managementUrl` option may exist — ⚠️ VERIFY. If not, run once manually after first deploy: `netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird-setup-key)`
+- **Route advertisement** (192.168.10.0/24) is configured in the NetBird Dashboard, not in NixOS. `useRoutingFeatures = "both"` enables the kernel IP forwarding prerequisite only.
+- **CGNAT:** expect relay connections (~7 Mbps / ~85ms). `netbird status -d` showing `ICE candidate: relay` is normal, not a failure.
+- **Stale relay bug (GitHub #3936):** connection shows "Connected" but traffic stops. Fix: `netbird-wt0 down && netbird-wt0 up`.
 
 ```nix
-services.netbird.clients.wt0 = {
-  port = 51821;
-  login = {
-    enable = true;
-    setupKeyFile = config.sops.secrets."netbird/setup-key".path;
+{ config, lib, vars, ... }:
+{
+  sops.secrets.netbird-setup-key = {};
+
+  services.resolved = {
+    enable      = true;
+    extraConfig = "DNSStubListener=no";  # Free port 53 for Pi-hole (Pattern 15)
   };
-  ui.enable = false;
-  openFirewall = true;
-};
-services.netbird.useRoutingFeatures = "both";
+
+  services.netbird.clients.wt0 = {
+    port                 = 51820;
+    openFirewall         = true;
+    openInternalFirewall = true;   # ⚠️ VERIFY option exists
+    ui.enable            = false;
+    login = {
+      enable       = true;
+      setupKeyFile = config.sops.secrets.netbird-setup-key.path;
+      # managementUrl = "https://netbird.${vars.domain}";  # ⚠️ VERIFY
+    };
+  };
+
+  services.netbird.useRoutingFeatures = "both";
+
+  # Forward traffic between VPN interface and LAN
+  networking.firewall.extraCommands = ''
+    iptables -A FORWARD -i wt0 -j ACCEPT
+    iptables -A FORWARD -o wt0 -j ACCEPT
+  '';
+}
 ```
+
+**DNS configuration (NetBird Dashboard — done once after Stage 6b deploy):**
+1. Dashboard → DNS → Nameservers → Add: IP = Pi-hole overlay IP, Match domain = `grab-lab.gg`
+2. Add fallback: `1.1.1.1` / `8.8.8.8`, no match domain
+3. Dashboard → Network Routes → Add: `192.168.10.0/24`, routing peer = pebble, masquerade enabled
 
 ## Homepage Dashboard — native module with structured config
 
@@ -574,7 +676,8 @@ boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0;
 |---------|---------------------|---------|----------|
 | Pi-hole | ❌ Does not exist | ❌ Not packaged | Podman OCI |
 | Caddy | ✅ `services.caddy` | ✅ `caddy` | Native + `withPlugins` |
-| NetBird | ✅ `services.netbird` | ✅ `netbird` | Native |
+| NetBird client (pebble) | ✅ `services.netbird.clients.wt0` | ✅ `netbird` | Native |
+| NetBird server (VPS) | ✅ `services.netbird.server` (⚠️ sparse docs) | ✅ `netbird` | Docker Compose initially |
 | Homepage | ✅ `services.homepage-dashboard` | ✅ `homepage-dashboard` | Native |
 | Prometheus | ✅ `services.prometheus` | ✅ `prometheus` | Native |
 | Grafana | ✅ `services.grafana` | ✅ `grafana` | Native |

@@ -1,10 +1,11 @@
 # AGENTS.md
 
 ## Project
-NixOS bare-metal homelab. Single flake managing all services. Target: nixos-25.11.
+NixOS homelab. One flake managing **two machines**: homelab server + VPS control plane. Target: nixos-25.11.
 
 **Machines:**
-- `pebble` — HP ProDesk (homelab server, deployed)
+- `pebble` — HP ProDesk (homelab server, deployed, behind CGNAT)
+- `vps` — Hetzner CX22 (NetBird control plane, public IP, Stage 6a)
 - `boulder` — HP EliteDesk (future, different purposes)
 
 ## Current State
@@ -28,6 +29,11 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 ## Commands
 - `just build` — build without switching
 - `just switch` — build and switch locally
-- `just deploy pebble` — remote deploy via deploy-rs
+- `just deploy pebble` — remote deploy pebble via deploy-rs
+- `just deploy-vps` — remote deploy VPS via deploy-rs
+- `just provision-vps IP` — initial VPS provisioning via nixos-anywhere
+- `just ssh-vps` — SSH to VPS
+- `just netbird-status` — show NetBird connection status on pebble
 - `just check` — flake check
-- `just edit-secrets` — edit sops secrets
+- `just edit-secrets` — edit homelab secrets (secrets/secrets.yaml)
+- `just edit-secrets-vps` — edit VPS secrets (secrets/vps.yaml)

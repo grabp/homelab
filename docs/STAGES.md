@@ -86,21 +86,49 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Medium. Multiple services to configure. Grafana provisioning requires correct datasource YAML structure.
 
-## Stage 6: VPN — NetBird
+## Stage 6a: VPN — VPS provisioning + NetBird control plane
 
-**What gets built:** NetBird client connected to SaaS control plane (or self-hosted), routing peer advertising `192.168.10.0/24`, Pi-hole as VPN DNS server, `systemd-resolved` enabled for NetBird DNS.
+**What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running (either `services.netbird.server` NixOS module or Docker Compose via the official quickstart script), TLS via ACME/Let's Encrypt, NetBird dashboard accessible at `https://netbird.grab-lab.gg`. Setup keys and VPS secrets stored in `secrets/vps.yaml`.
 
-**Key files:** `homelab/netbird/default.nix`, NetBird setup key in secrets
+**Key files:** `machines/nixos/vps/{default,disko,netbird-server}.nix`, `secrets/vps.yaml`, `.sops.yaml` updated with VPS age key
 
-**Dependencies:** Stage 3 (Pi-hole for VPN DNS). NetBird account (app.netbird.io or self-hosted). Setup key generated in NetBird dashboard.
+**Dependencies:** Stage 2 (sops-nix for secrets). Hetzner account. DNS A record `netbird.grab-lab.gg → <VPS_IP>` created (DNS only in Cloudflare — **not** proxied, gRPC requires direct TCP). VPS SSH host key extracted via `ssh-keyscan | ssh-to-age` to get the VPS age key.
+
+**Deployment options (choose one):**
+- **NixOS path (preferred):** `just provision-vps <VPS_IP>` — runs `nixos-anywhere --flake .#vps root@<VPS_IP>`
+- **Docker path (lower risk initially):** SSH into a plain Ubuntu VPS, run `curl -fsSL https://github.com/netbirdio/netbird/releases/latest/download/getting-started.sh | bash` with `NETBIRD_DOMAIN=netbird.grab-lab.gg`
 
 **Verification steps:**
-- `netbird-wt0 status` shows connected
-- From external device on NetBird: `ping 192.168.10.X` works
-- From external device: `https://grafana.grab-lab.gg` loads (routed through VPN → Pi-hole → Caddy)
-- NetBird dashboard shows server as routing peer
+- `https://netbird.grab-lab.gg` loads the NetBird dashboard; TLS certificate valid
+- Setup wizard completes: admin account created
+- Setup key created in Dashboard → Setup Keys (reusable key, "homelab-servers" group)
+- Key encrypted into `secrets/vps.yaml` with `just edit-secrets` (or `sops secrets/vps.yaml`)
 
-**Estimated complexity:** Medium. NetBird's NixOS module requires `systemd-resolved`, which may conflict with Pi-hole DNS on port 53. Careful binding configuration needed.
+**Estimated complexity:** Medium. NixOS path requires `nixos-anywhere` and computing the VPS age key. Docker path is faster but leaves the VPS unmanaged by Nix. The `services.netbird.server` NixOS module has sparse documentation — treat all options as ⚠️ VERIFY.
+
+## Stage 6b: VPN — Homelab NetBird client + routes + DNS + ACLs
+
+**What gets built:** NetBird client on pebble (`services.netbird.clients.wt0`), `systemd-resolved` with `DNSStubListener=no` for Pi-hole coexistence, route advertisement for `192.168.10.0/24` configured in the NetBird dashboard, match-domain nameserver pointing VPN clients to Pi-hole for `grab-lab.gg`, ACL policies hardened.
+
+**Key files:** `homelab/netbird/default.nix`, `secrets/secrets.yaml` updated with NetBird setup key
+
+**Dependencies:** Stage 6a (control plane running, setup key exists). Stage 3 (Pi-hole for VPN DNS). Route advertisement requires IP forwarding (`services.netbird.useRoutingFeatures = "both"`).
+
+**⚠️ Management URL:** The NixOS module may not support setting the management URL declaratively. After first deploy, run once:
+```
+netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird-setup-key)
+```
+
+**Verification steps (CGNAT-aware):**
+- `netbird-wt0 status -d` shows connected; check `ICE candidate` field — expect `relay` behind CGNAT
+- `systemctl status systemd-resolved` shows running; `port 53` is held by Pi-hole, not resolved stub
+- Dashboard → Network Routes shows `192.168.10.0/24` active with pebble as routing peer
+- Dashboard → DNS shows `grab-lab.gg` match-domain pointing to Pi-hole overlay IP
+- From phone on mobile data (not LAN): install NetBird app, authenticate, reach `https://grafana.grab-lab.gg`
+- `dig @<pihole-overlay-ip> grafana.grab-lab.gg` returns `192.168.10.X`
+- If connection appears "Connected" but traffic stops: `netbird-wt0 down && netbird-wt0 up` (stale relay workaround)
+
+**Estimated complexity:** Medium-high. The `DNSStubListener=no` coexistence requires care. Management URL may need a one-time manual step. CGNAT means relay is expected — don't troubleshoot P2P as a failure.
 
 ## Stage 7: Homepage dashboard
 
@@ -155,7 +183,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 ## Stage 9: Hardening, backups, deploy-rs, and Justfile
 
-**What gets built:** Sanoid snapshots, syncoid replication to NAS, restic backups, deploy-rs remote deployment, Justfile with all operations, firewall hardened to minimum open ports, fail2ban.
+**What gets built:** Sanoid snapshots, syncoid replication to NAS, restic backups, deploy-rs remote deployment for both pebble and vps, Justfile with all operations, firewall hardened to minimum open ports on both machines, fail2ban, NetBird ACL policies hardened, VPS SSH restricted to admin IP.
 
 **Key files:** `homelab/backup/default.nix`, `justfile`, deploy-rs config in `flake.nix`
 
@@ -164,11 +192,15 @@ Each stage is independently deployable and testable. Complete each stage before 
 **Verification steps:**
 - `zfs list -t snapshot` shows automatic snapshots
 - `just deploy pebble` deploys successfully from dev machine
+- `just deploy-vps` deploys to VPS successfully
 - `just build` builds without switching
 - Restic backup completes: `restic -r /mnt/nas/backup/restic/homelab snapshots`
 - Test restore: `restic restore latest --target /tmp/test-restore`
-- `sudo nmap -sT 192.168.10.X` shows only ports 22, 53, 80, 443 open
+- `sudo nmap -sT 192.168.10.X` shows only ports 22, 53, 80, 443 open on pebble
+- NetBird Dashboard: default "All → All" ACL policy deleted; group-scoped policies in place
+- VPS: SSH access restricted to admin IP in `networking.firewall`; fail2ban active
+- NetBird setup keys: reusable server key in use; personal device keys are one-off with expiration
 
-**Estimated complexity:** Medium. NAS connectivity and ZFS send/receive setup require testing.
+**Estimated complexity:** Medium. NAS connectivity and ZFS send/receive setup require testing. VPS hardening is mostly firewall rules and ACL configuration.
 
 ---

@@ -1,0 +1,4 @@
+*.age          # private age keys
+.sops.yaml.bak
+result         # nix build output
+.direnv/

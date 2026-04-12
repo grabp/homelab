@@ -618,3 +618,244 @@ in {
 **Source:** HACS GitHub repo + sops-nix README pattern for systemd oneshot services ✅. Approach B uses standard `pkgs.fetchurl` + `pkgs.runCommand` Nix derivation patterns ✅.
 
 ---
+
+## Pattern 12: Multi-machine flake with deploy-rs (homelab + VPS)
+
+Extend the existing `mkNixos`/`mkMerge` helpers (Pattern 2) to manage both `pebble` (homelab) and `vps` (NetBird control plane). Each call to `mkNixos` produces one `nixosConfigurations` entry and one `deploy.nodes` entry; `mkMerge` combines them.
+
+```nix
+# flake.nix
+{
+  description = "Homelab NixOS configuration — pebble (homelab) + vps (NetBird)";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    deploy-rs = { url = "github:serokell/deploy-rs"; inputs.nixpkgs.follows = "nixpkgs"; };
+    disko    = { url = "github:nix-community/disko/latest"; inputs.nixpkgs.follows = "nixpkgs"; };
+    sops-nix = { url = "github:Mic92/sops-nix"; inputs.nixpkgs.follows = "nixpkgs"; };
+  };
+
+  outputs = { self, nixpkgs, deploy-rs, disko, sops-nix, ... }@inputs:
+    let
+      helpers = import ./flakeHelpers.nix inputs;
+      inherit (helpers) mkMerge mkNixos;
+    in
+    mkMerge [
+      # Homelab: ZFS, all services, sops
+      (mkNixos "pebble" inputs.nixpkgs [
+        disko.nixosModules.disko
+        sops-nix.nixosModules.sops
+        ./homelab
+        ./modules/networking
+      ])
+
+      # VPS: minimal, NetBird control plane, sops
+      (mkNixos "vps" inputs.nixpkgs [
+        disko.nixosModules.disko
+        sops-nix.nixosModules.sops
+        # No ./homelab — VPS runs only NetBird server, no homelab services
+      ])
+
+      {
+        checks = builtins.mapAttrs
+          (system: deployLib: deployLib.deployChecks self.deploy)
+          deploy-rs.lib;
+      }
+    ];
+}
+```
+
+The `mkNixos` helper in `flakeHelpers.nix` must be updated so the VPS deploy node uses the correct `sshUser` and `hostname`:
+
+```nix
+# flakeHelpers.nix — relevant section for vps node
+mkNixos = hostname: nixpkgsVersion: extraModules: {
+  deploy.nodes.${hostname} = {
+    hostname = if hostname == "vps" then "netbird.grab-lab.gg" else hostname;
+    profiles.system = {
+      user    = "root";
+      sshUser = "admin";
+      path    = inputs.deploy-rs.lib.x86_64-linux.activate.nixos
+        (nixpkgsVersion.lib.nixosSystem { ... });
+    };
+  };
+  # ...
+};
+```
+
+**Source:** Extends Pattern 2. `mkMerge` via `lib.attrsets.recursiveUpdate` + `foldl'` correctly merges attrsets from both machine calls ✅.
+
+---
+
+## Pattern 13: nixos-anywhere VPS provisioning with minimal ext4 disko
+
+`nixos-anywhere` kexec-boots into a NixOS installer in RAM, partitions via disko, and installs your flake — all from one SSH command. Requires ≥1 GB RAM on the target. Works on Hetzner, DigitalOcean, Vultr, and any VPS offering root SSH access.
+
+```bash
+# Initial provisioning (run from dev machine after creating VPS)
+nix run github:nix-community/nixos-anywhere -- --flake .#vps root@<VPS_IP>
+
+# Subsequent updates via deploy-rs
+nix run github:serokell/deploy-rs -- -s .#vps
+# or via justfile:
+# just deploy-vps
+```
+
+```nix
+# machines/nixos/vps/disko.nix — simple ext4, no ZFS needed on VPS
+{
+  disko.devices.disk.main = {
+    device = "/dev/sda";  # ⚠️ VERIFY: Hetzner CX22 uses /dev/sda; check with lsblk
+    type = "disk";
+    content = {
+      type = "gpt";
+      partitions = {
+        ESP = {
+          type = "EF00";
+          size = "512M";
+          content = { type = "filesystem"; format = "vfat"; mountpoint = "/boot"; };
+        };
+        root = {
+          size = "100%";
+          content = { type = "filesystem"; format = "ext4"; mountpoint = "/"; };
+        };
+      };
+    };
+  };
+}
+```
+
+```nix
+# machines/nixos/vps/default.nix — minimal VPS base config
+{ vars, ... }: {
+  imports = [ ./disko.nix ./netbird-server.nix ];
+
+  networking.hostName = "vps";
+
+  # UEFI via systemd-boot
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # sops: VPS decrypts with its own SSH host key
+  sops = {
+    defaultSopsFile = ../../../secrets/vps.yaml;
+    defaultSopsFormat = "yaml";
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+  };
+
+  # Firewall: NetBird control plane ports + restricted SSH
+  networking.firewall = {
+    allowedTCPPorts = [ 80 443 ];
+    allowedUDPPorts = [ 3478 ];
+    allowedUDPPortRanges = [{ from = 49152; to = 65535; }];
+  };
+
+  # ACME/Let's Encrypt for netbird.grab-lab.gg
+  security.acme = {
+    acceptTerms = true;
+    defaults.email = vars.adminEmail;
+  };
+
+  system.stateVersion = "25.11";
+}
+```
+
+**Source:** nixos-anywhere README (github:nix-community/nixos-anywhere) ✅. disko ext4 from Pattern 4 ✅. `allowedUDPPortRanges` verified in NixOS options ✅.
+
+---
+
+## Pattern 14: NetBird client with sops-nix setup key and self-hosted management URL
+
+The NixOS `services.netbird.clients.<name>` module (PR #354032) creates a per-client systemd service. The management URL for a self-hosted control plane must be set — the module provides `login.managementUrl` but **⚠️ VERIFY** whether it persists the URL correctly across restarts in your nixpkgs version. The manual fallback is documented below.
+
+```nix
+# homelab/netbird/default.nix
+{ config, lib, vars, ... }:
+
+let
+  cfg = config.my.services.netbird;
+in {
+  options.my.services.netbird.enable = lib.mkEnableOption "NetBird VPN client";
+
+  config = lib.mkIf cfg.enable {
+    sops.secrets.netbird-setup-key = {
+      sopsFile = ../../secrets/secrets.yaml;
+      # No owner needed — service reads directly
+    };
+
+    # systemd-resolved must run for NetBird DNS, but with stub disabled for Pi-hole
+    # (see Pattern 15)
+    services.resolved = {
+      enable = true;
+      extraConfig = "DNSStubListener=no";
+    };
+
+    services.netbird.clients.wt0 = {
+      port        = 51820;
+      openFirewall         = true;
+      openInternalFirewall = true;
+      ui.enable   = false;
+
+      login = {
+        enable       = true;
+        setupKeyFile = config.sops.secrets.netbird-setup-key.path;
+        # ⚠️ VERIFY: managementUrl option may exist; if not, run manual step below
+        # managementUrl = "https://netbird.${vars.domain}";
+      };
+    };
+
+    # Enable IP forwarding — prerequisite for route advertisement
+    services.netbird.useRoutingFeatures = "both";
+
+    # Forward VPN traffic to LAN
+    networking.firewall.extraCommands = ''
+      iptables -A FORWARD -i wt0 -j ACCEPT
+      iptables -A FORWARD -o wt0 -j ACCEPT
+    '';
+  };
+}
+```
+
+**One-time management URL setup** (if `managementUrl` option is not available):
+```bash
+netbird-wt0 up \
+  --management-url https://netbird.grab-lab.gg \
+  --setup-key $(cat /run/secrets/netbird-setup-key)
+```
+
+Route advertisement (192.168.10.0/24) and DNS nameserver groups are configured **in the NetBird Dashboard**, not in NixOS. See `docs/NETBIRD-SELFHOSTED.md` for the step-by-step dashboard configuration.
+
+**Source:** NixOS `services.netbird.clients` module options from nixpkgs PR #354032. `useRoutingFeatures` verified in nixpkgs option search ✅. `openInternalFirewall` ⚠️ VERIFY option name exists.
+
+---
+
+## Pattern 15: systemd-resolved with DNSStubListener=no (NetBird + Pi-hole coexistence)
+
+NetBird requires `systemd-resolved` for its DNS route management — it calls `resolvectl` to register match-domain nameservers (e.g., `grab-lab.gg → Pi-hole overlay IP`). Pi-hole needs port 53. Both can coexist by disabling only the stub listener, which frees port 53 while keeping the resolved daemon running.
+
+```nix
+# In the machine config or homelab/netbird/default.nix
+{
+  # Pi-hole handles all DNS on port 53.
+  # systemd-resolved runs as a routing daemon only — stub listener disabled.
+  services.resolved = {
+    enable = true;
+    extraConfig = ''
+      DNSStubListener=no
+    '';
+  };
+
+  # Pi-hole is still responsible for /etc/resolv.conf via networking.nameservers
+  # NixOS sets resolv.conf to Pi-hole's IP when DNSStubListener=no and
+  # networking.nameservers is set.
+  # networking.nameservers = [ "127.0.0.1" ];  # set in pebble/default.nix after Stage 3
+}
+```
+
+**How it works:** With `DNSStubListener=no`, resolved does not bind `127.0.0.53:53`. Pi-hole claims port 53 on the host IP. NetBird's `resolvectl dns wt0 <pi-hole-overlay-ip>` and `resolvectl domain wt0 ~grab-lab.gg` calls succeed because resolved is still running — it just isn't serving queries itself.
+
+**Alternative (unverified):** Set `NB_DNS_RESOLVER_ADDRESS` in the NetBird environment to move its internal resolver off port 53. Has had bugs in past versions (GitHub #2529) — the `DNSStubListener=no` approach is more reliable. ⚠️ VERIFY reliability in v0.68.x if you prefer this path.
+
+**Source:** `services.resolved.extraConfig` verified in NixOS options ✅. `DNSStubListener=no` is a standard systemd-resolved config option ✅. Community reports confirm coexistence works with this approach.
+
+---

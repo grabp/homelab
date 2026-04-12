@@ -21,6 +21,17 @@ deploy host="pebble":
 deploy-all:
     nix run github:serokell/deploy-rs -- -s .
 
+deploy-vps:
+    nix run github:serokell/deploy-rs -- -s .#vps
+
+# Initial VPS provisioning via nixos-anywhere (run once per VPS)
+# Usage: just provision-vps 1.2.3.4
+provision-vps ip:
+    nix run github:nix-community/nixos-anywhere -- --flake .#vps root@{{ip}}
+
+ssh-vps:
+    ssh admin@netbird.grab-lab.gg
+
 # ── Flake Management ──────────────────────────
 update:
     nix flake update
@@ -38,8 +49,16 @@ show:
 edit-secrets:
     sops secrets/secrets.yaml
 
+edit-secrets-vps:
+    sops secrets/vps.yaml
+
 rekey:
     find secrets -name '*.yaml' -exec sops updatekeys {} \;
+
+# ── NetBird ────────────────────────────────────
+# Show NetBird connection status and ICE candidate type on homelab
+netbird-status:
+    ssh admin@192.168.10.50 "netbird-wt0 status -d"
 
 # ── Maintenance ───────────────────────────────
 gc:

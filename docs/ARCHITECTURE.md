@@ -37,7 +37,8 @@ boot.kernelParams = [ "nohibernate" "zfs.zfs_arc_max=4294967296" ];
 | Loki | Native | Solid module, simple config |
 | Homepage | Native | Module exists with structured config |
 | Uptime Kuma | Native | Module exists, simple service |
-| NetBird | Native | Comprehensive module (client + server) |
+| NetBird client (pebble) | Native | `services.netbird.clients.wt0` — routing peer, connects to self-hosted control plane on VPS |
+| **NetBird server (VPS)** | **Docker Compose** | `services.netbird.server` NixOS module exists (⚠️ sparse docs) — Docker Compose is lower-risk for initial deployment |
 | **Pi-hole** | **Podman** | No NixOS module — must use OCI |
 | **Home Assistant** | **Podman** | Complex ecosystem, frequent updates, plugin dependencies, upstream unsupported on NixOS |
 | Mosquitto | Native | Mature module; `per_listener_settings true` behavior; latency-sensitive MQTT |
@@ -69,10 +70,19 @@ virtualisation.podman = {
 All services bind to `127.0.0.1:<port>`. Caddy listens on `0.0.0.0:80/443` and reverse-proxies by subdomain. This eliminates bridge networks, container IP management, and NAT complexity entirely.
 
 ```
-Internet → (blocked, no port forwards)
-LAN clients → Pi-hole (DNS, port 53) → resolves *.grab-lab.gg → 192.168.10.X
-                                        → Caddy (443) → localhost:<service-port>
-NetBird VPN → 192.168.10.X → same path as LAN
+Internet → (blocked, no port forwards to homelab — CGNAT)
+
+LAN clients → Pi-hole (DNS :53) → resolves *.grab-lab.gg → 192.168.10.X
+                                 → Caddy (:443) → localhost:<service-port>
+
+VPN peers (phone/laptop)
+  → TCP 443 / UDP 3478 → VPS (netbird.grab-lab.gg, public IP)
+      ↕ relay or P2P WireGuard (encrypted end-to-end)
+  ← pebble (behind CGNAT, outbound-only to VPS)
+  → NetBird DNS: *.grab-lab.gg match-domain → Pi-hole overlay IP → Caddy → service
+
+pebble ← ISP CGNAT (symmetric NAT, no inbound) ← VPS relay ← VPN peer
+         (P2P hole-punch if CGNAT maps consistently; relay otherwise ~7 Mbps / ~85ms)
 ```
 
 The host gets a static IP on `192.168.10.0/24`. DNS flows: LAN clients → Pi-hole → upstream. Pi-hole resolves `*.grab-lab.gg` to Caddy's IP internally using a dnsmasq wildcard (`address=/grab-lab.gg/192.168.10.X`). Public DNS returns NXDOMAIN since no A records exist in Cloudflare.
@@ -110,6 +120,73 @@ services.avahi = {
 
 ⚠️ IPv6 forwarding must be **disabled** when running Matter Server (`boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0`) — if enabled, Matter devices experience up to 30-minute reachability outages on network changes.
 
+## VPS control plane: two-machine architecture for self-hosted NetBird behind CGNAT
+
+This flake manages **two machines**: `pebble` (homelab behind CGNAT) and `vps` (Hetzner VPS, public IP, running the NetBird control plane). The homelab has no public IP and cannot receive inbound connections — the VPS is the only externally reachable endpoint.
+
+**Recommendation: Hetzner CX22 at €3.79/month.** 4 GB RAM / 2 vCPU / 20 TB bandwidth. The NetBird stack (4 containers since v0.62.0) uses ~300–500 MB idle RAM. Real-world reports show 0.12 load average after months of production use. The ARM variant (CAX11) works identically — NetBird images are multi-arch.
+
+See `docs/NETBIRD-SELFHOSTED.md` for the full provider comparison and migration strategy.
+
+### CGNAT implications
+
+The homelab's ISP uses symmetric NAT (Endpoint-Dependent Mapping). STUN hole-punching fails virtually 100% of the time, so VPN peers almost always relay through the VPS via WireGuard. Relay performance: **~7 Mbps throughput, ~85ms latency** — adequate for dashboards and media at moderate quality. The VPS never decrypts traffic; WireGuard provides end-to-end encryption between peers.
+
+**Known issue (stale relay, GitHub #3936):** Behind CGNAT, NetBird can show "Connected" but stop passing traffic. Workaround: `netbird-wt0 down && netbird-wt0 up` or restart the systemd service. Consider a monitoring timer.
+
+### VPS ports required
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 80 | TCP | HTTP redirect + ACME challenges |
+| 443 | TCP | Management API, Signal (gRPC/HTTP2), Dashboard, Relay WebSocket |
+| 3478 | UDP | STUN/TURN (Coturn) |
+| 49152–65535 | UDP | TURN relay ephemeral range |
+| 22 | TCP | SSH (restrict to your IP) |
+
+⚠️ **Hetzner firewall**: uses stateless rules — also open the ephemeral UDP range from `/proc/sys/net/ipv4/ip_local_port_range` for TURN return traffic.
+
+### DNS records
+
+One A record: `netbird.grab-lab.gg → <VPS_PUBLIC_IP>`. Set it to **DNS only** in Cloudflare (gray cloud) — Cloudflare's HTTP proxy breaks gRPC.
+
+### Split DNS via NetBird match-domain nameserver
+
+VPN clients resolve `*.grab-lab.gg` through Pi-hole via a NetBird nameserver group:
+
+- Dashboard → DNS → Nameservers → Add: IP = Pi-hole overlay IP (e.g. `100.x.y.z`), Match domain = `grab-lab.gg`
+- Add fallback nameserver: `1.1.1.1` / `8.8.8.8` with no match domain
+
+Pi-hole returns Caddy's LAN IP; traffic routes through the NetBird routing peer to the service. Alternative: NetBird Custom DNS Zones (v0.63+) — add A records directly in the dashboard without Pi-hole in the chain (loses ad-blocking).
+
+### systemd-resolved + Pi-hole coexistence (`DNSStubListener=no`)
+
+NetBird requires `systemd-resolved` to register match-domain nameservers via `resolvectl`. Pi-hole needs port 53. Solution: **disable the stub listener only**:
+
+```nix
+services.resolved = {
+  enable = true;
+  extraConfig = ''
+    DNSStubListener=no
+  '';
+};
+```
+
+`systemd-resolved` continues running as a DNS routing daemon for NetBird's `resolvectl` calls, but frees port 53 for Pi-hole. NixOS sets `/etc/resolv.conf` to point at Pi-hole's IP automatically.
+
+### Security model: VPS compromise
+
+The VPS never sees decrypted traffic — WireGuard keys never leave the endpoints. If the VPS is compromised, an attacker **can**: see peer metadata (hostnames, public keys, connection times), add rogue peers via setup keys, modify ACLs, and disrupt service. They **cannot**: decrypt peer traffic, perform MITM, or access services directly.
+
+**Harden ACLs** — delete the default "All → All" policy and replace with explicit policies:
+```
+homelab-servers ↔ homelab-servers  (any protocol)
+personal-devices → homelab-servers (TCP 80, 443)
+admin-devices → homelab-servers    (TCP 22, 80, 443)
+all-peers → pihole                 (UDP 53)
+```
+
+**Setup key hygiene**: reusable key for servers (assign to group), one-off keys for personal devices with 24–72 h expiration. Revoke after enrollment.
 
 ## sops-nix with age backend provides the best balance of flexibility and simplicity
 
