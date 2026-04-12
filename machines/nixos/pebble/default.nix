@@ -50,8 +50,9 @@
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
 
+  my.services.pihole.enable = true;
+
   # Services enabled in later stages:
-  # my.services.pihole.enable = true;   # Stage 3
   # my.services.caddy.enable = true;    # Stage 4
   # my.services.grafana.enable = true;  # Stage 5
   # my.services.prometheus.enable = true;

@@ -31,6 +31,7 @@
         sops-nix.nixosModules.sops
         ./homelab
         ./modules/networking
+        ./modules/podman
       ])
 
       {

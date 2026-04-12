@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 3 — DNS (Pi-hole)
+## Current Stage: 4 — Reverse Proxy (Caddy)
 ## Status: NOT STARTED
 
 ---
@@ -54,7 +54,35 @@
 
 ---
 
-## Stage 3: DNS (Pi-hole) — NOT STARTED
+## Stage 3: DNS (Pi-hole) — COMPLETE (implemented 2026-04-12)
+
+**Files created:**
+- `modules/podman/default.nix` — Podman base config, OCI backend
+- `homelab/pihole/default.nix` — Pi-hole module: OCI container, port 53 + 8089, wildcard split DNS
+
+**Files modified:**
+- `flake.nix` — added `./modules/podman` to pebble modules
+- `homelab/default.nix` — enabled `./pihole` import
+- `machines/nixos/pebble/default.nix` — `my.services.pihole.enable = true`
+
+**Configuration notes:**
+- Image: `pihole/pihole:2025.02.1` (Pi-hole v6)
+- Web UI: port 8089 (mapped from container port 80)
+- Split DNS: `address=/grab-lab.gg/192.168.10.50` injected via Nix store path volume mount
+- Secret: `pihole/env` in `secrets/secrets.yaml` must contain `FTLCONF_webserver_api_password=<password>`
+- `services.resolved.enable = false` — Stage 6b (NetBird) re-enables it with `DNSStubListener=no`
+
+**Pre-deploy action required:**
+```bash
+just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-password>"
+```
+
+**Verification:**
+- [ ] `podman ps` shows pihole container running
+- [ ] `dig @192.168.10.50 google.com` returns results (upstream DNS works)
+- [ ] `dig @192.168.10.50 grafana.grab-lab.gg` returns `192.168.10.50` (split DNS works)
+- [ ] Pi-hole admin UI at `http://192.168.10.50:8089/admin` loads
+- [ ] Set UniFi DHCP DNS to `192.168.10.50`; verify clients resolve via Pi-hole
 ## Stage 4: Reverse Proxy (Caddy) — NOT STARTED
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
 ## Stage 6a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED

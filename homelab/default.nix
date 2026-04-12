@@ -12,7 +12,7 @@
 { ... }: {
   imports = [
     # Uncomment as each stage is implemented:
-    # ./pihole
+    ./pihole          # Stage 3
     # ./caddy
     # ./prometheus
     # ./grafana
