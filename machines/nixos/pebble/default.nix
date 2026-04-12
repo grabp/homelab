@@ -43,8 +43,7 @@
     address = vars.serverIP;
     prefixLength = 24;
     gateway = "192.168.10.1";
-    # After Pi-hole is deployed (Stage 3), this resolves via localhost
-    nameservers = [ "1.1.1.1" "8.8.8.8" ];
+    nameservers = [ "127.0.0.1" ];
   };
 
   # Firewall — default deny, SSH allowed via _common/ssh.nix

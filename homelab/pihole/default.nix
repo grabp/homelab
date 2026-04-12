@@ -1,13 +1,7 @@
-{ config, lib, pkgs, vars, ... }:
+{ config, lib, vars, ... }:
 
 let
   cfg = config.my.services.pihole;
-
-  # Wildcard split DNS: *.grab-lab.gg → Caddy on serverIP
-  # Mounted read-only into the container at /etc/dnsmasq.d/
-  dnsmasqConf = pkgs.writeText "04-grab-lab.conf" ''
-    address=/${vars.domain}/${vars.serverIP}
-  '';
 in
 {
   options.my.services.pihole = {
@@ -30,11 +24,22 @@ in
     # FTLCONF_webserver_api_password=<password> — add to secrets/secrets.yaml
     sops.secrets."pihole/env" = { };
 
-    # Persistent ZFS-backed directories for Pi-hole state
+    # Persistent ZFS-backed directories for Pi-hole state and dnsmasq extras
     systemd.tmpfiles.rules = [
-      "d /var/lib/pihole/etc-pihole    0755 root root -"
-      "d /var/lib/pihole/etc-dnsmasq.d 0755 root root -"
+      "d /var/lib/pihole         0755 root root -"
+      "d /var/lib/pihole-dnsmasq 0755 root root -"
     ];
+
+    # Write wildcard split DNS config. Activation scripts run before services
+    # start, so the file is present when the container mounts /etc/dnsmasq.d/.
+    # FTLCONF_misc_dnsmasq_lines is unusable for address= directives because
+    # Pi-hole v6 splits array items on '=' (treating it as a key-value pair),
+    # discarding everything after the first '='.
+    system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
+      mkdir -p /var/lib/pihole-dnsmasq
+      echo "address=/${vars.domain}/${vars.serverIP}" \
+        > /var/lib/pihole-dnsmasq/04-grab-lab.conf
+    '';
 
     virtualisation.oci-containers.containers.pihole = {
       image = cfg.image;
@@ -46,15 +51,20 @@ in
       ];
 
       volumes = [
-        "/var/lib/pihole/etc-pihole:/etc/pihole"
-        "/var/lib/pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
-        # Inject wildcard DNS config from Nix store — declarative, survives redeployment
-        "${dnsmasqConf}:/etc/dnsmasq.d/04-grab-lab.conf:ro"
+        "/var/lib/pihole:/etc/pihole"
+        "/var/lib/pihole-dnsmasq:/etc/dnsmasq.d"
       ];
 
       environment = {
         TZ = vars.timeZone;
-        FTLCONF_LOCAL_IPV4 = vars.serverIP;
+        # Accept queries from all networks (not just the container bridge subnet)
+        FTLCONF_dns_listeningMode = "ALL";
+        # Cloudflare DNS upstreams instead of Pi-hole's default (Google)
+        FTLCONF_dns_upstreams = "1.1.1.1;1.0.0.1";
+        # Tell Pi-hole v6 to read custom dnsmasq configs from /etc/dnsmasq.d/
+        # (disabled by default in v6; our 04-grab-lab.conf is written there via
+        # system.activationScripts)
+        FTLCONF_misc_etc_dnsmasq_d = "true";
       };
 
       # Contains FTLCONF_webserver_api_password — decrypted by sops at /run/secrets/pihole/env
@@ -64,9 +74,54 @@ in
 
       extraOptions = [
         "--cap-add=NET_ADMIN"
-        "--dns=127.0.0.1"  # Container resolves via itself (avoids DNS loop on startup)
+        # No --dns override: container inherits host resolv.conf (1.1.1.1/8.8.8.8).
+        # --dns=127.0.0.1 caused gravity to fail on first boot because FTL isn't
+        # ready yet when the container's own DNS is needed for blocklist downloads.
       ];
     };
+
+    # -------------------------------------------------------------------------
+    # TODO: Declarative adlists (container-friendly implementation)
+    #
+    # Implement as a systemd oneshot that runs after the container starts,
+    # using `podman exec pihole sqlite3 /etc/pihole/gravity.db` to insert
+    # into the adlist table, then `podman exec pihole pihole -g` to update
+    # gravity. Each insert must check for existence first (idempotent).
+    #
+    # Service ordering:
+    #   after   = [ "podman-pihole.service" ]
+    #   requires = [ "podman-pihole.service" ]
+    #
+    # --- PHASE 1: Security & Malware Protection (enable immediately) ----------
+    # These focus on security without breaking social media functionality.
+    # Test for 1–2 weeks before enabling Phase 2.
+    #
+    #   [enabled] Steven Black — Unified Hosts (Malware + Ads)
+    #     https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    #
+    #   [enabled] Phishing Army — Extended Protection
+    #     https://phishing.army/download/phishing_army_blocklist_extended.txt
+    #
+    #   [optional] MalwareDomains — additional malware coverage
+    #     https://mirror1.malwaredomains.com/files/domains.txt
+    #
+    # --- PHASE 2: Broader Ad & Tracking Blocking (enable after Phase 1) ------
+    # Uncomment only after confirming Meta products (Instagram, Facebook) work.
+    # Common allowlist domains if broken: facebook.com, fbcdn.net,
+    # instagram.com, cdninstagram.com
+    #
+    #   [disabled] AdAway — Default Blocklist
+    #     https://adaway.org/hosts.txt
+    #
+    #   [disabled] Peter Lowe — Ad Servers
+    #     https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext
+    #
+    #   [disabled] Disconnect.me — Simple Tracking
+    #     https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt
+    #
+    #   [disabled] Disconnect.me — Simple Ad
+    #     https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
+    # -------------------------------------------------------------------------
 
     networking.firewall.allowedTCPPorts = [ 53 cfg.webPort ];
     networking.firewall.allowedUDPPorts = [ 53 ];

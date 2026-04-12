@@ -68,9 +68,12 @@
 **Configuration notes:**
 - Image: `pihole/pihole:2025.02.1` (Pi-hole v6)
 - Web UI: port 8089 (mapped from container port 80)
-- Split DNS: `address=/grab-lab.gg/192.168.10.50` injected via Nix store path volume mount
+- Split DNS: `address=/grab-lab.gg/192.168.10.50` written to `/var/lib/pihole-dnsmasq/04-grab-lab.conf` via `system.activationScripts`; `FTLCONF_misc_etc_dnsmasq_d=true` enables reading `/etc/dnsmasq.d/` (off by default in v6)
+- `FTLCONF_misc_dnsmasq_lines` is unusable for `address=` directives — Pi-hole v6 splits array items on `=`, discarding everything after the first `=`
 - Secret: `pihole/env` in `secrets/secrets.yaml` must contain `FTLCONF_webserver_api_password=<password>`
 - `services.resolved.enable = false` — Stage 6b (NetBird) re-enables it with `DNSStubListener=no`
+- `deploy.nodes.*.hostname` must be the actual IP/FQDN — fixed via `deployHostname` in `flakeHelpers.nix`
+- `nix.settings.trusted-users = ["root" "admin"]` required for deploy-rs to push store paths
 
 **Pre-deploy action required:**
 ```bash
@@ -78,10 +81,10 @@ just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-pass
 ```
 
 **Verification:**
-- [ ] `podman ps` shows pihole container running
-- [ ] `dig @192.168.10.50 google.com` returns results (upstream DNS works)
-- [ ] `dig @192.168.10.50 grafana.grab-lab.gg` returns `192.168.10.50` (split DNS works)
-- [ ] Pi-hole admin UI at `http://192.168.10.50:8089/admin` loads
+- [x] `podman ps` shows pihole container running
+- [x] `dig @192.168.10.50 google.com` returns results (upstream DNS works)
+- [x] `dig @192.168.10.50 grafana.grab-lab.gg` returns `192.168.10.50` (split DNS works)
+- [x] Pi-hole admin UI at `http://192.168.10.50:8089/admin` loads
 - [ ] Set UniFi DHCP DNS to `192.168.10.50`; verify clients resolve via Pi-hole
 ## Stage 4: Reverse Proxy (Caddy) — NOT STARTED
 ## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
