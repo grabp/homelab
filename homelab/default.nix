@@ -4,16 +4,18 @@
 # Services are imported here as stages progress:
 #   Stage 3: pihole
 #   Stage 4: caddy
-#   Stage 5: prometheus, grafana, loki
-#   Stage 6: netbird
-#   Stage 7: homepage
-#   Stage 8: home-assistant, uptime-kuma
-#   Stage 9: backup
+#   Stage 5: vaultwarden
+#   Stage 6: prometheus, grafana, loki
+#   Stage 7: netbird
+#   Stage 8: homepage
+#   Stage 9: home-assistant, uptime-kuma
+#   Stage 10: backup
 { ... }: {
   imports = [
     # Uncomment as each stage is implemented:
     ./pihole          # Stage 3
     ./caddy           # Stage 4
+    ./vaultwarden     # Stage 5
     # ./prometheus
     # ./grafana
     # ./loki

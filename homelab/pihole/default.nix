@@ -26,7 +26,11 @@ in
 
     # Persistent ZFS-backed directories for Pi-hole state and dnsmasq extras
     systemd.tmpfiles.rules = [
-      "d /var/lib/pihole         0755 root root -"
+      # Pi-hole's FTL process runs as UID/GID 1000 (pihole user) inside the container.
+      # SQLite WAL mode requires write access to the directory (to create .db-wal/.db-shm).
+      # The directory must be owned by 1000:1000, not root, or all DB writes fail with
+      # "attempt to write a readonly database".
+      "d /var/lib/pihole         0755 1000 1000 -"
       "d /var/lib/pihole-dnsmasq 0755 root root -"
     ];
 

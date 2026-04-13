@@ -49,6 +49,11 @@ in
             reverse_proxy localhost:${toString config.my.services.pihole.webPort}
           }
 
+          @vault host vault.${vars.domain}
+          handle @vault {
+            reverse_proxy localhost:${toString config.my.services.vaultwarden.port}
+          }
+
           handle {
             respond "Service not found" 404
           }

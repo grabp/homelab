@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 5 — Password Management (Vaultwarden)
+## Current Stage: 6 — Monitoring (Prometheus + Grafana + Loki)
 ## Status: NOT STARTED
 
 ---
@@ -73,6 +73,7 @@
 - Conditional forwarding (.lan/.local → router): `server=/domain/ip` in dnsmasq conf-dir files is a known Pi-hole v6 bug (#6279, returns 0ms NXDOMAIN without forwarding); use `FTLCONF_dns_revServers` instead — format: `"true,CIDR,server#port,domain"`, semicolon-separated for multiple domains
 - Secret: `pihole/env` in `secrets/secrets.yaml` must contain `FTLCONF_webserver_api_password=<password>`
 - `services.resolved.enable = false` — Stage 6b (NetBird) re-enables it with `DNSStubListener=no`
+- **Volume directory ownership:** Pi-hole's FTL process drops from root to UID 1000 (`pihole` user) after binding port 53. SQLite WAL mode needs write access to the directory (not just the `.db` file) to create `.db-wal`/`.db-shm` lock files. `systemd.tmpfiles.rules` `d` type defaults to `root root`, causing "attempt to write a readonly database" when editing domain lists. Fixed by setting `"d /var/lib/pihole 0755 1000 1000 -"` and running `sudo chown 1000:1000 /var/lib/pihole` on the already-existing directory. See docs/NIX-PATTERNS.md Pattern 17.
 - **Netavark/firewall ordering bug:** when `nixos-rebuild switch` reloads `firewall.service` (any change to `networking.firewall.*`), NixOS flushes all iptables chains including `NETAVARK_*`. If the Pi-hole container isn't restarted, its DNAT rules for port 53 are gone and external DNS queries time out. Fixed via `systemd.services.podman-pihole = { after = ["firewall.service"]; partOf = ["firewall.service"]; }` — applies to ALL future OCI containers that publish ports.
 - `deploy.nodes.*.hostname` must be the actual IP/FQDN — fixed via `deployHostname` in `flakeHelpers.nix`
 - `nix.settings.trusted-users = ["root" "admin"]` required for deploy-rs to push store paths
@@ -113,7 +114,50 @@ just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-pass
 - [x] Certificate files present in `/var/lib/caddy/.local/share/caddy/certificates/`
 - [x] ACME account registration retry loop — resolved by deploying `1.1.1.1` DNS fallback
 
-## Stage 5: Password Management (Vaultwarden) — NOT STARTED
+## Stage 5: Password Management (Vaultwarden) — COMPLETE (2026-04-13)
+
+**Files created:**
+- `homelab/vaultwarden/default.nix` — Vaultwarden module: native service, SQLite backend, automatic daily backups
+
+**Files modified:**
+- `homelab/default.nix` — enabled `./vaultwarden` import
+- `homelab/caddy/default.nix` — added `vault.grab-lab.gg` reverse proxy
+- `machines/nixos/pebble/default.nix` — `my.services.vaultwarden.enable = true`; fixed stage number comments
+
+**Configuration notes:**
+- Native `services.vaultwarden` module (~50 MB RAM, negligible CPU)
+- Port 8222/tcp (remapped from default 8000/8080 for clarity)
+- SQLite database at `/var/lib/bitwarden_rs/db.sqlite3` (default)
+- `backupDir = "/var/backup/vaultwarden"` creates automatic daily SQLite backups
+- `SIGNUPS_ALLOWED = false` after initial account creation (still allows invitations)
+- `DOMAIN = "https://vault.grab-lab.gg"` required for mobile apps and browser extensions
+- Admin panel at `/admin` requires `ADMIN_TOKEN` from sops secret
+
+**Pre-deploy action required:**
+```bash
+# Generate admin token
+ADMIN_TOKEN=$(openssl rand -base64 48)
+
+# Add to secrets file
+just edit-secrets
+# Add entry:
+# vaultwarden/admin_token: |
+#   ADMIN_TOKEN=<paste-generated-token-here>
+```
+
+**Post-setup actions taken:**
+- `SIGNUPS_ALLOWED` flipped to `false` in `homelab/vaultwarden/default.nix` after account creation
+- UniFi DHCP corrected: removed `1.1.1.1` as secondary DNS, Pi-hole only (`192.168.10.50`). iOS (and most modern OSes) query all configured DNS servers in parallel and accept the first response — a public fallback causes split-DNS domains to fail intermittently because the public server returns NXDOMAIN faster than Pi-hole returns the correct IP.
+
+**Verification (all passed 2026-04-14):**
+- [x] `curl https://vault.grab-lab.gg` returns HTTP 200
+- [x] Create an account at `https://vault.grab-lab.gg`
+- [x] Store a password, verify retrieval
+- [x] Mobile app (Bitwarden) connects to `https://vault.grab-lab.gg` as custom server
+- [x] Browser extension works with vault
+- [x] `ls /var/backup/vaultwarden` shows daily SQLite backups
+- [x] Admin panel accessible at `https://vault.grab-lab.gg/admin` with token
+
 ## Stage 6: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
 ## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
 ## Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
