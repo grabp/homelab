@@ -66,6 +66,96 @@ services.caddy = {
 };
 ```
 
+## Vaultwarden — native module, critical service
+
+**Module status:** ✅ `services.vaultwarden` EXISTS. Options: `enable`, `package`, `config`, `backupDir`, `environmentFile`, `dbBackend`.
+
+**Package:** `pkgs.vaultwarden`
+
+**Ports:** 8222/tcp (remapped from default 8000/8080 for clarity)
+
+**Secrets:** `vaultwarden/admin_token` via `environmentFile`
+
+**Isolation:** Native NixOS module
+
+**Resource usage:** ~50 MB RAM, negligible CPU
+
+**Database:** SQLite (default, recommended for single-user/family use)
+
+**Known gotchas:**
+- `backupDir` creates automatic daily SQLite backups — include this path in restic
+- Admin panel at `/admin` requires `ADMIN_TOKEN` — store in sops, not plain text
+- Mobile apps and browser extensions connect to `vault.grab-lab.gg` as custom server
+- `SIGNUPS_ALLOWED` should be `false` after initial account creation
+- `DOMAIN` must match the public URL including `https://`
+
+**Backup strategy:** Vaultwarden is a critical service — credential loss has severe impact.
+1. `backupDir` creates daily SQLite copies (automatic)
+2. Include `/var/lib/vaultwarden/backups` in restic
+3. Store emergency sheets offline (paper or encrypted USB)
+4. Test restore procedure periodically
+
+```nix
+# homelab/vaultwarden/default.nix
+{ config, lib, vars, ... }:
+
+let
+  cfg = config.my.services.vaultwarden;
+in
+{
+  options.my.services.vaultwarden = {
+    enable = lib.mkEnableOption "Vaultwarden password manager";
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 8222;
+      description = "Port for Vaultwarden web interface";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    sops.secrets."vaultwarden/admin_token" = {
+      owner = "vaultwarden";
+      restartUnits = [ "vaultwarden.service" ];
+    };
+
+    services.vaultwarden = {
+      enable = true;
+      backupDir = "/var/lib/vaultwarden/backups";
+      environmentFile = config.sops.secrets."vaultwarden/admin_token".path;
+      config = {
+        DOMAIN = "https://vault.${vars.domain}";
+        ROCKET_ADDRESS = "127.0.0.1";
+        ROCKET_PORT = cfg.port;
+        SIGNUPS_ALLOWED = false;  # Disable after initial setup
+        INVITATIONS_ALLOWED = true;
+        SHOW_PASSWORD_HINT = false;
+        # LOG_LEVEL = "info";
+      };
+    };
+
+    # Daily backup timer (built-in, but verify it's running)
+    # Backups stored in /var/lib/vaultwarden/backups/
+
+    networking.firewall.allowedTCPPorts = [ cfg.port ];
+  };
+}
+```
+
+**Secrets file (`secrets/secrets.yaml`) entry:**
+```yaml
+vaultwarden/admin_token: |
+  ADMIN_TOKEN=<generate-with-openssl-rand-base64-48>
+```
+
+**Caddy configuration (add to `homelab/caddy/default.nix`):**
+```nix
+@vault host vault.${vars.domain}
+handle @vault {
+  reverse_proxy localhost:${toString config.my.services.vaultwarden.port}
+}
+```
+
 ## NetBird — self-hosted control plane (VPS) + client (homelab)
 
 This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The homelab (pebble) runs the NetBird client and acts as a routing peer advertising `192.168.10.0/24`. Full research: `docs/NETBIRD-SELFHOSTED.md`.
@@ -676,6 +766,7 @@ boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0;
 |---------|---------------------|---------|----------|
 | Pi-hole | ❌ Does not exist | ❌ Not packaged | Podman OCI |
 | Caddy | ✅ `services.caddy` | ✅ `caddy` | Native + `withPlugins` |
+| Vaultwarden | ✅ `services.vaultwarden` | ✅ `vaultwarden` | Native |
 | NetBird client (pebble) | ✅ `services.netbird.clients.wt0` | ✅ `netbird` | Native |
 | NetBird server (VPS) | ✅ `services.netbird.server` (⚠️ sparse docs) | ✅ `netbird` | Docker Compose initially |
 | Homepage | ✅ `services.homepage-dashboard` | ✅ `homepage-dashboard` | Native |

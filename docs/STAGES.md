@@ -69,7 +69,27 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Medium-high. Building Caddy with plugins requires computing the `hash` value. The Cloudflare API token scoping must be precise.
 
-## Stage 5: Monitoring — Prometheus + Grafana + Loki
+## Stage 5: Password Management — Vaultwarden
+
+**What gets built:** Vaultwarden (Bitwarden-compatible server) on pebble, with SQLite backend, Caddy reverse proxy, automatic daily backups via `backupDir`.
+
+**Key files:** `homelab/vaultwarden/default.nix`
+
+**Dependencies:** Stage 4 (Caddy for TLS termination), Stage 2 (secrets for admin token).
+
+**Rationale:** Vaultwarden is a critical service (~50 MB RAM) that must remain accessible even when machine 2 (boulder) is down for maintenance. Unlike media services that can tolerate downtime, password access is essential for daily operations.
+
+**Verification steps:**
+- `https://vault.grab-lab.gg` loads Vaultwarden web vault with valid TLS
+- Create an account, store a password, verify retrieval
+- Mobile app (Bitwarden) connects to custom server URL
+- Browser extension works with vault
+- `ls /var/lib/vaultwarden/backups` shows daily SQLite backups
+- Admin panel accessible at `/admin` with token
+
+**Estimated complexity:** Low-medium. Native module is well-documented. Main consideration is backup strategy for this critical service.
+
+## Stage 6: Monitoring — Prometheus + Grafana + Loki
 
 **What gets built:** Prometheus with node exporter scraping, Grafana with provisioned datasources (Prometheus + Loki), Loki for log aggregation, Caddy virtual hosts for each.
 
@@ -86,7 +106,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Medium. Multiple services to configure. Grafana provisioning requires correct datasource YAML structure.
 
-## Stage 6a: VPN — VPS provisioning + NetBird control plane
+## Stage 7a: VPN — VPS provisioning + NetBird control plane
 
 **What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running (either `services.netbird.server` NixOS module or Docker Compose via the official quickstart script), TLS via ACME/Let's Encrypt, NetBird dashboard accessible at `https://netbird.grab-lab.gg`. Setup keys and VPS secrets stored in `secrets/vps.yaml`.
 
@@ -106,7 +126,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Medium. NixOS path requires `nixos-anywhere` and computing the VPS age key. Docker path is faster but leaves the VPS unmanaged by Nix. The `services.netbird.server` NixOS module has sparse documentation — treat all options as ⚠️ VERIFY.
 
-## Stage 6b: VPN — Homelab NetBird client + routes + DNS + ACLs
+## Stage 7b: VPN — Homelab NetBird client + routes + DNS + ACLs
 
 **What gets built:** NetBird client on pebble (`services.netbird.clients.wt0`), `systemd-resolved` with `DNSStubListener=no` for Pi-hole coexistence, route advertisement for `192.168.10.0/24` configured in the NetBird dashboard, match-domain nameserver pointing VPN clients to Pi-hole for `grab-lab.gg`, ACL policies hardened.
 
@@ -130,7 +150,7 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 
 **Estimated complexity:** Medium-high. The `DNSStubListener=no` coexistence requires care. Management URL may need a one-time manual step. CGNAT means relay is expected — don't troubleshoot P2P as a failure.
 
-## Stage 7: Homepage dashboard
+## Stage 8: Homepage dashboard
 
 **What gets built:** Homepage dashboard with service widgets for all deployed services, accessible at `https://home.grab-lab.gg`.
 
@@ -145,7 +165,7 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 
 **Estimated complexity:** Low. Well-documented NixOS module with structured config.
 
-## Stage 8a: Services — Mosquitto + HACS + Home Assistant + Uptime Kuma
+## Stage 9a: Services — Mosquitto + HACS + Home Assistant + Uptime Kuma
 
 **What gets built:** Mosquitto MQTT broker (native), Home Assistant (Podman container with `--network=host`), HACS auto-installed via systemd oneshot, Uptime Kuma (native NixOS module), Caddy virtual hosts for HA and Uptime Kuma, UniFi integration in HA.
 
@@ -163,7 +183,7 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 
 **Estimated complexity:** Medium. Home Assistant `--network=host` needs firewall adjustment. HA onboarding is interactive (not fully declarative). HACS requires completing GitHub OAuth device flow in HA UI after first boot.
 
-## Stage 8b: Services — Voice Pipeline + ESPHome + Matter Server
+## Stage 9b: Services — Voice Pipeline + ESPHome + Matter Server
 
 **What gets built:** Wyoming voice pipeline (Faster-Whisper STT, Piper TTS, OpenWakeWord — all native NixOS modules), ESPHome dashboard (Podman container with `--network=host`), Matter Server (Podman container with `--network=host`), Avahi mDNS, Wyoming integrations configured in HA UI.
 
@@ -181,7 +201,7 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 
 **Estimated complexity:** Medium. The ProcSubset fix for faster-whisper is critical (see docs/NIX-PATTERNS.md Pattern 10 and docs/ARCHITECTURE.md). ESPHome's `--network=host` avoids mDNS issues. Matter requires IPv6 enabled and IPv6 forwarding disabled.
 
-## Stage 9: Hardening, backups, deploy-rs, and Justfile
+## Stage 10: Hardening, backups, deploy-rs, and Justfile
 
 **What gets built:** Sanoid snapshots, syncoid replication to NAS, restic backups, deploy-rs remote deployment for both pebble and vps, Justfile with all operations, firewall hardened to minimum open ports on both machines, fail2ban, NetBird ACL policies hardened, VPS SSH restricted to admin IP.
 
@@ -202,5 +222,173 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 - NetBird setup keys: reusable server key in use; personal device keys are one-off with expiration
 
 **Estimated complexity:** Medium. NAS connectivity and ZFS send/receive setup require testing. VPS hardening is mostly firewall rules and ACL configuration.
+
+---
+
+# Phase 2: Machine 2 (boulder) — HP EliteDesk 705 G4
+
+**Prerequisite:** Complete all Phase 1 stages (1–10) on pebble before starting Phase 2. Machine 1 should be stable, monitored, and backed up.
+
+See `docs/SECOND-MACHINE.md` for detailed hardware specs and service configurations.
+
+## Stage 11: Base system — boulder hardware provisioning
+
+**What gets built:** NixOS on boulder via disko (ZFS), SSH access, add to flake as second machine, node_exporter + promtail for monitoring, NetBird client for VPN access.
+
+**Key files:** `machines/nixos/boulder/{default,disko,hardware}.nix`, update `flake.nix` with `mkNixos "boulder"`
+
+**Dependencies:** Physical hardware ready, static IP assigned (192.168.10.51), SSH key in place.
+
+**Verification steps:**
+- `ssh admin@192.168.10.51` works
+- `zpool status` shows healthy pool
+- `just deploy boulder` deploys successfully
+- Prometheus targets show boulder's node_exporter as UP
+- Loki receives logs from boulder's promtail
+- `netbird-wt0 status` shows connected to control plane
+
+**Estimated complexity:** Low-medium. Same process as pebble Stage 1, but second time is faster.
+
+## Stage 12: PostgreSQL shared instance
+
+**What gets built:** Single PostgreSQL server for Outline, Vikunja, and Paperless-ngx. Each service gets its own database with separate credentials stored in sops.
+
+**Key files:** `homelab/postgresql/default.nix` or configure in boulder's `default.nix`
+
+**Dependencies:** Stage 11 (base system).
+
+**Verification steps:**
+- `systemctl status postgresql` shows active
+- `psql -U postgres -l` lists databases
+- Databases created: `outline`, `vikunja`, `paperless`
+- Each database user has appropriate permissions
+
+**Estimated complexity:** Low. Native module is straightforward.
+
+## Stage 13: Paperless-ngx + Stirling-PDF
+
+**What gets built:** Paperless-ngx document management (native module) with NAS storage for documents, Stirling-PDF toolkit (container) for PDF operations.
+
+**Key files:** `homelab/paperless/default.nix`
+
+**Dependencies:** Stage 12 (PostgreSQL), NAS mount for `/mnt/nas/documents`.
+
+**Verification steps:**
+- `https://paperless.grab-lab.gg` loads Paperless web UI
+- Document upload → OCR processing → searchable
+- `https://pdf.grab-lab.gg` loads Stirling-PDF
+- PDF operations (merge, split, convert) work
+
+**Estimated complexity:** Medium. NFS mount dependencies require careful systemd ordering.
+
+## Stage 14: Immich photo management
+
+**What gets built:** Immich server (Podman containers: server, machine-learning, Redis) with PostgreSQL backend, NAS storage for photos, ML-based face/object recognition.
+
+**Key files:** Container configs in boulder's default.nix or dedicated `homelab/immich/default.nix`
+
+**Dependencies:** Stage 12 (PostgreSQL), NAS mount for `/mnt/nas/photos`.
+
+**Verification steps:**
+- `https://immich.grab-lab.gg` loads Immich web UI
+- Photo upload works
+- Face recognition processes photos
+- Mobile app connects and syncs
+
+**Estimated complexity:** Medium-high. Multi-container orchestration, ML inference can be resource-intensive.
+
+## Stage 15: Jellyfin media server
+
+**What gets built:** Jellyfin media server (native module preferred, container as fallback) with VAAPI hardware transcoding, NAS storage for media library.
+
+**Key files:** `homelab/jellyfin/default.nix`
+
+**Dependencies:** Stage 11 (GPU access configured), NAS mount for `/mnt/nas/media`.
+
+**Verification steps:**
+- `https://jellyfin.grab-lab.gg` loads Jellyfin web UI
+- Media library scanned from NAS
+- Playback works (direct play and transcoding)
+- VAAPI transcoding active (check Jellyfin dashboard)
+- DLNA discovery works on LAN
+
+**Estimated complexity:** Medium. VAAPI configuration requires GPU permissions.
+
+## Stage 16: Productivity apps — Outline, Vikunja, Karakeep, Actual Budget
+
+**What gets built:** Outline wiki (container), Vikunja tasks (container), Karakeep bookmarks (container), Actual Budget (container). All on port-remapped configs to avoid conflicts.
+
+**Key files:** Container configs in boulder's default.nix or individual modules
+
+**Dependencies:** Stage 12 (PostgreSQL for Outline, Vikunja).
+
+**Verification steps:**
+- `https://wiki.grab-lab.gg` — Outline loads
+- `https://tasks.grab-lab.gg` — Vikunja loads
+- `https://bookmarks.grab-lab.gg` — Karakeep loads
+- `https://budget.grab-lab.gg` — Actual Budget loads
+- Data persists across container restarts
+
+**Estimated complexity:** Low-medium. Multiple containers but each is straightforward.
+
+## Stage 17: Windows VM — libvirt/QEMU
+
+**What gets built:** libvirt/QEMU virtualization enabled, Windows 10/11 VM for occasional use cases (specific software, testing).
+
+**Key files:** VM config stored in `/var/lib/libvirt/`, virt-manager for GUI management
+
+**Dependencies:** Stage 11 (base system).
+
+**Verification steps:**
+- `virt-manager` launches on admin workstation
+- Windows VM boots and is usable
+- RDP access works over LAN/VPN
+- VM does not consume resources when stopped
+
+**Estimated complexity:** Low. libvirt module is well-documented.
+
+## Stage 18: Whisper migration — move STT from pebble to boulder
+
+**What gets built:** Wyoming Faster-Whisper service on boulder (same config as pebble), Home Assistant on pebble reconfigured to use boulder's Whisper endpoint.
+
+**Key files:** Add Wyoming config to boulder, update HA configuration on pebble
+
+**Dependencies:** Stage 11 (boulder running), Stage 9b complete on pebble (voice pipeline tested).
+
+**Verification steps:**
+- Wyoming Whisper running on boulder:10300
+- Home Assistant voice assistant uses `boulder.lan:10300` for STT
+- Voice commands work with new endpoint
+- Pebble's Whisper service disabled
+- pebble RAM usage reduced by ~500–800 MB
+
+**Estimated complexity:** Low. Config migration only.
+
+---
+
+# Stage summary
+
+| Phase | Stage | Name | Machine |
+|-------|-------|------|---------|
+| 1 | 1 | Base system | pebble |
+| 1 | 2 | Secrets management | pebble |
+| 1 | 3 | DNS (Pi-hole) | pebble |
+| 1 | 4 | Reverse proxy (Caddy) | pebble |
+| 1 | 5 | Password management (Vaultwarden) | pebble |
+| 1 | 6 | Monitoring | pebble |
+| 1 | 7a | VPN — VPS provisioning | vps |
+| 1 | 7b | VPN — Homelab client | pebble |
+| 1 | 8 | Homepage dashboard | pebble |
+| 1 | 9a | HA + MQTT + HACS | pebble |
+| 1 | 9b | Voice + ESPHome + Matter | pebble |
+| 1 | 10 | Hardening + backups | pebble + vps |
+| 2 | 11 | Base system | boulder |
+| 2 | 12 | PostgreSQL | boulder |
+| 2 | 13 | Paperless + Stirling-PDF | boulder |
+| 2 | 14 | Immich | boulder |
+| 2 | 15 | Jellyfin | boulder |
+| 2 | 16 | Productivity apps | boulder |
+| 2 | 17 | Windows VM | boulder |
+| 2 | 18 | Whisper migration | boulder + pebble |
 
 ---

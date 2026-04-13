@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 5 — Monitoring (Prometheus + Grafana + Loki)
+## Current Stage: 5 — Password Management (Vaultwarden)
 ## Status: NOT STARTED
 
 ---
@@ -111,15 +111,19 @@ just edit-secrets  # add: pihole/env: "FTLCONF_webserver_api_password=<your-pass
 - [x] `curl https://pihole.grab-lab.gg/admin` loads Pi-hole UI with valid TLS
 - [x] Let's Encrypt wildcard cert `*.grab-lab.gg`, issuer E8 CA, valid 2026-04-12 → 2026-07-11
 - [x] Certificate files present in `/var/lib/caddy/.local/share/caddy/certificates/`
-- [ ] ACME account registration retry loop — resolves after deploying `1.1.1.1` DNS fallback
+- [x] ACME account registration retry loop — resolved by deploying `1.1.1.1` DNS fallback
 
-## Stage 5: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
-## Stage 6a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
-## Stage 6b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
-## Stage 7: Homepage Dashboard — NOT STARTED
-## Stage 8a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
-## Stage 8b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
-## Stage 9: Hardening, Backups, deploy-rs — NOT STARTED
+## Stage 5: Password Management (Vaultwarden) — NOT STARTED
+## Stage 6: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
+## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
+## Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
+## Stage 8: Homepage Dashboard — NOT STARTED
+## Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
+## Stage 9b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
+## Stage 10: Hardening, Backups, deploy-rs — NOT STARTED
+
+## Phase 2: Machine 2 (boulder) — NOT STARTED
+See docs/STAGES.md for Stages 11-18
 
 ---
 

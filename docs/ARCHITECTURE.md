@@ -47,6 +47,7 @@ boot.kernelParams = [ "nohibernate" "zfs.zfs_arc_max=4294967296" ];
 | Wyoming OpenWakeWord | Native | Very lightweight; verify model name against package version |
 | **ESPHome** | **Podman** | Three unresolved native bugs: DynamicUser path, pyserial missing, font component |
 | **Matter Server** | **Podman** | CHIP SDK requires pre-built binary wheels; intractable to build natively |
+| Vaultwarden | Native | `services.vaultwarden` module; ~50 MB RAM; critical service stays on pebble |
 
 ⚠️ **Native module gotcha — faster-whisper `ProcSubset` (nixpkgs PR #372898):** The systemd hardening sets `ProcSubset=pid`, which blocks CTranslate2 from reading `/proc/cpuinfo` and forces a slow fallback code path. A 3-second audio clip takes ~20 s instead of ~3 s. Always override in the machine config:
 ```nix
@@ -107,6 +108,7 @@ The host gets a static IP on `192.168.10.0/24`. DNS flows: LAN clients → Pi-ho
 | Wyoming OpenWakeWord | 10400 | Wake word detection (Wyoming protocol) |
 | ESPHome | 6052 | ESP device dashboard |
 | Matter Server | 5580 | Matter WebSocket API |
+| Vaultwarden | 8222 | Password manager (Bitwarden-compatible) |
 
 **mDNS and host networking:** ESPHome, Matter Server, and Home Assistant use `--network=host` in their Podman containers, giving them direct access to the host network stack for mDNS and IPv6 multicast. Enable Avahi on the host for `.local` resolution and ESPHome device discovery:
 
@@ -254,6 +256,230 @@ services.restic.backups.homelab = {
 Enable Pi-hole's **conditional forwarding** (Settings → DNS → Conditional Forwarding) pointed at the UniFi gateway (`192.168.10.1`) so Pi-hole resolves device hostnames from DHCP leases.
 
 The NixOS server itself uses a static IP (configured in NixOS, not DHCP) with `networking.nameservers = [ "127.0.0.1" ]` so it resolves via its own Pi-hole instance.
+
+## Unified backup strategy across all machines
+
+This flake manages multiple machines. Each follows the same three-tier backup approach, with service-specific handling.
+
+### What to back up (per machine)
+
+**Never back up:**
+- `/nix/store` — fully reproducible from flake
+- Container images — re-pulled on deployment
+- Generated caches — Jellyfin metadata, Immich thumbnails, search indices
+
+**Always back up:**
+- `/var/lib/*` — all service state (databases, configs, uploads)
+- `/etc/ssh/ssh_host_*` — host keys (decryption identity for sops)
+- `/etc/machine-id` — systemd identity
+- `~/.config/sops/age/keys.txt` (on admin workstation) — admin decryption key
+
+### Machine-specific backup targets
+
+| Machine | Sanoid datasets | Restic paths | NAS target |
+|---------|----------------|--------------|------------|
+| pebble | `zroot/var` | `/var/lib` | `/mnt/nas/backup/pebble` |
+| boulder | `zroot/var` | `/var/lib` | `/mnt/nas/backup/boulder` |
+| vps | (no ZFS) | `/var/lib` | Off-site (⚠️ VERIFY: Hetzner backup or rsync to NAS) |
+
+### Service-specific backup handling
+
+| Service | Special handling | Notes |
+|---------|-----------------|-------|
+| **Vaultwarden** | `services.vaultwarden.backupDir` creates automatic daily SQLite backups; include this dir in restic | Critical — loss means credential recovery via emergency sheets only |
+| **Immich** | PostgreSQL dump before snapshot; photos already on NAS | Don't backup thumbnails (`/var/lib/immich/thumbs`) |
+| **Paperless-ngx** | PostgreSQL dump; documents already on NAS | Index can be rebuilt |
+| **Home Assistant** | ZFS snapshot sufficient (SQLite + YAML) | `.db-wal` and `.db-shm` included in atomic snapshot |
+| **Grafana** | ZFS snapshot sufficient (SQLite) | Dashboards can be re-provisioned |
+| **PostgreSQL (shared)** | `pg_dumpall` before ZFS snapshot | Single dump covers Outline, Vikunja, Paperless |
+
+### Bare metal recovery procedure
+
+1. **Provision new hardware** — boot NixOS ISO, run disko
+2. **Clone flake** — `git clone` from GitHub/GitLab
+3. **Restore admin age key** — copy `~/.config/sops/age/keys.txt` from secure backup
+4. **Generate new host key** — new machine gets new SSH host key
+5. **Update .sops.yaml** — add new host's age key, rekey all secrets
+6. **Deploy** — `nixos-rebuild switch --flake .#<hostname>`
+7. **Restore /var/lib** — restic restore from NAS
+8. **Verify services** — check logs, test functionality
+
+**Recovery keys to store offline:**
+- `.sops.yaml` (which age keys can decrypt which secrets)
+- Admin age private key (paper or encrypted USB)
+- Vaultwarden emergency sheet (2FA recovery)
+
+### What backs up the NAS?
+
+The NAS (TrueNAS) is the backup destination, not a managed NixOS machine. Its backup strategy is out of scope for this flake but should include:
+- ZFS replication to second pool or off-site
+- Cloud backup for critical data (photos, documents)
+- ⚠️ NOTE: If NAS fails, homelab service state is recoverable but bulk media is not
+
+## Unified storage strategy
+
+### Local SSD vs NAS decision matrix
+
+| Data type | Location | Rationale |
+|-----------|----------|-----------|
+| Service databases (SQLite, PostgreSQL) | Local SSD | Latency-sensitive, transaction-heavy |
+| Container layers/images | Local SSD | I/O intensive during pulls |
+| Transcoding temp files | Local SSD | High-bandwidth temporary storage |
+| Photo originals (Immich) | NAS | Large, already organized on NAS |
+| Media library (Jellyfin) | NAS | Large, shared with other devices |
+| Document archive (Paperless) | NAS | Searchable from multiple machines |
+| Backups | NAS | Centralized, redundant storage |
+
+### ZFS dataset layout
+
+**pebble (machine 1):**
+```
+zroot
+├── root          # Ephemeral (optional rollback)
+├── nix           # Nix store — never backed up
+├── var           # All service state — backed up
+├── home          # User data
+├── reserved      # 10G reservation to prevent pool full
+└── containers    # ext4 zvol for Podman (acltype compat)
+```
+
+**boulder (machine 2):** Same structure.
+
+**vps:** Simple ext4 (no ZFS needed for 20GB control plane).
+
+### NFS mount pattern
+
+All machines use consistent NFS mount configuration:
+
+```nix
+# modules/nfs/default.nix (shared pattern)
+fileSystems."/mnt/nas/${name}" = {
+  device = "${vars.nasIP}:/mnt/pool/${name}";
+  fsType = "nfs";
+  options = [
+    "nfsvers=4.2"      # NFSv4.2 for better performance
+    "hard"             # Retry indefinitely (vs soft which errors)
+    "noatime"          # Reduce write overhead
+    "x-systemd.automount"      # Mount on first access
+    "x-systemd.idle-timeout=600"  # Unmount after 10 min idle
+  ];
+};
+```
+
+Services depending on NAS add systemd ordering:
+```nix
+systemd.services.<name>.after = [ "mnt-nas-photos.mount" ];
+systemd.services.<name>.requires = [ "mnt-nas-photos.mount" ];
+```
+
+### Permission model
+
+NAS exports use `all_squash` to map all clients to a single NAS user. NixOS services run as their own users (e.g., `jellyfin`, `immich`). To avoid permission issues:
+
+1. **NAS side**: `all_squash` with `anonuid`/`anongid` matching a shared media user (e.g., UID 1000)
+2. **NixOS side**: Add service users to a shared group with GID matching NAS export
+3. **Alternative**: Use `no_root_squash` with careful firewall rules (less secure)
+
+### Services requiring NAS storage
+
+| Machine | Service | NAS mount | Purpose |
+|---------|---------|-----------|---------|
+| pebble | Restic backup | `/mnt/nas/backup/pebble` | Backup target |
+| boulder | Immich | `/mnt/nas/photos` | Photo library |
+| boulder | Jellyfin | `/mnt/nas/media` | Video/music library |
+| boulder | Paperless | `/mnt/nas/documents` | Document archive |
+| boulder | Restic backup | `/mnt/nas/backup/boulder` | Backup target |
+
+## Unified port allocation table
+
+All ports across all machines, avoiding conflicts.
+
+### pebble (machine 1) — 192.168.10.50
+
+| Port | Protocol | Service | Notes |
+|------|----------|---------|-------|
+| 22 | TCP | SSH | Restricted to key auth |
+| 53 | TCP/UDP | Pi-hole DNS | Network-wide DNS |
+| 80 | TCP | Caddy | HTTP redirect + ACME |
+| 443 | TCP | Caddy | HTTPS reverse proxy |
+| 1883 | TCP | Mosquitto | MQTT broker |
+| 3000 | TCP | Grafana | Monitoring dashboards |
+| 3001 | TCP | Uptime Kuma | Status monitoring |
+| 3010 | TCP | Homepage | Dashboard (remapped from 3000) |
+| 3100 | TCP | Loki | Log aggregation |
+| 5580 | TCP | Matter Server | Matter WebSocket |
+| 6052 | TCP | ESPHome | Device dashboard |
+| 8089 | TCP | Pi-hole Web | Admin UI (remapped from 80) |
+| 8123 | TCP | Home Assistant | HA web interface |
+| 8222 | TCP | Vaultwarden | Password manager |
+| 9090 | TCP | Prometheus | Metrics |
+| 10200 | TCP | Wyoming Piper | TTS |
+| 10300 | TCP | Wyoming Whisper | STT |
+| 10400 | TCP | OpenWakeWord | Wake word |
+| 51820 | UDP | NetBird | WireGuard VPN |
+
+### boulder (machine 2) — 192.168.10.51
+
+| Port | Protocol | Service | Notes |
+|------|----------|---------|-------|
+| 22 | TCP | SSH | Restricted to key auth |
+| 2283 | TCP | Immich | Photo management |
+| 3000 | TCP | Outline | ⚠️ Conflicts with Grafana if moved — remap to 3020 |
+| 3456 | TCP | Vikunja | Task management |
+| 5432 | TCP | PostgreSQL | Shared database (localhost only) |
+| 8010 | TCP | Paperless-ngx | Document management |
+| 8080 | TCP | Stirling-PDF | PDF toolkit |
+| 8096 | TCP | Jellyfin | Media server |
+| 8265 | TCP | Actual Budget | Personal finance |
+| 9443 | TCP | Karakeep | Bookmarks (⚠️ default 3000 — remapped) |
+| 10300 | TCP | Wyoming Whisper | STT (moved from pebble) |
+
+### vps (NetBird control plane) — netbird.grab-lab.gg
+
+| Port | Protocol | Service | Notes |
+|------|----------|---------|-------|
+| 22 | TCP | SSH | Restricted to admin IP |
+| 80 | TCP | HTTP/ACME | Let's Encrypt challenges |
+| 443 | TCP | NetBird | Management + Signal + Dashboard + Relay |
+| 3478 | UDP | Coturn STUN | NAT traversal |
+| 49152-65535 | UDP | Coturn TURN | Relay media range |
+
+### Port conflict notes
+
+| Service | Default | Remapped | Reason |
+|---------|---------|----------|--------|
+| Pi-hole Web | 80 | 8089 | Caddy needs 80 |
+| Homepage | 3000 | 3010 | Grafana uses 3000 |
+| Outline | 3000 | 3020 | Grafana conflict |
+| Karakeep | 3000 | 9443 | Multiple 3000 conflicts |
+
+## DNS entries table (subdomain registry)
+
+Single source of truth for all `*.grab-lab.gg` subdomains.
+
+| Subdomain | Target machine | Service | Caddy config |
+|-----------|---------------|---------|--------------|
+| `pihole.grab-lab.gg` | pebble | Pi-hole Web UI | `reverse_proxy localhost:8089` |
+| `grafana.grab-lab.gg` | pebble | Grafana | `reverse_proxy localhost:3000` |
+| `prometheus.grab-lab.gg` | pebble | Prometheus | `reverse_proxy localhost:9090` |
+| `ha.grab-lab.gg` | pebble | Home Assistant | `reverse_proxy localhost:8123` |
+| `uptime.grab-lab.gg` | pebble | Uptime Kuma | `reverse_proxy localhost:3001` |
+| `home.grab-lab.gg` | pebble | Homepage | `reverse_proxy localhost:3010` |
+| `esphome.grab-lab.gg` | pebble | ESPHome | `reverse_proxy localhost:6052` |
+| `vault.grab-lab.gg` | pebble | Vaultwarden | `reverse_proxy localhost:8222` |
+| `immich.grab-lab.gg` | boulder | Immich | `reverse_proxy 192.168.10.51:2283` |
+| `jellyfin.grab-lab.gg` | boulder | Jellyfin | `reverse_proxy 192.168.10.51:8096` |
+| `paperless.grab-lab.gg` | boulder | Paperless-ngx | `reverse_proxy 192.168.10.51:8010` |
+| `pdf.grab-lab.gg` | boulder | Stirling-PDF | `reverse_proxy 192.168.10.51:8080` |
+| `wiki.grab-lab.gg` | boulder | Outline | `reverse_proxy 192.168.10.51:3020` |
+| `tasks.grab-lab.gg` | boulder | Vikunja | `reverse_proxy 192.168.10.51:3456` |
+| `bookmarks.grab-lab.gg` | boulder | Karakeep | `reverse_proxy 192.168.10.51:9443` |
+| `budget.grab-lab.gg` | boulder | Actual Budget | `reverse_proxy 192.168.10.51:8265` |
+| `netbird.grab-lab.gg` | vps | NetBird Dashboard | Direct (not proxied through Caddy) |
+
+**Pi-hole local DNS**: All subdomains resolve to pebble's IP (`192.168.10.50`) via the wildcard `address=/grab-lab.gg/192.168.10.50`. Caddy on pebble then routes to the correct backend (local or boulder).
+
+**Public DNS (Cloudflare)**: Only `netbird.grab-lab.gg` has a public A record (pointing to VPS). All other subdomains return NXDOMAIN publicly — they only resolve inside the homelab via Pi-hole.
 
 ---
 
