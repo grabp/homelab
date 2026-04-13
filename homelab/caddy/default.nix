@@ -54,6 +54,16 @@ in
             reverse_proxy localhost:${toString config.my.services.vaultwarden.port}
           }
 
+          @grafana host grafana.${vars.domain}
+          handle @grafana {
+            reverse_proxy localhost:${toString config.my.services.grafana.port}
+          }
+
+          @prometheus host prometheus.${vars.domain}
+          handle @prometheus {
+            reverse_proxy localhost:${toString config.my.services.prometheus.port}
+          }
+
           handle {
             respond "Service not found" 404
           }

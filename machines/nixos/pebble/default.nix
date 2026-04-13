@@ -55,10 +55,9 @@
   my.services.caddy.enable = true;
   my.services.vaultwarden.enable = true;
 
-  # Services enabled in later stages:
-  # my.services.prometheus.enable = true;  # Stage 6
-  # my.services.grafana.enable = true;
-  # my.services.loki.enable = true;
+  my.services.prometheus.enable = true;  # Stage 6
+  my.services.grafana.enable = true;
+  my.services.loki.enable = true;
   # my.services.netbird.enable = true;  # Stage 7a/7b
   # my.services.homepage.enable = true; # Stage 8
   # my.services.homeAssistant.enable = true; # Stage 9a

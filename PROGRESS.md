@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 6 — Monitoring (Prometheus + Grafana + Loki)
+## Current Stage: 7a — VPN: VPS Provisioning + NetBird Control Plane
 ## Status: NOT STARTED
 
 ---
@@ -158,7 +158,43 @@ just edit-secrets
 - [x] `ls /var/backup/vaultwarden` shows daily SQLite backups
 - [x] Admin panel accessible at `https://vault.grab-lab.gg/admin` with token
 
-## Stage 6: Monitoring (Prometheus + Grafana + Loki) — NOT STARTED
+## Stage 6: Monitoring (Prometheus + Grafana + Loki) — COMPLETE (verified 2026-04-14)
+
+**Files created:**
+- `homelab/prometheus/default.nix` — Prometheus on `127.0.0.1:9090`, node exporter (`:9100`, systemd collector), 30d retention
+- `homelab/grafana/default.nix` — Grafana on `127.0.0.1:3000`, declarative Prometheus + Loki datasources, admin password via `$__file{...}` from sops secret
+- `homelab/loki/default.nix` — Loki on `127.0.0.1:3100` (tsdb/v13 schema, filesystem storage, 30d retention), Promtail reading journald
+
+**Files modified:**
+- `homelab/default.nix` — uncommented prometheus/grafana/loki imports
+- `homelab/caddy/default.nix` — added `@grafana` and `@prometheus` virtual hosts
+- `machines/nixos/pebble/default.nix` — enabled the three services
+
+**Configuration notes:**
+- All three services bind to `127.0.0.1` only; Caddy exposes Grafana and Prometheus via TLS
+- Grafana admin password uses `$__file{/run/secrets/grafana/admin_password}` syntax (Grafana INI native interpolation); if this fails at runtime, fallback is `EnvironmentFile` with `GF_SECURITY_ADMIN_PASSWORD=...`
+- Promtail port 3031 (internal), pushes journald to Loki at `localhost:3100`
+- Loki `http_listen_address` — verify key name during first build (may surface as Nix eval error)
+- No firewall changes needed: ports 80/443 already open via Caddy
+
+**Pre-deploy action required:**
+```bash
+just edit-secrets
+# Add (plaintext password, single line, no key=value wrapper):
+# grafana/admin_password: "YourStrongPasswordHere"
+```
+
+**Bugs fixed during deployment:**
+1. **Loki compactor**: `compactor.delete_request_store = "filesystem"` required when `retention_enabled = true` — Loki's config validator rejects the build without it.
+2. **Promtail 226/NAMESPACE**: NixOS promtail module sets `PrivateMounts=true` + `ReadWritePaths=/var/lib/promtail` but does not declare `StateDirectory`, so the directory is never created. systemd tries to bind-mount the path into the private namespace at startup and fails with `226/NAMESPACE` if it's absent. Fixed with `systemd.tmpfiles.rules = [ "d /var/lib/promtail 0750 promtail promtail -" ]`.
+
+**Verification (all passed 2026-04-14):**
+- [x] `systemctl status prometheus grafana loki promtail` — all active
+- [x] `https://prometheus.grab-lab.gg` loads; Targets page shows node exporter **UP**
+- [x] `https://grafana.grab-lab.gg` loads; login with `admin` + sops password
+- [x] Grafana → Connections → Prometheus datasource → Test: green
+- [x] Grafana → Connections → Loki datasource → Test: green
+- [x] Grafana → Explore → Loki → `{job="systemd-journal"}` returns logs
 ## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
 ## Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
 ## Stage 8: Homepage Dashboard — NOT STARTED

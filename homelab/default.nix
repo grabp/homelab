@@ -16,9 +16,9 @@
     ./pihole          # Stage 3
     ./caddy           # Stage 4
     ./vaultwarden     # Stage 5
-    # ./prometheus
-    # ./grafana
-    # ./loki
+    ./prometheus       # Stage 6
+    ./grafana          # Stage 6
+    ./loki             # Stage 6
     # ./netbird
     # ./homepage
     # ./home-assistant
