@@ -38,7 +38,8 @@ boot.kernelParams = [ "nohibernate" "zfs.zfs_arc_max=4294967296" ];
 | Homepage | Native | Module exists with structured config |
 | Uptime Kuma | Native | Module exists, simple service |
 | NetBird client (pebble) | Native | `services.netbird.clients.wt0` — routing peer, connects to self-hosted control plane on VPS |
-| **NetBird server (VPS)** | **Docker Compose** | `services.netbird.server` NixOS module exists (⚠️ sparse docs) — Docker Compose is lower-risk for initial deployment |
+| **NetBird server (VPS)** | **Podman OCI containers** | VPS runs NixOS; NetBird stack runs as OCI containers via `virtualisation.oci-containers`. `services.netbird.server` NixOS module exists but is not production-ready as of nixos-25.11 — use OCI containers instead |
+| **Kanidm** | **Native** | `services.kanidm` — OIDC + LDAP IdP for all homelab service SSO; runs on pebble, accessible via VPN only |
 | **Pi-hole** | **Podman** | No NixOS module — must use OCI |
 | **Home Assistant** | **Podman** | Complex ecosystem, frequent updates, plugin dependencies, upstream unsupported on NixOS |
 | Mosquitto | Native | Mature module; `per_listener_settings true` behavior; latency-sensitive MQTT |
@@ -417,6 +418,8 @@ All ports across all machines, avoiding conflicts.
 | 10300 | TCP | Wyoming Whisper | STT |
 | 10400 | TCP | OpenWakeWord | Wake word |
 | 51820 | UDP | NetBird | WireGuard VPN |
+| 8443 | TCP | Kanidm | HTTPS/OIDC — proxied by Caddy, not directly exposed |
+| 636 | TCP | Kanidm LDAPS | LDAP for Jellyfin |
 
 ### boulder (machine 2) — 192.168.10.51
 
@@ -476,10 +479,31 @@ Single source of truth for all `*.grab-lab.gg` subdomains.
 | `bookmarks.grab-lab.gg` | boulder | Karakeep | `reverse_proxy 192.168.10.51:9443` |
 | `budget.grab-lab.gg` | boulder | Actual Budget | `reverse_proxy 192.168.10.51:8265` |
 | `netbird.grab-lab.gg` | vps | NetBird Dashboard | Direct (not proxied through Caddy) |
+| `id.grab-lab.gg` | pebble | Kanidm IdP | `reverse_proxy localhost:8443` (with TLS transport) |
 
 **Pi-hole local DNS**: All subdomains resolve to pebble's IP (`192.168.10.50`) via the wildcard `address=/grab-lab.gg/192.168.10.50`. Caddy on pebble then routes to the correct backend (local or boulder).
 
 **Public DNS (Cloudflare)**: Only `netbird.grab-lab.gg` has a public A record (pointing to VPS). All other subdomains return NXDOMAIN publicly — they only resolve inside the homelab via Pi-hole.
+
+## Identity & Authentication
+
+This homelab uses a **two-tier IdP architecture** — see `docs/IDP-STRATEGY.md` for the full design rationale, per-service auth table, and NixOS configuration snippets.
+
+**Tier 1 — VPS: NetBird's embedded Dex**
+- Built into the `netbird-management` container since NetBird v0.62.0
+- Handles NetBird VPN authentication only (device code flow)
+- Zero configuration required — auto-configures during the setup wizard
+- Cannot serve other applications (hardcoded OIDC clients)
+
+**Tier 2 — pebble: Kanidm**
+- Native NixOS module: `services.kanidm` with declarative provisioning
+- Provides OIDC + LDAP for all homelab service SSO
+- ~50–80 MB RAM idle; embedded SQLite database (no PostgreSQL/Redis)
+- Accessible only via VPN — never exposed to the internet
+- All OAuth2 clients defined declaratively in their respective service modules
+
+**Why not one IdP:** VPN auth cannot depend on the homelab — chicken-and-egg problem.
+Embedded Dex on VPS breaks the deadlock. See `docs/IDP-STRATEGY.md` for details.
 
 ---
 

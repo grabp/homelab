@@ -106,25 +106,30 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **Estimated complexity:** Medium. Multiple services to configure. Grafana provisioning requires correct datasource YAML structure.
 
-## Stage 7a: VPN — VPS provisioning + NetBird control plane
+## Stage 7a: VPN — VPS provisioning + NetBird control plane (OCI containers)
 
-**What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running (either `services.netbird.server` NixOS module or Docker Compose via the official quickstart script), TLS via ACME/Let's Encrypt, NetBird dashboard accessible at `https://netbird.grab-lab.gg`. Setup keys and VPS secrets stored in `secrets/vps.yaml`.
+**What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running as **Podman OCI containers** (`virtualisation.oci-containers`) with native NixOS Caddy for TLS and native coturn for STUN/TURN. NetBird dashboard accessible at `https://netbird.grab-lab.gg`. Embedded Dex IdP auto-configures during the setup wizard. VPS secrets stored in `secrets/vps.yaml`.
 
-**Key files:** `machines/nixos/vps/{default,disko,netbird-server}.nix`, `secrets/vps.yaml`, `.sops.yaml` updated with VPS age key
+**Note:** VPS runs NixOS managed by the same flake + deploy-rs. NetBird server components run as OCI containers, but the VPS host itself is declaratively managed. This hybrid approach gives battle-tested NetBird containers with declarative TLS management via native Caddy.
+
+⚠️ **Do NOT use `services.netbird.server`** — the NixOS module is not production-ready as of nixos-25.11. Use `virtualisation.oci-containers` instead. See NIX-PATTERNS.md Pattern 19.
+
+**Key files:** `machines/nixos/vps/{default,disko,netbird-containers}.nix`, `machines/nixos/vps/caddy.nix`, `secrets/vps.yaml`, `.sops.yaml` updated with VPS age key
 
 **Dependencies:** Stage 2 (sops-nix for secrets). Hetzner account. DNS A record `netbird.grab-lab.gg → <VPS_IP>` created (DNS only in Cloudflare — **not** proxied, gRPC requires direct TCP). VPS SSH host key extracted via `ssh-keyscan | ssh-to-age` to get the VPS age key.
 
-**Deployment options (choose one):**
-- **NixOS path (preferred):** `just provision-vps <VPS_IP>` — runs `nixos-anywhere --flake .#vps root@<VPS_IP>`
-- **Docker path (lower risk initially):** SSH into a plain Ubuntu VPS, run `curl -fsSL https://github.com/netbirdio/netbird/releases/latest/download/getting-started.sh | bash` with `NETBIRD_DOMAIN=netbird.grab-lab.gg`
+**Deployment:** `just provision-vps <VPS_IP>` — runs `nixos-anywhere --flake .#vps root@<VPS_IP>`
 
 **Verification steps:**
-- `https://netbird.grab-lab.gg` loads the NetBird dashboard; TLS certificate valid
-- Setup wizard completes: admin account created
+- `podman ps` on VPS shows 3 containers running: `netbird-management`, `netbird-dashboard`, and coturn (or check via `systemctl status podman-*`)
+- `https://netbird.grab-lab.gg` loads the NetBird dashboard; TLS certificate valid (Let's Encrypt via HTTP-01)
+- Setup wizard at `https://netbird.grab-lab.gg/setup` completes: embedded Dex admin account created
+- NetBird client authenticates via embedded Dex device code flow
 - Setup key created in Dashboard → Setup Keys (reusable key, "homelab-servers" group)
-- Key encrypted into `secrets/vps.yaml` with `just edit-secrets` (or `sops secrets/vps.yaml`)
+- Key encrypted into `secrets/secrets.yaml` with `just edit-secrets` (needed for Stage 7b)
+- `systemctl status coturn caddy` — both active on VPS
 
-**Estimated complexity:** Medium. NixOS path requires `nixos-anywhere` and computing the VPS age key. Docker path is faster but leaves the VPS unmanaged by Nix. The `services.netbird.server` NixOS module has sparse documentation — treat all options as ⚠️ VERIFY.
+**Estimated complexity:** Medium. `nixos-anywhere` provisioning requires computing the VPS age key. Native Caddy on VPS requires verifying gRPC proxy syntax. Embedded Dex setup wizard is one-time interactive.
 
 ## Stage 7b: VPN — Homelab NetBird client + routes + DNS + ACLs
 
@@ -149,6 +154,31 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 - If connection appears "Connected" but traffic stops: `netbird-wt0 down && netbird-wt0 up` (stale relay workaround)
 
 **Estimated complexity:** Medium-high. The `DNSStubListener=no` coexistence requires care. Management URL may need a one-time manual step. CGNAT means relay is expected — don't troubleshoot P2P as a failure.
+
+## Stage 7c: Identity Provider — Kanidm
+
+**What gets built:** Kanidm OIDC + LDAP identity provider on pebble, accessible only via NetBird VPN. Declarative OAuth2 client provisioning in NixOS. Caddy virtual host for `id.grab-lab.gg`. Pi-hole DNS entry for `id.grab-lab.gg`. Grafana OIDC login as the first integration test.
+
+**Key files:** `homelab/kanidm/default.nix`, Grafana OIDC config in `homelab/grafana/default.nix`, Caddy virtual host in `homelab/caddy/default.nix`
+
+**Dependencies:**
+- Stage 4 (Caddy) — Kanidm needs TLS via Caddy
+- Stage 7b (NetBird client) — remote services need VPN to reach Kanidm (Kanidm is never internet-exposed)
+- Must complete BEFORE Outline (Stage 16), Immich (Stage 14), and any other service requiring OIDC
+
+**Why here:** NetBird VPN must be established (Stage 7b) before deploying a homelab-only IdP. The VPN is how you reach Kanidm from outside the LAN. See `docs/IDP-STRATEGY.md` for the two-tier design rationale.
+
+**Verification steps:**
+- `systemctl status kanidm` — active
+- `https://id.grab-lab.gg` loads Kanidm self-service UI (from within VPN or LAN)
+- `kanidm system oauth2 list` — shows "grafana" client provisioned
+- Navigate to `https://grafana.grab-lab.gg` → "Sign in with Kanidm" → Kanidm login → Grafana dashboard (round-trip OIDC works)
+- `dig @192.168.10.50 id.grab-lab.gg` returns `192.168.10.50` (Pi-hole local DNS works)
+- From outside LAN (mobile via NetBird): `https://grafana.grab-lab.gg` → Kanidm login works through VPN
+
+**Post-completion:** Add Kanidm OAuth2 client definitions to each subsequent service as it is deployed (each service stage adds its client to its own module file).
+
+**Estimated complexity:** Medium. Kanidm TLS-on-localhost + Caddy `tls_insecure_skip_verify` is the main friction point. Per-client issuer URLs require careful service-by-service configuration.
 
 ## Stage 8: Homepage dashboard
 
@@ -320,7 +350,9 @@ See `docs/SECOND-MACHINE.md` for detailed hardware specs and service configurati
 
 **Key files:** Container configs in boulder's default.nix or individual modules
 
-**Dependencies:** Stage 12 (PostgreSQL for Outline, Vikunja).
+**⚠️ BLOCKING DEPENDENCY:** **Outline requires OIDC and has no local auth fallback.** It cannot be deployed until Stage 7c (Kanidm) is complete and the `outline` OAuth2 client is provisioned. Attempting to deploy Outline before Kanidm exists will result in an unusable wiki. Vikunja, Karakeep, and Actual Budget can fall back to local auth if needed.
+
+**Dependencies:** Stage 12 (PostgreSQL for Outline, Vikunja). **Stage 7c (Kanidm) — required for Outline, strongly recommended for all services.**
 
 **Verification steps:**
 - `https://wiki.grab-lab.gg` — Outline loads
@@ -376,8 +408,9 @@ See `docs/SECOND-MACHINE.md` for detailed hardware specs and service configurati
 | 1 | 4 | Reverse proxy (Caddy) | pebble |
 | 1 | 5 | Password management (Vaultwarden) | pebble |
 | 1 | 6 | Monitoring | pebble |
-| 1 | 7a | VPN — VPS provisioning | vps |
+| 1 | 7a | VPN — VPS provisioning (OCI containers + embedded Dex) | vps |
 | 1 | 7b | VPN — Homelab client | pebble |
+| 1 | 7c | Identity Provider — Kanidm | pebble |
 | 1 | 8 | Homepage dashboard | pebble |
 | 1 | 9a | HA + MQTT + HACS | pebble |
 | 1 | 9b | Voice + ESPHome + Matter | pebble |

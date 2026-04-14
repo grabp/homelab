@@ -1,7 +1,7 @@
 # Implementation Progress
 
-## Current Stage: 7b — VPN: Homelab Client + Routes + DNS + ACLs
-## Status: NOT STARTED
+## Current Stage: 7a — VPN: VPS + NetBird Control Plane (OCI migration + embedded Dex)
+## Status: IN PROGRESS
 
 ---
 
@@ -195,7 +195,11 @@ just edit-secrets
 - [x] Grafana → Connections → Prometheus datasource → Test: green
 - [x] Grafana → Connections → Loki datasource → Test: green
 - [x] Grafana → Explore → Loki → `{job="systemd-journal"}` returns logs
-## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — COMPLETE (verified 2026-04-14)
+## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane (OCI containers) — IN PROGRESS
+
+**Architecture change:** Switching from Zitadel Cloud IdP + separate management/signal images to **embedded Dex IdP** (built into `netbirdio/netbird:management-latest` since v0.62.0). NetBird server uses `virtualisation.oci-containers` (NOT `services.netbird.server` — that module is not production-ready as of nixos-25.11). Native NixOS Caddy replaces nginx for TLS termination.
+
+**Status:** Infrastructure deployed and verified; IdP migration to embedded Dex in progress. Setup wizard not yet completed. See decision log below.
 
 **Files created:**
 - `machines/nixos/vps/disko.nix` — ext4 disk layout for Hetzner CX22 (`/dev/sda`, GPT + EF02 BIOS boot partition)
@@ -253,6 +257,7 @@ just edit-secrets
 - [ ] Setup key encrypted into `secrets/secrets.yaml` (needed for Stage 7b) — **TODO**
 
 ## Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
+## Stage 7c: Identity Provider — Kanidm — NOT STARTED
 ## Stage 8: Homepage Dashboard — NOT STARTED
 ## Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
 ## Stage 9b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
@@ -346,3 +351,19 @@ Researched self-hosting NetBird behind CGNAT. Findings incorporated into all arc
 - DNSStubListener=no is the correct Pi-hole + NetBird coexistence solution
 - Route advertisement (192.168.10.0/24) configured in NetBird Dashboard, not NixOS
 - Stage 6 prerequisite: VPS must be running before homelab client can connect
+
+### IdP Strategy + NetBird OCI Migration — 2026-04-15
+
+**Decision 1: NetBird server via OCI containers, not native NixOS module**
+- `services.netbird.server` exists in nixpkgs but is not production-ready as of nixos-25.11
+- Configuration failures during testing: unclear option interactions, sparse documentation, complex OIDC chicken-and-egg startup ordering
+- Switched to `virtualisation.oci-containers` on NixOS VPS — same container images the official Docker Compose setup uses, but managed declaratively by NixOS
+- Native NixOS Caddy replaces nginx for TLS termination (same module as pebble, consistent pattern)
+- Documented in: docs/ARCHITECTURE.md (isolation table), docs/SERVICE-CONFIGS.md, docs/NIX-PATTERNS.md (Patterns 19–20), docs/STAGES.md (Stage 7a), docs/NETBIRD-SELFHOSTED.md
+
+**Decision 2: Embedded Dex for NetBird auth + Kanidm on homelab for all service SSO**
+- **Tier 1 — VPS:** NetBird's embedded Dex (built into `netbirdio/netbird:management-latest` since v0.62.0) handles VPN authentication only. Zero configuration, zero extra RAM. Eliminates Zitadel Cloud dependency.
+- **Tier 2 — pebble:** Kanidm (`services.kanidm`) handles all homelab service SSO (OIDC + LDAP). ~50–80 MB RAM. Native NixOS module with declarative OAuth2 client provisioning.
+- **Why two tiers:** Chicken-and-egg — need VPN to reach homelab IdP, but need IdP to authenticate VPN. Embedded Dex on VPS breaks the deadlock.
+- **New Stage 7c:** Kanidm deployment added to STAGES.md (after 7b, before Stage 8; blocks Outline/Immich/etc.)
+- Documented in: docs/IDP-STRATEGY.md (new), docs/ARCHITECTURE.md (Identity & Authentication section), docs/SERVICE-CONFIGS.md (Kanidm entry + auth notes per service), docs/NIX-PATTERNS.md (Patterns 21–23), docs/STAGES.md (Stage 7c), docs/STRUCTURE.md (kanidm/ module)

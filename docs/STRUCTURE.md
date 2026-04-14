@@ -28,9 +28,12 @@ homelab/
 │       │   ├── disko.nix      # ZFS layout
 │       │   └── hardware.nix   # Generated
 │       └── vps/               # Hetzner CX22 (NetBird control plane, public IP)
-│           ├── default.nix    # VPS entry point: hostname, firewall, ACME, minimal base
+│           ├── default.nix    # VPS entry point: hostname, GRUB, virtio modules, sops, firewall
 │           ├── disko.nix      # Simple ext4 layout (no ZFS needed on VPS)
-│           └── netbird-server.nix  # services.netbird.server or Docker Compose config
+│           ├── netbird-containers.nix  # OCI containers: netbird-management, dashboard, coturn
+│           └── caddy.nix      # Native NixOS Caddy: TLS termination + gRPC proxy for NetBird
+│           # NOTE: netbird-server.nix (services.netbird.server) is NOT used —
+│           #       services.netbird.server is not production-ready as of nixos-25.11
 ├── homelab/                   # Service modules (one directory per service)
 │   ├── default.nix            # Imports all service modules
 │   ├── caddy/
@@ -52,7 +55,11 @@ homelab/
 │   ├── homepage/
 │   │   └── default.nix
 │   ├── netbird/
-│   │   └── default.nix
+│   │   └── default.nix        # NetBird client (pebble): services.netbird.clients.wt0
+│   ├── kanidm/
+│   │   └── default.nix        # Kanidm IdP: services.kanidm + declarative users/groups
+│   │                          # NOTE: each service module co-locates its OAuth2 client
+│   │                          # definition alongside its service config (not centralized here)
 │   ├── mosquitto/
 │   │   └── default.nix        # MQTT broker (native, Stage 9a)
 │   ├── wyoming/
@@ -136,6 +143,7 @@ homelab/
     ./uptime-kuma        # Stage 9a
     ./homepage           # Stage 8
     ./netbird            # Stage 7b
+    ./kanidm             # Stage 7c — OIDC+LDAP IdP; OAuth2 clients co-located in service modules
     ./mosquitto          # Stage 9a
     ./wyoming            # Stage 9b — Whisper + Piper + OpenWakeWord
     ./matter-server      # Stage 9b
@@ -150,6 +158,8 @@ homelab/
 }
 ```
 
+**Kanidm OAuth2 clients are co-located with service configs:** The `homelab/kanidm/default.nix` module defines only the core IdP (users, groups, server settings). Each service module that uses OIDC adds its own `services.kanidm.provision.systems.oauth2.<name>` block in its own `default.nix`. This keeps auth config co-located with service config — for example, `homelab/grafana/default.nix` contains both the Grafana service config and the Kanidm OAuth2 client for Grafana. See `docs/IDP-STRATEGY.md` and NIX-PATTERNS.md Pattern 21.
+
 **Voice services in a single `wyoming/` module:** All three Wyoming services (faster-whisper, piper, openwakeword) are grouped in one `homelab/wyoming/default.nix` because they share the `services.wyoming.*` namespace, are always deployed together as a voice pipeline, and together require the single `ProcSubset` workaround. Splitting them into separate files would add boilerplate with no benefit at this scale.
 
 **`machines/nixos/pebble/default.nix`** enables services:
@@ -161,6 +171,7 @@ homelab/
   my.services.caddy.enable = true;
   my.services.vaultwarden.enable = true;
   my.services.grafana.enable = true;
+  my.services.kanidm.enable = true;  # Stage 7c
   # ...
 }
 ```

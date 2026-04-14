@@ -307,9 +307,40 @@ homelab-infra/
 }
 ```
 
-### NixOS server module for the VPS
+### Recommended: OCI containers on NixOS VPS
 
-⚠️ VERIFY: The `services.netbird.server` module exists with ~41 options in nixpkgs, but documentation is sparse. The configuration below is synthesized from the NixOS Wiki, community blog posts, and option search — test carefully.
+The VPS still runs NixOS (managed via the same flake + deploy-rs), but NetBird server
+components run as Podman OCI containers via `virtualisation.oci-containers`. Native NixOS
+Caddy handles TLS termination; native coturn handles STUN/TURN.
+
+**Since NetBird v0.62.0**, the 7-container stack collapses to 3 containers:
+- `netbirdio/netbird:management-latest` — combined management + signal + relay + embedded Dex IdP
+- `netbirdio/dashboard:latest` — React web UI
+- `coturn/coturn:latest` — STUN/TURN (host network)
+
+The **embedded Dex IdP** requires zero configuration — it auto-sets up during the
+`/setup` wizard on first boot. No Zitadel, no CockroachDB, no external accounts.
+
+See **NIX-PATTERNS.md Pattern 19** for the full OCI container configuration and
+**Pattern 20** for the native Caddy reverse proxy setup. These are the patterns
+used in `machines/nixos/vps/netbird-containers.nix`.
+
+⚠️ **Pin image tags before production** — `management-latest` is a rolling tag. Use
+a specific version like `netbirdio/netbird:v0.68.1` in your NixOS config.
+
+---
+
+### ⚠️ EXPERIMENTAL: NixOS native server module (do not use in production)
+
+The `services.netbird.server` NixOS module exists with ~41 options in nixpkgs, but
+**is not production-ready as of nixos-25.11**. Issues encountered during testing:
+- Sparse documentation — options are unclear without reading nixpkgs source
+- Complex OIDC chicken-and-egg startup ordering
+- Unclear interactions between coturn, management, and signal components
+- Configuration failures that are difficult to diagnose
+
+**Recommendation: use OCI containers (above) instead.** The config below is preserved
+for reference only — it has NOT been tested successfully in this project.
 
 ```nix
 # hosts/vps/netbird-server.nix
@@ -370,7 +401,12 @@ in
 }
 ```
 
-### Docker Compose alternative for the VPS
+### Docker Compose reference (not used in this project)
+
+The official Docker Compose quickstart is kept here for reference. On NixOS, use
+`virtualisation.oci-containers` (see the Recommended section above) — it provides
+the same container images but with declarative NixOS management instead of
+docker-compose.yml files.
 
 If you prefer Docker on a minimal Ubuntu/Debian VPS rather than NixOS:
 
@@ -517,6 +553,6 @@ all-peers → pihole                 (UDP 53)
 
 NetBird self-hosted has matured into a viable homelab VPN, especially after v0.62.0 eliminated the heavyweight Zitadel dependency. The total cost is **~€4/month** for a Hetzner CX22 VPS plus your existing domain. Behind CGNAT, accept that connections will be relayed rather than peer-to-peer — the ~7 Mbps throughput and ~85ms latency are adequate for dashboard access and light media streaming, though not ideal for bulk transfers.
 
-The three areas requiring the most attention are **DNS coexistence** (systemd-resolved + Pi-hole, solved with `DNSStubListener=no`), **NixOS server module configuration** (sparse documentation, expect iteration), and **stale relay monitoring** (a known bug in CGNAT scenarios requiring occasional client restarts). The NixOS `services.netbird.server` module exists but is less battle-tested than the Docker Compose path — starting with Docker on the VPS and migrating to NixOS later is a pragmatically lower-risk approach.
+The three areas requiring the most attention are **DNS coexistence** (systemd-resolved + Pi-hole, solved with `DNSStubListener=no`), **gRPC proxy configuration** (Caddy h2c syntax for management/signal gRPC endpoints — verify carefully), and **stale relay monitoring** (a known bug in CGNAT scenarios requiring occasional client restarts). The `services.netbird.server` NixOS module is not production-ready — use `virtualisation.oci-containers` on the NixOS VPS with the official NetBird images. The embedded Dex IdP (since v0.62.0) eliminates the need for external IdP accounts entirely.
 
 Key version to target: **NetBird v0.68.1** (released April 8, 2026). The embedded IdP, combined server container, and consolidated port architecture make this the best era yet for self-hosting NetBird on a budget.

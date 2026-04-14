@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(nix flake check:*)"
+      "Bash(nix flake check:*)",
+      "Bash(git -C /home/grabowskip/Projects/lab diff --stat)",
+      "Bash(git -C /home/grabowskip/Projects/lab status)"
     ]
   }
 }

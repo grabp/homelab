@@ -727,6 +727,9 @@ nix run github:serokell/deploy-rs -- -s .#vps
 
 ```nix
 # machines/nixos/vps/default.nix — minimal VPS base config
+# Note: netbird-server.nix uses OCI containers (virtualisation.oci-containers),
+# NOT services.netbird.server — see Pattern 19 for the OCI container approach.
+# ⚠️ services.netbird.server exists but is not production-ready as of nixos-25.11.
 { vars, ... }: {
   imports = [ ./disko.nix ./netbird-server.nix ];
 
@@ -1090,3 +1093,349 @@ deploy.nodes.${hostname} = {
 **Source:** Discovered during Stage 7a when `ssh admin@netbird.grab-lab.gg` resolved to
 pebble (192.168.10.50) instead of VPS, deploying VPS config to the homelab server and
 breaking SSH access. Required physical console recovery ✅.
+
+---
+
+## Pattern 19: NetBird server via OCI containers on NixOS VPS (embedded Dex)
+
+⚠️ **Do NOT use `services.netbird.server`** — it exists in nixpkgs but is not
+production-ready as of nixos-25.11 (sparse documentation, unclear option interactions).
+Use `virtualisation.oci-containers` on the NixOS VPS instead.
+
+Since NetBird v0.62.0, the stack collapses to **3 containers** (down from 7+):
+- `netbirdio/netbird:management-latest` — combined management + signal + relay + **embedded Dex IdP**
+- `netbirdio/dashboard:latest` — React web UI
+- `coturn/coturn:latest` — STUN/TURN server (host network)
+
+The **embedded Dex IdP** requires zero configuration — it auto-configures during the
+`/setup` wizard on first boot. No Zitadel, no CockroachDB, no external IdP accounts needed.
+
+```nix
+# machines/nixos/vps/netbird-containers.nix
+{ config, lib, pkgs, vars, ... }:
+
+let
+  domain = "netbird.${vars.domain}";
+  mgmtConfigTemplate = pkgs.writeText "management.json.tmpl" (builtins.toJSON {
+    # Stuns, TURNConfig, Signal, HttpConfig with embedded Dex issuer
+    # DataStoreEncryptionKey injected at runtime (see oneshot below)
+    # ⚠️ VERIFY: exact management.json schema for your NetBird version
+    Stuns = [{ Proto = "udp"; URI = "${domain}:3478"; }];
+    TURNConfig = {
+      Turns = [{ Proto = "udp"; URI = "turn:${domain}:3478"; Username = "netbird"; Password = "TURN_PLACEHOLDER"; }];
+      Secret = "TURN_PLACEHOLDER";
+      TimeBasedCredentials = false;
+    };
+    Signal = { Proto = "https"; URI = "${domain}:443"; };
+    HttpConfig = {
+      Address = "0.0.0.0:8080";
+      # Embedded Dex issuer — auto-configured; no external IdP needed
+      OIDCConfigEndpoint = "https://${domain}/idp/.well-known/openid-configuration";
+      IdpSignKeyRefreshEnabled = true;
+    };
+    IdpManagerConfig.ManagerType = "none";
+    DataStoreEncryptionKey = "ENC_PLACEHOLDER";
+    StoreConfig.Engine = "sqlite";
+  });
+in {
+  virtualisation.oci-containers.backend = "podman";
+  virtualisation.oci-containers.containers = {
+
+    netbird-management = {
+      image = "netbirdio/netbird:management-latest";
+      # ⚠️ Pin to a specific version tag before production — rolling tag
+      ports = [ "127.0.0.1:8080:8080" ];
+      volumes = [
+        "/var/lib/netbird-mgmt:/var/lib/netbird"
+        "/var/lib/netbird-mgmt/management.json:/etc/netbird/management.json:ro"
+      ];
+      cmd = [
+        "--port" "8080"
+        "--log-file" "console"
+        "--disable-anonymous-metrics" "true"
+        "--single-account-mode-domain" vars.domain
+      ];
+    };
+
+    netbird-dashboard = {
+      image = "netbirdio/dashboard:latest";
+      # ⚠️ Pin to a specific version tag before production
+      ports = [ "127.0.0.1:3000:80" ];
+      environment = {
+        # Embedded Dex — point at the management container's IdP endpoint
+        AUTH_AUTHORITY = "https://${domain}/idp";
+        AUTH_CLIENT_ID = "netbird-client";   # ⚠️ VERIFY: client ID from setup wizard
+        AUTH_SUPPORTED_SCOPES = "openid profile email";
+        AUTH_REDIRECT_URI = "https://${domain}/auth";
+        AUTH_SILENT_REDIRECT_URI = "https://${domain}/silent-auth";
+        NETBIRD_MGMT_API_ENDPOINT = "https://${domain}";
+        NETBIRD_MGMT_GRPC_API_ENDPOINT = "https://${domain}";
+        USE_AUTH0 = "false";
+      };
+    };
+
+    coturn = {
+      image = "coturn/coturn:latest";
+      extraOptions = [ "--network=host" ];
+      volumes = [ "/var/lib/coturn:/var/lib/coturn" ];
+      # ⚠️ Pass config file or environment for TURN secret
+    };
+  };
+
+  # Runtime secret injection before management container starts
+  systemd.services.netbird-management-config = {
+    description = "Generate NetBird management.json with runtime secrets";
+    wantedBy = [ "podman-netbird-management.service" ];
+    before    = [ "podman-netbird-management.service" ];
+    after     = [ "sops-install-secrets.service" ];
+    serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+    path = [ pkgs.jq ];
+    script = ''
+      TURN="$(cat ${config.sops.secrets."netbird/turn_password".path})"
+      ENC="$(cat ${config.sops.secrets."netbird/encryption_key".path})"
+      jq --arg turn "$TURN" --arg enc "$ENC" \
+        '.TURNConfig.Turns[0].Password = $turn
+         | .TURNConfig.Secret           = $turn
+         | .DataStoreEncryptionKey      = $enc' \
+        ${mgmtConfigTemplate} > /var/lib/netbird-mgmt/management.json
+      chmod 600 /var/lib/netbird-mgmt/management.json
+    '';
+  };
+
+  systemd.services.podman-netbird-management = {
+    after    = [ "netbird-management-config.service" ];
+    requires = [ "netbird-management-config.service" ];
+  };
+}
+```
+
+**Source:** NetBird v0.62.0+ architecture. `virtualisation.oci-containers` pattern from Pattern 5 (Pi-hole). Management.json runtime injection from current `machines/nixos/vps/netbird-server.nix` ✅.
+
+---
+
+## Pattern 20: Hybrid VPS — NixOS-managed Caddy + OCI NetBird containers
+
+On the VPS, use **native NixOS Caddy** (`services.caddy`) for TLS termination rather
+than a Caddy or Traefik container. Native Caddy handles Let's Encrypt via HTTP-01
+challenge (public IP available) and avoids adding a fourth container layer.
+
+```nix
+# machines/nixos/vps/caddy.nix
+{ config, pkgs, vars, ... }:
+
+let domain = "netbird.${vars.domain}"; in {
+  services.caddy = {
+    enable = true;
+    # No withPlugins needed on VPS — HTTP-01 challenge via public IP
+  };
+
+  services.caddy.virtualHosts."${domain}" = {
+    extraConfig = ''
+      # NetBird management + signal (combined in v0.62.0+)
+      handle /api/* {
+        reverse_proxy localhost:8080
+      }
+      handle /management.ManagementService/* {
+        reverse_proxy h2c://localhost:8080
+      }
+      handle /signalexchange.SignalExchange/* {
+        reverse_proxy h2c://localhost:8080
+      }
+      # Dashboard SPA
+      handle {
+        reverse_proxy localhost:3000
+      }
+    '';
+  };
+
+  networking.firewall.allowedTCPPorts = [ 80 443 ];
+}
+```
+
+**Why native Caddy beats a Caddy container on VPS:**
+- Caddy native module manages ACME state in `/var/lib/caddy` — persistent without a volume
+- HTTP-01 works (public IP) — no Cloudflare plugin or DNS-01 needed
+- One fewer container; native systemd management, journald logs
+- `services.caddy` is the same module used on pebble — consistent configuration pattern
+
+**Replaces:** `services.nginx` (previously used for the same purpose in the current netbird-server.nix)
+
+**Source:** `services.caddy` verified in nixpkgs ✅. gRPC proxying via `h2c://` (cleartext h2) is Caddy's standard approach for gRPC backends ✅.
+
+---
+
+## Pattern 21: Kanidm with declarative OAuth2 client provisioning
+
+Kanidm's `services.kanidm.provision` block lets you define users, groups, and OAuth2
+resource servers in NixOS config. **No web UI clicking required.** Each service module
+co-locates its Kanidm client definition alongside its service config.
+
+```nix
+# homelab/kanidm/default.nix — core IdP config only
+{ config, lib, vars, ... }:
+{
+  services.kanidm = {
+    enableServer = true;
+    serverSettings = {
+      origin = "https://id.${vars.domain}";
+      domain = "id.${vars.domain}";
+      bindaddress = "127.0.0.1:8443";
+      ldapbindaddress = "127.0.0.1:636";
+    };
+    provision = {
+      enable = true;
+      adminPasswordFile    = config.sops.secrets."kanidm/admin_password".path;
+      idmAdminPasswordFile = config.sops.secrets."kanidm/idm_admin_password".path;
+
+      persons."alice" = {
+        displayName = "Alice";
+        mailAddresses = [ "alice@${vars.domain}" ];
+      };
+      groups."homelab_users".members = [ "alice" ];
+      groups."homelab_admins".members = [ "alice" ];
+    };
+  };
+
+  sops.secrets."kanidm/admin_password"     = {};
+  sops.secrets."kanidm/idm_admin_password" = {};
+
+  # LDAPS port open for Jellyfin
+  networking.firewall.allowedTCPPorts = [ 636 ];
+  # Port 8443 is NOT opened — Caddy proxies it via localhost
+}
+```
+
+```nix
+# homelab/grafana/default.nix — OAuth2 client defined co-located with service
+{ config, lib, vars, ... }:
+{
+  # ... Grafana service config ...
+
+  # Kanidm OAuth2 client for Grafana — defined here, not in kanidm/default.nix
+  services.kanidm.provision.systems.oauth2."grafana" = {
+    displayName  = "Grafana";
+    originUrl    = "https://grafana.${vars.domain}/login/generic_oauth";
+    originLanding = "https://grafana.${vars.domain}";
+    scopeMaps."homelab_users" = [ "openid" "profile" "email" "groups" ];
+  };
+}
+```
+
+**Kanidm OIDC issuer URL pattern (per-client, not global):**
+```
+https://id.grab-lab.gg/oauth2/openid/<client-name>/.well-known/openid-configuration
+```
+
+**Known gotchas:**
+- Per-client issuer URLs (not a single global issuer) — configure each service with its specific client name
+- PKCE S256 enforced by default — disable for legacy apps: `kanidm system oauth2 warning-enable-legacy-crypto <client>`
+- ES256 token signing (not RS256) — most apps handle this; verify per service
+- Kanidm requires TLS even on localhost — Caddy transport: `tls_insecure_skip_verify`
+
+**Source:** `services.kanidm` exists in nixpkgs with `provision` submodule ✅. ⚠️ VERIFY option names in nixos-25.11 — the provision API was updated in Kanidm 1.x.
+
+---
+
+## Pattern 22: Caddy forward_auth with Kanidm
+
+For services without native OIDC support (Uptime Kuma, Homepage), Caddy's
+`forward_auth` directive proxies authentication to Kanidm.
+
+```nix
+# In homelab/caddy/default.nix or the service's own module
+services.caddy.virtualHosts."uptime.${vars.domain}" = {
+  extraConfig = ''
+    forward_auth localhost:8443 {
+      uri /ui/oauth2/token/check
+      copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+      transport http {
+        tls_insecure_skip_verify
+      }
+    }
+    reverse_proxy localhost:3001
+  '';
+};
+```
+
+⚠️ **VERIFY:** Kanidm's exact forward_auth endpoint. `/ui/oauth2/token/check` is the
+expected path but verify against the Kanidm documentation for your version.
+
+**Alternative:** Use **oauth2-proxy** as a sidecar with Kanidm as the OIDC backend.
+More setup but better documented for the forward_auth use case:
+
+```nix
+# oauth2-proxy sidecar for services without native auth
+virtualisation.oci-containers.containers.oauth2-proxy = {
+  image = "quay.io/oauth2-proxy/oauth2-proxy:latest";
+  environment = {
+    OAUTH2_PROXY_PROVIDER = "oidc";
+    OAUTH2_PROXY_OIDC_ISSUER_URL = "https://id.${vars.domain}/oauth2/openid/oauth2-proxy/.well-known/openid-configuration";
+    OAUTH2_PROXY_CLIENT_ID = "oauth2-proxy";
+    OAUTH2_PROXY_UPSTREAM = "http://localhost:3001";  # upstream service
+    OAUTH2_PROXY_HTTP_ADDRESS = "0.0.0.0:4180";
+  };
+  environmentFiles = [ config.sops.secrets."oauth2-proxy/env".path ];
+};
+```
+
+**Source:** Caddy `forward_auth` directive is documented in Caddy docs ✅. oauth2-proxy
+OIDC provider pattern is verified against oauth2-proxy docs ✅.
+
+---
+
+## Pattern 23: Grafana OIDC with Kanidm
+
+Grafana is the simplest service to test Kanidm OIDC integration — use it as the
+reference implementation before configuring other services.
+
+```nix
+# homelab/grafana/default.nix — add OIDC config alongside existing Grafana settings
+{ config, lib, vars, ... }:
+{
+  services.grafana.settings = {
+    server = {
+      domain   = "grafana.${vars.domain}";
+      root_url = "https://grafana.${vars.domain}";
+    };
+
+    # Kanidm OIDC — per-client issuer URL pattern
+    "auth.generic_oauth" = {
+      enabled              = true;
+      name                 = "Kanidm";
+      client_id            = "grafana";
+      client_secret        = "$__file{${config.sops.secrets."grafana/oidc_secret".path}}";
+      auth_url             = "https://id.${vars.domain}/ui/oauth2";
+      token_url            = "https://id.${vars.domain}/oauth2/token";
+      api_url              = "https://id.${vars.domain}/oauth2/openid/grafana/userinfo";
+      scopes               = "openid profile email groups";
+      # Map Kanidm groups to Grafana roles
+      role_attribute_path  = "contains(groups[*], 'homelab_admins') && 'Admin' || 'Viewer'";
+      allow_sign_up        = true;
+      auto_login           = false;   # set true after verifying OIDC works
+    };
+  };
+
+  # OIDC client secret in sops
+  sops.secrets."grafana/oidc_secret" = {
+    owner        = "grafana";
+    restartUnits = [ "grafana.service" ];
+  };
+
+  # Co-located Kanidm client definition (see Pattern 21)
+  services.kanidm.provision.systems.oauth2."grafana" = {
+    displayName   = "Grafana";
+    originUrl     = "https://grafana.${vars.domain}/login/generic_oauth";
+    originLanding = "https://grafana.${vars.domain}";
+    scopeMaps."homelab_users" = [ "openid" "profile" "email" "groups" ];
+  };
+}
+```
+
+**Verification steps:**
+1. `kanidm system oauth2 list` — shows "grafana" client registered
+2. Navigate to `https://grafana.grab-lab.gg` → click "Sign in with Kanidm"
+3. Redirected to `https://id.grab-lab.gg` → login → redirected back to Grafana
+4. Grafana user created with correct role based on group membership
+
+**Source:** Grafana `auth.generic_oauth` settings documented in Grafana docs ✅.
+Kanidm OAuth2 provisioning verified against Kanidm documentation ✅.
