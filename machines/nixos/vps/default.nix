@@ -2,6 +2,7 @@
   imports = [
     ./disko.nix
     ./netbird-server.nix
+    ./caddy.nix
     ../../../modules/podman
   ];
 
@@ -37,15 +38,13 @@
   };
 
   networking.firewall.enable = true;
-  # nginx for ACME HTTP-01 challenge and NetBird dashboard
+  # Caddy for ACME HTTP-01 challenge and NetBird dashboard/API
   networking.firewall.allowedTCPPorts = [ 80 443 ];
-  # coturn ports (3478/5349 and relay range) are opened automatically by
-  # services.netbird.server.coturn when enabled.
+  # coturn ports (3478/5349 and relay range) are opened automatically by services.coturn.
 
-  # ACME: TLS certificates via Let's Encrypt HTTP-01 challenge.
-  # nginx virtualHost with enableACME = true triggers cert creation.
-  # No Cloudflare DNS plugin needed — VPS has a public IP and can respond
-  # to HTTP-01 challenges directly.
+  # ACME: Caddy obtains TLS certs via Let's Encrypt HTTP-01 challenge.
+  # No Cloudflare DNS plugin needed — VPS has a public IP.
+  # acceptTerms + email are read by the Caddy module as ACME defaults.
   security.acme = {
     acceptTerms = true;
     defaults.email = vars.adminEmail;

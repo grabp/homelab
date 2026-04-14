@@ -151,7 +151,7 @@ The NixOS NetBird module was substantially reworked (PR #354032) and now uses `s
 { config, ... }:
 {
   # Secret management via sops-nix
-  sops.secrets.netbird-setup-key = {
+  sops.secrets."netbird/setup_key" = {
     sopsFile = ../../secrets/homelab.yaml;
   };
 
@@ -173,13 +173,13 @@ The NixOS NetBird module was substantially reworked (PR #354032) and now uses `s
 
     login = {
       enable = true;
-      setupKeyFile = config.sops.secrets.netbird-setup-key.path;
+      setupKeyFile = config.sops.secrets."netbird/setup_key".path;
     };
 
     # ⚠️ VERIFY: config overlay for management URL may work via config.d/*.json
     # If not, run once manually after first deploy:
     # netbird-wt0 up --management-url https://netbird.grab-lab.gg \
-    #   --setup-key $(cat /run/secrets/netbird-setup-key)
+    #   --setup-key $(cat /run/secrets/netbird/setup_key)
   };
 
   # Enable IP forwarding for route advertisement
@@ -535,7 +535,7 @@ all-peers → pihole                 (UDP 53)
 
 6. **Store setup key in sops** — Encrypt the homelab setup key into `secrets/homelab.yaml` using sops-nix.
 
-7. **Deploy NetBird client on homelab** — Add the NixOS NetBird client configuration (see above). Run `nixos-rebuild switch`. If auto-login doesn't set the management URL, run `netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird-setup-key)` once.
+7. **Deploy NetBird client on homelab** — Add the NixOS NetBird client configuration (see above). Run `nixos-rebuild switch`. If auto-login doesn't set the management URL, run `netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird/setup_key)` once.
 
 8. **Configure routes** — In Dashboard → Network Routes, add `192.168.10.0/24` with the homelab as routing peer. Enable masquerading.
 

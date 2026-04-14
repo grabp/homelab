@@ -141,7 +141,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 **⚠️ Management URL:** The NixOS module may not support setting the management URL declaratively. After first deploy, run once:
 ```
-netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird-setup-key)
+netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird/setup_key)
 ```
 
 **Verification steps (CGNAT-aware):**

@@ -3,7 +3,12 @@
     "allow": [
       "Bash(nix flake check:*)",
       "Bash(git -C /home/grabowskip/Projects/lab diff --stat)",
-      "Bash(git -C /home/grabowskip/Projects/lab status)"
+      "Bash(git -C /home/grabowskip/Projects/lab status)",
+      "WebFetch(domain:docs.netbird.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:netbird.io)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }

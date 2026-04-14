@@ -219,11 +219,11 @@ Browser / NetBird clients
 
 **Ports:** 51820/udp outbound to VPS (WireGuard); no inbound ports needed (CGNAT)
 
-**Secrets:** `netbird-setup-key` in `secrets/secrets.yaml`
+**Secrets:** `netbird/setup_key` in `secrets/secrets.yaml`
 
 **Known gotchas:**
 - **`DNSStubListener=no` is required** for Pi-hole + NetBird coexistence. See Pattern 15 in `docs/NIX-PATTERNS.md`. Pi-hole holds port 53; resolved runs as routing daemon only for NetBird's `resolvectl` calls.
-- ⚠️ **Management URL:** `login.managementUrl` option may exist — ⚠️ VERIFY. If not, run once manually after first deploy: `netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird-setup-key)`
+- ⚠️ **Management URL:** `login.managementUrl` option may exist — ⚠️ VERIFY. If not, run once manually after first deploy: `netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /run/secrets/netbird/setup_key)`
 - **Route advertisement** (192.168.10.0/24) is configured in the NetBird Dashboard, not in NixOS. `useRoutingFeatures = "both"` enables the kernel IP forwarding prerequisite only.
 - **CGNAT:** expect relay connections (~7 Mbps / ~85ms). `netbird status -d` showing `ICE candidate: relay` is normal, not a failure.
 - **Stale relay bug (GitHub #3936):** connection shows "Connected" but traffic stops. Fix: `netbird-wt0 down && netbird-wt0 up`.
@@ -231,7 +231,7 @@ Browser / NetBird clients
 ```nix
 { config, lib, vars, ... }:
 {
-  sops.secrets.netbird-setup-key = {};
+  sops.secrets."netbird/setup_key" = {};
 
   services.resolved = {
     enable      = true;
@@ -245,7 +245,7 @@ Browser / NetBird clients
     ui.enable            = false;
     login = {
       enable       = true;
-      setupKeyFile = config.sops.secrets.netbird-setup-key.path;
+      setupKeyFile = config.sops.secrets."netbird/setup_key".path;
       # managementUrl = "https://netbird.${vars.domain}";  # ⚠️ VERIFY
     };
   };

@@ -781,7 +781,7 @@ in {
   options.my.services.netbird.enable = lib.mkEnableOption "NetBird VPN client";
 
   config = lib.mkIf cfg.enable {
-    sops.secrets.netbird-setup-key = {
+    sops.secrets."netbird/setup_key" = {
       sopsFile = ../../secrets/secrets.yaml;
       # No owner needed — service reads directly
     };
@@ -801,7 +801,7 @@ in {
 
       login = {
         enable       = true;
-        setupKeyFile = config.sops.secrets.netbird-setup-key.path;
+        setupKeyFile = config.sops.secrets."netbird/setup_key".path;
         # ⚠️ VERIFY: managementUrl option may exist; if not, run manual step below
         # managementUrl = "https://netbird.${vars.domain}";
       };
@@ -823,7 +823,7 @@ in {
 ```bash
 netbird-wt0 up \
   --management-url https://netbird.grab-lab.gg \
-  --setup-key $(cat /run/secrets/netbird-setup-key)
+  --setup-key $(cat /run/secrets/netbird/setup_key)
 ```
 
 Route advertisement (192.168.10.0/24) and DNS nameserver groups are configured **in the NetBird Dashboard**, not in NixOS. See `docs/NETBIRD-SELFHOSTED.md` for the step-by-step dashboard configuration.
@@ -926,7 +926,7 @@ sops.secrets."service/env" = {
 | `caddy/env` (CLOUDFLARE_API_TOKEN) | `caddy.service` | ✅ implemented |
 | `pihole/env` (web password) | `podman-pihole.service` | ⚠ not yet — low priority (password changes are rare) |
 | `grafana_admin_password` | `grafana.service` | ⚠ add in Stage 5 |
-| `netbird-setup-key` | `systemd-netbird-wt0.service` | ⚠ add in Stage 6b |
+| `netbird/setup_key` | `systemd-netbird-wt0.service` | ⚠ add in Stage 6b |
 
 Note: Grafana injects its admin password via `$__file{/run/secrets/...}` syntax in
 `settings.security.admin_password`, not via EnvironmentFile — but it still needs a restart
@@ -1102,47 +1102,72 @@ breaking SSH access. Required physical console recovery ✅.
 production-ready as of nixos-25.11 (sparse documentation, unclear option interactions).
 Use `virtualisation.oci-containers` on the NixOS VPS instead.
 
-Since NetBird v0.62.0, the stack collapses to **3 containers** (down from 7+):
-- `netbirdio/netbird:management-latest` — combined management + signal + relay + **embedded Dex IdP**
-- `netbirdio/dashboard:latest` — React web UI
-- `coturn/coturn:latest` — STUN/TURN server (host network)
+As of v0.68.x the container stack is **3 OCI containers + 1 native service**:
+- `netbirdio/management:latest` — REST API + gRPC + **embedded Dex IdP** (port 8080)
+- `netbirdio/signal:latest` — peer coordination, still a **separate** image (port 10000 on host, 80 in container)
+- `netbirdio/dashboard:latest` — React web UI (port 3000 on host, 80 in container)
+- native `services.coturn` — STUN/TURN (reads Caddy ACME certs; no container needed)
 
-The **embedded Dex IdP** requires zero configuration — it auto-configures during the
-`/setup` wizard on first boot. No Zitadel, no CockroachDB, no external IdP accounts needed.
+⚠️ **Common image name mistake:** `netbirdio/netbird:management-latest` does **not** exist on
+Docker Hub. The correct image is `netbirdio/management:latest`. Signal is NOT merged into
+the management image as of v0.68.x.
+
+### management.json — embedded Dex configuration
+
+Enable embedded Dex with `EmbeddedIdP.Enabled = true`. The binary auto-configures
+`HttpConfig` (issuer, audience, OIDC endpoint) from the `Issuer` value — do **not**
+set `OIDCConfigEndpoint` manually. `IdpManagerConfig` must be **omitted** (it is for
+external IdPs only; its presence alongside `EmbeddedIdP` causes conflicts).
+
+`DashboardRedirectURIs` registers extra redirect URIs beyond the auto-registered
+`/api/reverse-proxy/callback`. Both `/nb-auth` (PKCE callback) and `/nb-silent-auth`
+(silent token renewal) must be listed or Dex will reject them with `BAD_REQUEST`.
 
 ```nix
-# machines/nixos/vps/netbird-containers.nix
+# machines/nixos/vps/netbird-server.nix (relevant excerpt)
 { config, lib, pkgs, vars, ... }:
-
 let
   domain = "netbird.${vars.domain}";
   mgmtConfigTemplate = pkgs.writeText "management.json.tmpl" (builtins.toJSON {
-    # Stuns, TURNConfig, Signal, HttpConfig with embedded Dex issuer
-    # DataStoreEncryptionKey injected at runtime (see oneshot below)
-    # ⚠️ VERIFY: exact management.json schema for your NetBird version
-    Stuns = [{ Proto = "udp"; URI = "${domain}:3478"; }];
+    Stuns = [{ Proto = "udp"; URI = "${domain}:3478"; Username = null; Password = null; }];
     TURNConfig = {
       Turns = [{ Proto = "udp"; URI = "turn:${domain}:3478"; Username = "netbird"; Password = "TURN_PLACEHOLDER"; }];
+      CredentialsTTL = "12h";
       Secret = "TURN_PLACEHOLDER";
       TimeBasedCredentials = false;
     };
-    Signal = { Proto = "https"; URI = "${domain}:443"; };
+    Signal = { Proto = "https"; URI = "${domain}:443"; Username = null; Password = null; };
     HttpConfig = {
       Address = "0.0.0.0:8080";
-      # Embedded Dex issuer — auto-configured; no external IdP needed
-      OIDCConfigEndpoint = "https://${domain}/idp/.well-known/openid-configuration";
+      # OIDCConfigEndpoint is auto-set by the binary when EmbeddedIdP is enabled.
+      # Do NOT set it manually — it will be ignored / conflict.
       IdpSignKeyRefreshEnabled = true;
     };
-    IdpManagerConfig.ManagerType = "none";
+    EmbeddedIdP = {
+      Enabled = true;
+      # Issuer must match the public URL Caddy exposes for /oauth2/*.
+      Issuer = "https://${domain}/oauth2";
+      # These are registered as allowed redirect_uris in the netbird-dashboard Dex client.
+      # The binary auto-registers /api/reverse-proxy/callback; these are extra.
+      # AUTH_REDIRECT_URI and AUTH_SILENT_REDIRECT_URI in the dashboard env must match.
+      DashboardRedirectURIs = [
+        "https://${domain}/nb-auth"
+        "https://${domain}/nb-silent-auth"
+      ];
+    };
+    # IdpManagerConfig must be OMITTED when using embedded Dex.
     DataStoreEncryptionKey = "ENC_PLACEHOLDER";
     StoreConfig.Engine = "sqlite";
+    Datadir = "/var/lib/netbird";
+    SingleAccountModeDomain = vars.domain;
+    ReverseProxy = { TrustedPeers = [ "0.0.0.0/0" ]; TrustedHTTPProxies = []; TrustedHTTPProxiesCount = 0; };
   });
 in {
-  virtualisation.oci-containers.backend = "podman";
   virtualisation.oci-containers.containers = {
 
+    # Management REST API + gRPC + embedded Dex IdP
     netbird-management = {
-      image = "netbirdio/netbird:management-latest";
+      image = "netbirdio/management:latest";
       # ⚠️ Pin to a specific version tag before production — rolling tag
       ports = [ "127.0.0.1:8080:8080" ];
       volumes = [
@@ -1150,44 +1175,45 @@ in {
         "/var/lib/netbird-mgmt/management.json:/etc/netbird/management.json:ro"
       ];
       cmd = [
-        "--port" "8080"
-        "--log-file" "console"
+        "--port" "8080" "--log-file" "console"
         "--disable-anonymous-metrics" "true"
         "--single-account-mode-domain" vars.domain
       ];
     };
 
+    # Signal — peer coordination (still a separate image in v0.68.x)
+    # Signal binary listens on port 80 inside the container.
+    netbird-signal = {
+      image = "netbirdio/signal:latest";
+      ports = [ "127.0.0.1:10000:80" ];
+    };
+
     netbird-dashboard = {
       image = "netbirdio/dashboard:latest";
-      # ⚠️ Pin to a specific version tag before production
       ports = [ "127.0.0.1:3000:80" ];
       environment = {
-        # Embedded Dex — point at the management container's IdP endpoint
-        AUTH_AUTHORITY = "https://${domain}/idp";
-        AUTH_CLIENT_ID = "netbird-client";   # ⚠️ VERIFY: client ID from setup wizard
-        AUTH_SUPPORTED_SCOPES = "openid profile email";
-        AUTH_REDIRECT_URI = "https://${domain}/auth";
-        AUTH_SILENT_REDIRECT_URI = "https://${domain}/silent-auth";
-        NETBIRD_MGMT_API_ENDPOINT = "https://${domain}";
+        # AUTH_AUTHORITY = the embedded Dex issuer path (not /idp — that's wrong)
+        AUTH_AUTHORITY = "https://${domain}/oauth2";
+        AUTH_CLIENT_ID = "netbird-dashboard";
+        AUTH_AUDIENCE  = "netbird-dashboard";
+        AUTH_SUPPORTED_SCOPES = "openid profile email offline_access groups";
+        # ⚠️ MUST be relative paths — the dashboard prepends window.location.origin.
+        # Full URLs ("https://domain/nb-auth") cause doubling: "https://domainhttps://domain/nb-auth".
+        AUTH_REDIRECT_URI        = "/nb-auth";
+        AUTH_SILENT_REDIRECT_URI = "/nb-silent-auth";
+        NETBIRD_MGMT_API_ENDPOINT      = "https://${domain}";
         NETBIRD_MGMT_GRPC_API_ENDPOINT = "https://${domain}";
         USE_AUTH0 = "false";
       };
     };
-
-    coturn = {
-      image = "coturn/coturn:latest";
-      extraOptions = [ "--network=host" ];
-      volumes = [ "/var/lib/coturn:/var/lib/coturn" ];
-      # ⚠️ Pass config file or environment for TURN secret
-    };
   };
 
-  # Runtime secret injection before management container starts
+  # Runtime secret injection — must run before management container starts
   systemd.services.netbird-management-config = {
     description = "Generate NetBird management.json with runtime secrets";
     wantedBy = [ "podman-netbird-management.service" ];
-    before    = [ "podman-netbird-management.service" ];
-    after     = [ "sops-install-secrets.service" ];
+    before   = [ "podman-netbird-management.service" ];
+    after    = [ "sops-install-secrets.service" ];
     serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
     path = [ pkgs.jq ];
     script = ''
@@ -1201,7 +1227,6 @@ in {
       chmod 600 /var/lib/netbird-mgmt/management.json
     '';
   };
-
   systemd.services.podman-netbird-management = {
     after    = [ "netbird-management-config.service" ];
     requires = [ "netbird-management-config.service" ];
@@ -1209,7 +1234,26 @@ in {
 }
 ```
 
-**Source:** NetBird v0.62.0+ architecture. `virtualisation.oci-containers` pattern from Pattern 5 (Pi-hole). Management.json runtime injection from current `machines/nixos/vps/netbird-server.nix` ✅.
+### Setup wizard gotchas
+
+**First boot:** Visit `https://<domain>/setup`. The management API endpoint `/api/setup`
+(POST, unauthenticated) accepts `{Email, Password, Name}` and creates the owner user.
+The dashboard wizard POSTs to this endpoint directly — no Dex login required for setup.
+
+**"setup_required: false" blocks wizard:** If a previous deployment left a `store.db`
+(e.g., from a Zitadel-era run), the management server thinks setup is done and the
+`/setup` page redirects straight to login. Users can't log in because the embedded Dex
+password store (`idp.db`) has no accounts. Fix:
+```bash
+systemctl stop podman-netbird-management
+rm /var/lib/netbird-mgmt/store.db /var/lib/netbird-mgmt/idp.db
+systemctl start podman-netbird-management
+# Now curl http://localhost:8080/api/instance returns {"setup_required":true}
+```
+
+**Source:** Verified against `netbirdio/management:latest` v0.68.3 in production ✅.
+Image names confirmed via Docker Hub API. Dex client registration from
+`management/server/idp/embedded.go` source ✅.
 
 ---
 
@@ -1221,34 +1265,40 @@ challenge (public IP available) and avoids adding a fourth container layer.
 
 ```nix
 # machines/nixos/vps/caddy.nix
-{ config, pkgs, vars, ... }:
+{ vars, ... }:
 
 let domain = "netbird.${vars.domain}"; in {
   services.caddy = {
     enable = true;
-    # No withPlugins needed on VPS — HTTP-01 challenge via public IP
-  };
-
-  services.caddy.virtualHosts."${domain}" = {
-    extraConfig = ''
-      # NetBird management + signal (combined in v0.62.0+)
+    globalConfig = ''
+      email ${vars.adminEmail}
+    '';
+    virtualHosts."${domain}".extraConfig = ''
+      # Management REST API
       handle /api/* {
         reverse_proxy localhost:8080
       }
+      # Management gRPC — h2c = cleartext HTTP/2 to backend
       handle /management.ManagementService/* {
         reverse_proxy h2c://localhost:8080
       }
+      # Signal gRPC — separate netbirdio/signal container on port 10000
+      # ⚠️ Signal is NOT merged into management as of v0.68.x.
+      # Signal container maps host:10000 → container:80.
       handle /signalexchange.SignalExchange/* {
-        reverse_proxy h2c://localhost:8080
+        reverse_proxy h2c://localhost:10000
       }
-      # Dashboard SPA
+      # Embedded Dex IdP — served by management container at /oauth2
+      # ⚠️ Path is /oauth2, NOT /idp — the binary registers Dex routes at /oauth2.
+      handle /oauth2/* {
+        reverse_proxy localhost:8080
+      }
+      # Dashboard SPA — catch-all
       handle {
         reverse_proxy localhost:3000
       }
     '';
   };
-
-  networking.firewall.allowedTCPPorts = [ 80 443 ];
 }
 ```
 
@@ -1257,10 +1307,9 @@ let domain = "netbird.${vars.domain}"; in {
 - HTTP-01 works (public IP) — no Cloudflare plugin or DNS-01 needed
 - One fewer container; native systemd management, journald logs
 - `services.caddy` is the same module used on pebble — consistent configuration pattern
+- coturn can read Caddy's ACME certs via group membership (`users.users.turnserver.extraGroups = ["caddy"]`)
 
-**Replaces:** `services.nginx` (previously used for the same purpose in the current netbird-server.nix)
-
-**Source:** `services.caddy` verified in nixpkgs ✅. gRPC proxying via `h2c://` (cleartext h2) is Caddy's standard approach for gRPC backends ✅.
+**Source:** `services.caddy` verified in nixpkgs ✅. gRPC proxying via `h2c://` verified in production ✅. `/oauth2` path confirmed from `management/server/idp/embedded.go` source ✅.
 
 ---
 
