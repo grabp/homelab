@@ -2,10 +2,11 @@ inputs:
 let
   vars = import ./machines/nixos/vars.nix;
 
-  # Resolve deploy hostname: pebble uses static IP, vps uses its DNS name
+  # Resolve deploy hostname: always use IPs, never domains (Pattern 18)
+  # Domain resolution can hit split-horizon DNS and deploy to wrong machine.
   deployHostname = hostname:
     if hostname == "pebble" then vars.serverIP
-    else if hostname == "vps" then "netbird.${vars.domain}"
+    else if hostname == "vps" then vars.vpsIP
     else hostname;
 
   mkNixos = hostname: nixpkgsVersion: extraModules: {

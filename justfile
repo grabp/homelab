@@ -25,12 +25,52 @@ deploy-vps:
     nix run github:serokell/deploy-rs -- -s .#vps
 
 # Initial VPS provisioning via nixos-anywhere (run once per VPS)
+# Prereqs: run `just gen-vps-hostkey` first, add the age key to .sops.yaml,
+#          create secrets/vps.yaml with `just edit-secrets-vps`, then run this.
+# --extra-files uploads the pre-generated SSH host key so sops can decrypt vps.yaml at boot.
 # Usage: just provision-vps 1.2.3.4
 provision-vps ip:
-    nix run github:nix-community/nixos-anywhere -- --flake .#vps root@{{ip}}
+    nix run github:nix-community/nixos-anywhere -- \
+      --flake .#vps \
+      --extra-files /tmp/vps-hostkey \
+      root@{{ip}}
+
+# Pre-generate VPS SSH host key to solve the sops chicken-and-egg problem.
+# The VPS age key (derived from SSH host key) must be in .sops.yaml before
+# secrets/vps.yaml can be encrypted for the VPS.
+#
+# Workflow:
+#   1. just gen-vps-hostkey        — generates key, prints age key
+#   2. Edit .sops.yaml             — add `- &vps age1...` and uncomment `- *vps`
+#   3. just edit-secrets-vps       — create secrets/vps.yaml with netbird secrets
+#   4. just build                  — verify flake builds before provisioning
+#   5. just provision-vps <VPS_IP> — install NixOS with pre-generated host key
+gen-vps-hostkey:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p /tmp/vps-hostkey/etc/ssh
+    if [ ! -f /tmp/vps-hostkey/etc/ssh/ssh_host_ed25519_key ]; then
+      ssh-keygen -t ed25519 -N "" -f /tmp/vps-hostkey/etc/ssh/ssh_host_ed25519_key -C "vps-hostkey"
+      echo "SSH host key generated."
+    else
+      echo "SSH host key already exists at /tmp/vps-hostkey/etc/ssh/ssh_host_ed25519_key"
+    fi
+    echo ""
+    echo "VPS SSH host public key:"
+    cat /tmp/vps-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "VPS age key (add to .sops.yaml under keys):"
+    nix shell nixpkgs#ssh-to-age -c ssh-to-age < /tmp/vps-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "Next steps:"
+    echo "  1. Add '- &vps age1...' to .sops.yaml keys section"
+    echo "  2. Uncomment '- *vps' in the vps.yaml creation rule"
+    echo "  3. just edit-secrets-vps  # add netbird/turn_password and netbird/encryption_key"
+    echo "  4. just build"
+    echo "  5. just provision-vps <VPS_IP>"
 
 ssh-vps:
-    ssh admin@netbird.grab-lab.gg
+    ssh admin@204.168.181.110
 
 # ── Flake Management ──────────────────────────
 update:

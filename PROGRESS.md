@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 7a — VPN: VPS Provisioning + NetBird Control Plane
+## Current Stage: 7b — VPN: Homelab Client + Routes + DNS + ACLs
 ## Status: NOT STARTED
 
 ---
@@ -195,7 +195,63 @@ just edit-secrets
 - [x] Grafana → Connections → Prometheus datasource → Test: green
 - [x] Grafana → Connections → Loki datasource → Test: green
 - [x] Grafana → Explore → Loki → `{job="systemd-journal"}` returns logs
-## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — NOT STARTED
+## Stage 7a: VPN — VPS Provisioning + NetBird Control Plane — COMPLETE (verified 2026-04-14)
+
+**Files created:**
+- `machines/nixos/vps/disko.nix` — ext4 disk layout for Hetzner CX22 (`/dev/sda`, GPT + EF02 BIOS boot partition)
+- `machines/nixos/vps/default.nix` — base VPS config: GRUB boot, virtio kernel modules, sops from `vps.yaml`, ACME defaults
+- `machines/nixos/vps/netbird-server.nix` — NetBird control plane: OCI containers (management + signal + dashboard) + native coturn + nginx
+
+**Files modified:**
+- `flake.nix` — added `mkNixos "vps"` call alongside pebble
+- `flakeHelpers.nix` — `deployHostname` now returns `vars.vpsIP` (IP address) for VPS, not domain name (Pattern 18)
+- `.sops.yaml` — added VPS age key and `vps.yaml` creation rule
+- `justfile` — added `gen-vps-hostkey`, `provision-vps`, `deploy-vps`, `ssh-vps` (uses IP `204.168.181.110`)
+- `homelab/pihole/default.nix` — added `address=/netbird.grab-lab.gg/${vars.vpsIP}` for split-DNS exception
+- `machines/nixos/vars.nix` — added `vpsIP = "204.168.181.110"`
+
+**Configuration:**
+- OCI containers via `virtualisation.oci-containers` (Podman): `netbirdio/management`, `netbirdio/signal`, `netbirdio/dashboard`
+- Native `services.coturn` — TURN relay, ACME cert, HMAC secret via `static-auth-secret-file`
+- Native `services.nginx` — reverse proxy for dashboard (`:8080`), REST API (`:8011`), gRPC management + signal (`:10000`)
+- IdP: Zitadel Cloud free tier (OIDC/PKCE) — issuer `grablab-zitadel-cloud-70oyna.eu1.zitadel.cloud`
+- `management.json` generated at runtime by systemd oneshot (`netbird-management-config`) using `jq` to inject sops secrets
+- ACME: HTTP-01 challenge via nginx (public VPS IP); `services.nginx.enable = true` required explicitly
+- `users.users.turnserver.extraGroups = ["nginx"]` — coturn reads ACME certs via nginx group membership
+- 2 secrets in `secrets/vps.yaml`: `netbird/turn_password`, `netbird/encryption_key`
+
+**Bugs fixed during deployment:**
+1. **Hetzner uses SeaBIOS (BIOS), not UEFI**: VPS stuck at "Booting from Hard disk..." — switched from systemd-boot to GRUB with EF02 (BIOS boot) partition in disko.nix
+2. **Missing virtio kernel modules**: VPS boot failed with "Timed out waiting for device disk-main-root" — added `boot.initrd.availableKernelModules = ["virtio_pci" "virtio_blk" "virtio_scsi" "sd_mod" "sr_mod"]`
+3. **Coturn permission denied on secrets**: sops secrets default to root-only — added `owner = "turnserver"`, `mode = "0440"` for `netbird/turn_password`
+4. **deploy-rs used domain name, deployed to wrong machine**: SSH to `netbird.grab-lab.gg` resolved to pebble (192.168.10.50) instead of VPS (204.168.181.110), broke pebble with VPS config — added Pattern 18 (always use IPs), updated `flakeHelpers.nix` and `justfile` to use IPs
+5. **Ports 80/443 not open for ACME**: nginx module doesn't auto-open firewall ports — added `networking.firewall.allowedTCPPorts = [80 443]` to VPS config
+6. **Pi-hole didn't pick up DNS override**: Activation script updated config file but container wasn't restarted — must restart Pi-hole container after dnsmasq config changes (`sudo systemctl restart podman-pihole.service`)
+7. **ACME assertion error**: `security.acme.certs.${domain}.group = lib.mkForce "turnserver"` triggers assertion requiring a challenge method — fixed by using `users.users.turnserver.extraGroups = ["nginx"]` instead
+8. **Dashboard missing AUTH_AUDIENCE**: `netbirdio/dashboard` image requires `AUTH_AUDIENCE` env var explicitly — must be set to Zitadel project ID
+9. **nginx not starting**: `services.nginx.virtualHosts` does NOT auto-enable nginx — `services.nginx.enable = true` must be set explicitly
+
+**Pre-deploy workflow (completed):**
+1. Created Hetzner CX22 VPS at IP `204.168.181.110`
+2. Created Cloudflare DNS A record: `netbird.grab-lab.gg → 204.168.181.110` (DNS only, no proxy)
+3. Generated SSH host key via `just gen-vps-hostkey`
+4. Added VPS age key to `.sops.yaml`
+5. Created `secrets/vps.yaml` with TURN password and encryption key
+6. Provisioned via `just provision-vps 204.168.181.110`
+7. Deployed firewall fix via `just deploy-vps`
+8. Deployed pebble with Pi-hole DNS override via `just deploy pebble`
+9. Restarted Pi-hole to load split-DNS config
+
+**Verification (all passed 2026-04-14):**
+- [x] All NetBird services running on VPS: nginx, netbird-management, netbird-signal, coturn
+- [x] TLS certificate from Let's Encrypt (E8 CA, expires July 2026)
+- [x] VPS firewall allows ports 22, 80, 443, 3478, 3479, 5349, 5350, 49152-65535
+- [x] `https://netbird.grab-lab.gg` loads NetBird dashboard with valid TLS
+- [x] Pi-hole split-DNS: `netbird.grab-lab.gg → 204.168.181.110` (VPS), `grafana.grab-lab.gg → 192.168.10.50` (pebble)
+- [ ] Setup wizard completes: admin account created — **TODO**
+- [ ] Setup key created in Dashboard → Setup Keys (reusable, "homelab-servers" group) — **TODO**
+- [ ] Setup key encrypted into `secrets/secrets.yaml` (needed for Stage 7b) — **TODO**
+
 ## Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs — NOT STARTED
 ## Stage 8: Homepage Dashboard — NOT STARTED
 ## Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
@@ -286,7 +342,7 @@ Researched self-hosting NetBird behind CGNAT. Findings incorporated into all arc
 
 **Key decisions recorded:**
 - VPS: Hetzner CX22 at €3.79/month
-- VPS deployment: Docker Compose initially (lower risk), migrate to NixOS in Stage 9
+- VPS deployment: Podman OCI containers (`netbirdio/*` images) — chosen over native `services.netbird.server` (sparse docs, complex OIDC startup issues) and Docker Compose
 - DNSStubListener=no is the correct Pi-hole + NetBird coexistence solution
 - Route advertisement (192.168.10.0/24) configured in NetBird Dashboard, not NixOS
 - Stage 6 prerequisite: VPS must be running before homelab client can connect

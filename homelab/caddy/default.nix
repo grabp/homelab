@@ -39,6 +39,11 @@ in
       # CLOUDFLARE_API_TOKEN is injected via EnvironmentFile (sops secret below).
       extraConfig = ''
         *.${vars.domain} {
+          log {
+            output stdout
+            format json
+          }
+
           tls {
             dns cloudflare {env.CLOUDFLARE_API_TOKEN}
             resolvers 1.1.1.1

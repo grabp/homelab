@@ -164,72 +164,103 @@ This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The hom
 
 ### NetBird server — VPS (`machines/nixos/vps/netbird-server.nix`)
 
-**Module status:** ✅ `services.netbird.server` EXISTS (~41 options). ⚠️ **Documentation is sparse** — treat all options as requiring verification. Docker Compose is the lower-risk initial deployment path.
+**Approach:** OCI containers (Podman) for management/signal/dashboard + native NixOS modules for coturn and nginx. This avoids the NixOS `services.netbird.server` module which has sparse documentation and was found to have a complex OIDC chicken-and-egg startup issue.
 
-**Package:** `pkgs.netbird` (server components)
+**Images:** `netbirdio/management:latest`, `netbirdio/signal:latest`, `netbirdio/dashboard:latest`
 
-**VPS ports:** 80/tcp (ACME), 443/tcp (management + signal + relay WebSocket), 3478/udp (STUN/TURN), 49152–65535/udp (TURN relay range)
+**VPS ports:** 80/tcp (ACME HTTP-01), 443/tcp (nginx: dashboard + REST API + gRPC), 3478/udp+tcp (STUN/TURN), 5349/tcp (TURN TLS), 49152–65535/udp (TURN relay range)
 
-**Secrets:** `netbird-turn-password`, `netbird-encryption-key`, `netbird-relay-secret` in `secrets/vps.yaml`
+**Secrets:** `netbird/turn_password`, `netbird/encryption_key` in `secrets/vps.yaml`
 
-**DNS record:** A record `netbird.grab-lab.gg → <VPS_PUBLIC_IP>` — set to **DNS only** in Cloudflare (gray cloud). Cloudflare proxying breaks gRPC.
+**DNS record:** A record `netbird.grab-lab.gg → 204.168.181.110` — **DNS only** in Cloudflare (gray cloud). Cloudflare proxying breaks gRPC.
 
-**Identity provider:** Embedded Dex IdP (built into `netbird-server` since v0.62.0) — no external IdP needed. Setup wizard at `/setup` on first deploy.
+**Identity provider:** Zitadel Cloud free tier (OIDC/PKCE). Issuer: `grablab-zitadel-cloud-70oyna.eu1.zitadel.cloud`. Client ID and Project ID stored as Nix let-bindings (not secrets — they are public OIDC parameters).
 
-**RAM:** ~300–500 MB idle (4 containers: netbird-server, dashboard, coturn, reverse proxy)
-
-**Deployment option A — Docker Compose (recommended to start):**
-
-```bash
-export NETBIRD_DOMAIN=netbird.grab-lab.gg
-curl -fsSL https://github.com/netbirdio/netbird/releases/latest/download/getting-started.sh | bash
+**Architecture:**
+```
+Browser / NetBird clients
+       ↓ HTTPS 443
+  nginx (native, services.nginx.enable = true)
+   ┌────┼──────────┬──────────────┐
+   /   /api   /management…/   /signalexchange…/
+ :8080  :8011      :8011            :10000
+(OCI) (OCI)      (OCI)             (OCI)
+              coturn :3478/:5349 (native)
 ```
 
-Generates `docker-compose.yml`, `config.yaml`, `turnserver.conf` automatically with embedded Dex IdP. Commit generated files to git. Migrate to NixOS module in Stage 9 hardening.
+**management.json secret injection:** `management.json` is generated at build time via `pkgs.writeText` (with placeholder values), then a systemd oneshot (`netbird-management-config`) uses `jq` at runtime to substitute the real sops secret values before the container starts.
 
-**Deployment option B — NixOS module (⚠️ verify options):**
+**Known gotchas:**
+- `services.nginx.enable = true` must be set explicitly — `services.nginx.virtualHosts` does NOT auto-enable nginx
+- `AUTH_AUDIENCE` env var is required by `netbirdio/dashboard` — set to Zitadel project ID (not client ID)
+- `security.acme.certs.${domain}.group = lib.mkForce "turnserver"` triggers ACME assertion error — use `users.users.turnserver.extraGroups = ["nginx"]` instead to grant coturn cert read access
+- coturn `static-auth-secret-file` option in NixOS module directly accepts a file path — no preStart injection needed
 
 ```nix
-# machines/nixos/vps/netbird-server.nix
-{ config, vars, ... }:
-let netbirdDomain = "netbird.${vars.domain}"; in
-{
-  sops.secrets = {
-    netbird-turn-password  = { sopsFile = ../../../secrets/vps.yaml; };
-    netbird-encryption-key = { sopsFile = ../../../secrets/vps.yaml; };
-    netbird-relay-secret   = { sopsFile = ../../../secrets/vps.yaml; };
+# machines/nixos/vps/netbird-server.nix (condensed)
+{ config, lib, pkgs, vars, ... }:
+let
+  domain = "netbird.${vars.domain}";
+  zitadelIssuer    = "https://grablab-zitadel-cloud-70oyna.eu1.zitadel.cloud";
+  zitadelClientId  = "368487648114824331";
+  zitadelProjectId = "368487538106567602";
+  mgmtConfigTemplate = pkgs.writeText "management.json.tmpl" (builtins.toJSON { /* ... */ });
+in {
+  # coturn (native)
+  services.coturn = {
+    enable = true;  listening-port = 3478;  tls-listening-port = 5349;
+    cert   = "/var/lib/acme/${domain}/fullchain.pem";
+    pkey   = "/var/lib/acme/${domain}/key.pem";
+    realm  = domain;  use-auth-secret = true;
+    static-auth-secret-file = config.sops.secrets."netbird/turn_password".path;
+  };
+  users.users.turnserver.extraGroups = [ "nginx" ];  # read ACME certs
+
+  # runtime secret injection
+  systemd.services.netbird-management-config = {
+    serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+    path = [ pkgs.jq ];
+    script = ''
+      jq --arg turn "$(cat ${config.sops.secrets."netbird/turn_password".path})" \
+         --arg enc  "$(cat ${config.sops.secrets."netbird/encryption_key".path})" \
+         '.TURNConfig.Turns[0].Password = $turn | .TURNConfig.Secret = $turn
+          | .DataStoreEncryptionKey = $enc' \
+         ${mgmtConfigTemplate} > /var/lib/netbird-mgmt/management.json
+    '';
   };
 
-  services.netbird.server = {
-    enable  = true;
-    domain  = netbirdDomain;
-    coturn  = { enable = true; passwordFile = config.sops.secrets.netbird-turn-password.path; };
-    signal.enable    = true;
-    dashboard.enable = true;
-    management = {
-      enable                    = true;
-      domain                    = netbirdDomain;
-      turnDomain                = netbirdDomain;
-      singleAccountModeDomain   = netbirdDomain;
-      # ⚠️ VERIFY: oidcConfigEndpoint needed? Or handled by embedded Dex automatically?
-      settings = {
-        DataStoreEncryptionKey._secret =
-          config.sops.secrets.netbird-encryption-key.path;
-        TURNConfig.Secret._secret =
-          config.sops.secrets.netbird-turn-password.path;
-        Relay = {
-          Addresses  = [ "rels://${netbirdDomain}:443" ];
-          Secret._secret = config.sops.secrets.netbird-relay-secret.path;
-        };
+  # OCI containers
+  virtualisation.oci-containers.containers = {
+    netbird-management = {
+      image = "netbirdio/management:latest";  ports = [ "127.0.0.1:8011:8011" ];
+      volumes = [ "/var/lib/netbird-mgmt:/var/lib/netbird"
+                  "/var/lib/netbird-mgmt/management.json:/etc/netbird/management.json:ro" ];
+    };
+    netbird-signal    = { image = "netbirdio/signal:latest";    ports = [ "127.0.0.1:10000:80" ]; };
+    netbird-dashboard = {
+      image = "netbirdio/dashboard:latest";  ports = [ "127.0.0.1:8080:80" ];
+      environment = {
+        AUTH_AUTHORITY = zitadelIssuer;  AUTH_CLIENT_ID = zitadelClientId;
+        AUTH_AUDIENCE  = zitadelProjectId;  # required — NOT the client ID
+        USE_AUTH0 = "false";
+        AUTH_REDIRECT_URI        = "https://${domain}/auth";
+        AUTH_SILENT_REDIRECT_URI = "https://${domain}/silent-auth";
+        NETBIRD_MGMT_API_ENDPOINT      = "https://${domain}";
+        NETBIRD_MGMT_GRPC_API_ENDPOINT = "https://${domain}";
       };
     };
   };
 
-  security.acme = { acceptTerms = true; defaults.email = vars.adminEmail; };
-  networking.firewall = {
-    allowedTCPPorts = [ 80 443 ];
-    allowedUDPPorts = [ 3478 ];
-    allowedUDPPortRanges = [{ from = 49152; to = 65535; }];
+  # nginx
+  services.nginx.enable = true;  # must be explicit
+  services.nginx.virtualHosts.${domain} = {
+    enableACME = true;  forceSSL = true;  http2 = true;
+    locations = {
+      "/"                              = { proxyPass = "http://127.0.0.1:8080"; };
+      "/api"                           = { proxyPass = "http://127.0.0.1:8011"; };
+      "/management.ManagementService/" = { extraConfig = "grpc_pass grpc://127.0.0.1:8011;"; };
+      "/signalexchange.SignalExchange/" = { extraConfig = "grpc_pass grpc://127.0.0.1:10000;"; };
+    };
   };
 }
 ```
@@ -768,7 +799,7 @@ boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0;
 | Caddy | ✅ `services.caddy` | ✅ `caddy` | Native + `withPlugins` |
 | Vaultwarden | ✅ `services.vaultwarden` | ✅ `vaultwarden` | Native |
 | NetBird client (pebble) | ✅ `services.netbird.clients.wt0` | ✅ `netbird` | Native |
-| NetBird server (VPS) | ✅ `services.netbird.server` (⚠️ sparse docs) | ✅ `netbird` | Docker Compose initially |
+| NetBird server (VPS) | ✅ exists but not used | ✅ `netbird` | Podman OCI (mgmt/signal/dashboard) + native coturn/nginx |
 | Homepage | ✅ `services.homepage-dashboard` | ✅ `homepage-dashboard` | Native |
 | Prometheus | ✅ `services.prometheus` | ✅ `prometheus` | Native |
 | Grafana | ✅ `services.grafana` | ✅ `grafana` | Native |

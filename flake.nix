@@ -26,12 +26,19 @@
       inherit (helpers) mkMerge mkNixos;
     in
     mkMerge [
+      # Homelab server: ZFS, all services, Podman containers
       (mkNixos "pebble" inputs.nixpkgs [
         disko.nixosModules.disko
         sops-nix.nixosModules.sops
         ./homelab
         ./modules/networking
         ./modules/podman
+      ])
+
+      # VPS control plane: NetBird server only, no homelab services
+      (mkNixos "vps" inputs.nixpkgs [
+        disko.nixosModules.disko
+        sops-nix.nixosModules.sops
       ])
 
       {

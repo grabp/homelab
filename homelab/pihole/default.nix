@@ -42,7 +42,11 @@ in
     system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
       mkdir -p /var/lib/pihole-dnsmasq
       {
-        # Wildcard split DNS: *.grab-lab.gg → Caddy
+        # NetBird control plane is on the public VPS, not pebble.
+        # Specific entry overrides the wildcard below.
+        echo "address=/netbird.${vars.domain}/${vars.vpsIP}"
+
+        # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
         echo "address=/${vars.domain}/${vars.serverIP}"
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
     '';
