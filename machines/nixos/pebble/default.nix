@@ -51,6 +51,15 @@
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
 
+  # DNS: Pi-hole owns port 53, but systemd-resolved runs for NetBird DNS routing
+  # (Pattern 15: DNSStubListener=no frees port 53 while keeping resolved daemon)
+  services.resolved = {
+    enable = true;
+    extraConfig = ''
+      DNSStubListener=no
+    '';
+  };
+
   my.services.pihole.enable = true;
   my.services.caddy.enable = true;
   my.services.vaultwarden.enable = true;
@@ -58,7 +67,7 @@
   my.services.prometheus.enable = true;  # Stage 6
   my.services.grafana.enable = true;
   my.services.loki.enable = true;
-  # my.services.netbird.enable = true;  # Stage 7a/7b
+  my.services.netbird.enable = true;  # Stage 7b
   # my.services.homepage.enable = true; # Stage 8
   # my.services.homeAssistant.enable = true; # Stage 9a
   # my.services.uptimeKuma.enable = true;

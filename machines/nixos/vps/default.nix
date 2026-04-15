@@ -38,9 +38,12 @@
   };
 
   networking.firewall.enable = true;
-  # Caddy for ACME HTTP-01 challenge and NetBird dashboard/API
-  networking.firewall.allowedTCPPorts = [ 80 443 ];
-  # coturn ports (3478/5349 and relay range) are opened automatically by services.coturn.
+  # Caddy: ACME HTTP-01 challenge + NetBird dashboard/API
+  # coturn: STUN/TURN (3478/5349) + relay range (49152-65535)
+  # NOTE: services.coturn does NOT open firewall ports automatically.
+  networking.firewall.allowedTCPPorts = [ 80 443 3478 5349 ];
+  networking.firewall.allowedUDPPorts = [ 3478 5349 ];
+  networking.firewall.allowedUDPPortRanges = [{ from = 49152; to = 65535; }];
 
   # ACME: Caddy obtains TLS certs via Let's Encrypt HTTP-01 challenge.
   # No Cloudflare DNS plugin needed — VPS has a public IP.

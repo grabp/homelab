@@ -152,9 +152,5 @@ in
 
     networking.firewall.allowedTCPPorts = [ 53 cfg.webPort ];
     networking.firewall.allowedUDPPorts = [ 53 ];
-
-    # Must be disabled — systemd-resolved holds port 53 by default
-    # Stage 6b (NetBird) re-enables resolved with DNSStubListener=no
-    services.resolved.enable = false;
   };
 }

@@ -769,66 +769,92 @@ nix run github:serokell/deploy-rs -- -s .#vps
 
 ## Pattern 14: NetBird client with sops-nix setup key and self-hosted management URL
 
-The NixOS `services.netbird.clients.<name>` module (PR #354032) creates a per-client systemd service. The management URL for a self-hosted control plane must be set — the module provides `login.managementUrl` but **⚠️ VERIFY** whether it persists the URL correctly across restarts in your nixpkgs version. The manual fallback is documented below.
+The NixOS `services.netbird.clients.<name>` module creates a per-client systemd service
+(`netbird-wt0.service`) and an optional login oneshot (`netbird-wt0-login.service`).
+
+**⚠️ nixos-25.11 ships netbird 0.60.2 — you MUST override it.**
+nixpkgs 25.11 is stuck on 0.60.2. The `netbirdio/management:latest` container (and all
+current desktop/mobile clients) are on 0.68.x. The relay and signaling protocol changed
+between these versions: WireGuard handshakes never complete (`Last WireGuard handshake: -`
+for all peers), ICE connects briefly then drops with "ICE disconnected, do not switch to
+Relay. Reset priority to: None", `Forwarding rules: 0`. Fix: pull netbird from
+`nixpkgs-unstable` via an overlay. Add `nixpkgs-unstable` input to `flake.nix` and use
+`lib.mkMerge` in the module (required because `nixpkgs.overlays` must coexist with an
+explicit `config = lib.mkIf ...` block — mixing top-level config with explicit `config =`
+is a module error).
+
+**Other verified gotchas in nixos-25.11:**
+- `login.managementUrl` does **NOT** exist as a module option.
+- `config.ManagementURL = "https://..."` does **NOT** work in 0.60.2 — stored as `url.URL`
+  Go struct, not string. Crashes with "cannot unmarshal string". Set via `--management-url`
+  flag on first login; persists in `/var/lib/netbird-wt0/config.json`.
+- `openInternalFirewall` does **NOT** exist. Use `openFirewall = true`.
+- **Do NOT use `login.enable = true`** — the oneshot gets SIGTERM'd during
+  `nixos-rebuild switch` due to a daemon socket race ("Start request repeated too quickly").
+- `sops-install-secrets.service` does **NOT** exist — sops-nix uses activation scripts.
+- `services.resolved` belongs in the machine config, not this module.
+
+```nix
+# flake.nix — add input alongside nixpkgs
+nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+```
 
 ```nix
 # homelab/netbird/default.nix
-{ config, lib, vars, ... }:
+{ config, lib, inputs, ... }:
 
 let
   cfg = config.my.services.netbird;
 in {
   options.my.services.netbird.enable = lib.mkEnableOption "NetBird VPN client";
 
-  config = lib.mkIf cfg.enable {
-    sops.secrets."netbird/setup_key" = {
-      sopsFile = ../../secrets/secrets.yaml;
-      # No owner needed — service reads directly
-    };
+  # lib.mkMerge required: can't mix top-level config attrs with explicit `config =`
+  config = lib.mkMerge [
+    {
+      # nixos-25.11 ships 0.60.2 — protocol-incompatible with 0.68.x server/clients
+      nixpkgs.overlays = [
+        (final: prev: {
+          inherit (inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.system}) netbird;
+        })
+      ];
+    }
 
-    # systemd-resolved must run for NetBird DNS, but with stub disabled for Pi-hole
-    # (see Pattern 15)
-    services.resolved = {
-      enable = true;
-      extraConfig = "DNSStubListener=no";
-    };
+    (lib.mkIf cfg.enable {
+      sops.secrets."netbird/setup_key" = { };
 
-    services.netbird.clients.wt0 = {
-      port        = 51820;
-      openFirewall         = true;
-      openInternalFirewall = true;
-      ui.enable   = false;
-
-      login = {
-        enable       = true;
-        setupKeyFile = config.sops.secrets."netbird/setup_key".path;
-        # ⚠️ VERIFY: managementUrl option may exist; if not, run manual step below
-        # managementUrl = "https://netbird.${vars.domain}";
+      services.netbird.clients.wt0 = {
+        port = 51820;
+        openFirewall = true;
+        ui.enable = false;
       };
-    };
 
-    # Enable IP forwarding — prerequisite for route advertisement
-    services.netbird.useRoutingFeatures = "both";
+      services.netbird.useRoutingFeatures = "both";
 
-    # Forward VPN traffic to LAN
-    networking.firewall.extraCommands = ''
-      iptables -A FORWARD -i wt0 -j ACCEPT
-      iptables -A FORWARD -o wt0 -j ACCEPT
-    '';
-  };
+      networking.firewall.extraCommands = ''
+        iptables -A FORWARD -i wt0 -j ACCEPT
+        iptables -A FORWARD -o wt0 -j ACCEPT
+      '';
+
+      networking.firewall.allowedUDPPorts = [ 51820 ];
+    })
+  ];
 }
 ```
 
-**One-time management URL setup** (if `managementUrl` option is not available):
+**One-time login after first deploy** (run on pebble; ManagementURL and credentials
+persist in `/var/lib/netbird-wt0/config.json` across reboots):
 ```bash
-netbird-wt0 up \
+sudo netbird-wt0 up \
   --management-url https://netbird.grab-lab.gg \
-  --setup-key $(cat /run/secrets/netbird/setup_key)
+  --setup-key-file /run/secrets/netbird/setup_key
 ```
 
-Route advertisement (192.168.10.0/24) and DNS nameserver groups are configured **in the NetBird Dashboard**, not in NixOS. See `docs/NETBIRD-SELFHOSTED.md` for the step-by-step dashboard configuration.
+Route advertisement (192.168.10.0/24) and DNS nameserver groups are configured **in the
+NetBird Dashboard**, not in NixOS. See `docs/NETBIRD-SELFHOSTED.md` for the step-by-step
+dashboard configuration.
 
-**Source:** NixOS `services.netbird.clients` module options from nixpkgs PR #354032. `useRoutingFeatures` verified in nixpkgs option search ✅. `openInternalFirewall` ⚠️ VERIFY option name exists.
+**Source:** Verified against nixos-25.11, netbird 0.68.1 (overlay from nixpkgs-unstable),
+management server 0.68.3 ✅.
 
 ---
 
@@ -926,7 +952,7 @@ sops.secrets."service/env" = {
 | `caddy/env` (CLOUDFLARE_API_TOKEN) | `caddy.service` | ✅ implemented |
 | `pihole/env` (web password) | `podman-pihole.service` | ⚠ not yet — low priority (password changes are rare) |
 | `grafana_admin_password` | `grafana.service` | ⚠ add in Stage 5 |
-| `netbird/setup_key` | `systemd-netbird-wt0.service` | ⚠ add in Stage 6b |
+| `netbird/setup_key` | n/a — login.enable not used; key is for one-time manual step | ✅ intentional (Stage 7b) |
 
 Note: Grafana injects its admin password via `$__file{/run/secrets/...}` syntax in
 `settings.security.admin_password`, not via EnvironmentFile — but it still needs a restart

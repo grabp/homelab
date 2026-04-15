@@ -25,7 +25,7 @@ let
       Stuns = [
         {
           Proto = "udp";
-          URI = "${domain}:3478";
+          URI = "stun:${domain}:3478";
           Username = null;
           Password = null;
         }
@@ -41,7 +41,7 @@ let
         ];
         CredentialsTTL = "12h";
         Secret = "TURN_PLACEHOLDER";
-        TimeBasedCredentials = false;
+        TimeBasedCredentials = true;
       };
       Signal = {
         Proto = "https";
@@ -170,8 +170,7 @@ in
       # Management REST API + gRPC + embedded Dex IdP
       # Signal is still a separate image (not merged as of v0.68.x)
       netbird-management = {
-        image = "netbirdio/management:latest";
-        # ⚠️ Pin to a specific version tag before production (rolling tag)
+        image = "netbirdio/management:0.68.3";
         ports = [ "127.0.0.1:8080:8080" ];
         volumes = [
           "/var/lib/netbird-mgmt:/var/lib/netbird"
@@ -191,16 +190,14 @@ in
 
       # Signal — peer-to-peer coordination (still a separate image in v0.68.x)
       netbird-signal = {
-        image = "netbirdio/signal:latest";
-        # ⚠️ Pin to a specific version tag before production (rolling tag)
+        image = "netbirdio/signal:0.68.3";
         # Signal binary listens on port 80 inside the container by default.
         ports = [ "127.0.0.1:10000:80" ];
       };
 
       # React dashboard SPA
       netbird-dashboard = {
-        image = "netbirdio/dashboard:latest";
-        # ⚠️ Pin to a specific version tag before production (rolling tag)
+        image = "netbirdio/dashboard:v2.36.0";
         ports = [ "127.0.0.1:3000:80" ];
         environment = {
           # Embedded Dex IdP — served by the management container at /oauth2

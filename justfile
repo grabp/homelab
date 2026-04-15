@@ -98,7 +98,7 @@ rekey:
 # ── NetBird ────────────────────────────────────
 # Show NetBird connection status and ICE candidate type on homelab
 netbird-status:
-    ssh admin@192.168.10.50 "netbird-wt0 status -d"
+    ssh admin@192.168.10.50 "sudo netbird-wt0 status -d"
 
 # ── Maintenance ───────────────────────────────
 gc:
