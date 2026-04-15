@@ -6,7 +6,8 @@
 #   Stage 4: caddy
 #   Stage 5: vaultwarden
 #   Stage 6: prometheus, grafana, loki
-#   Stage 7: netbird
+#   Stage 7b: netbird
+#   Stage 7c: kanidm
 #   Stage 8: homepage
 #   Stage 9: home-assistant, uptime-kuma
 #   Stage 10: backup
@@ -20,6 +21,7 @@
     ./grafana          # Stage 6
     ./loki             # Stage 6
     ./netbird          # Stage 7b
+    ./kanidm           # Stage 7c — Kanidm OIDC + LDAP IdP
     # ./homepage
     # ./home-assistant
     # ./uptime-kuma
