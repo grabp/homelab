@@ -365,6 +365,20 @@ See docs/STAGES.md for Stages 11-18
 
 ---
 
+## Open TODOs
+
+### VPS log shipping to Loki — NOT IMPLEMENTED
+
+VPS journald logs (NetBird management, signal, coturn, caddy) are not currently forwarded to Loki.
+Planned for Stage 10.
+
+**Approach:** `services.alloy` on VPS → NetBird mesh → `pebble:3100` (Loki).
+Requires 4 file changes. Estimated complexity: Low.
+
+See `docs/VPS-LOKI-SHIPPING.md` for the full implementation plan and safety analysis.
+
+---
+
 ## Documentation Updates
 
 ### HA Companion Services Research — incorporated 2026-04-12
@@ -448,6 +462,33 @@ Researched self-hosting NetBird behind CGNAT. Findings incorporated into all arc
 - DNSStubListener=no is the correct Pi-hole + NetBird coexistence solution
 - Route advertisement (192.168.10.0/24) configured in NetBird Dashboard, not NixOS
 - Stage 6 prerequisite: VPS must be running before homelab client can connect
+
+### VPS Log Shipping Research — 2026-04-16
+
+Researched how to ship VPS logs to Loki. Findings documented and incorporated:
+
+**docs/VPS-LOKI-SHIPPING.md** — new, primary reference (implementation plan + safety analysis)
+
+**docs/SERVICE-CONFIGS.md** changes:
+- Loki entry: added compactor `delete_request_store` gotcha (verified in Stage 6)
+- Loki entry: **Promtail marked EOL** (2026-03-02), replaced with `services.alloy` as recommended shipper
+- Loki entry: added multi-machine shipping section with TODO and reference to VPS-LOKI-SHIPPING.md
+- Loki entry: added Alloy single-machine config example (River syntax)
+- Service verification table: added Alloy row
+
+**docs/STAGES.md** changes:
+- Stage 10: added TODO for VPS log shipping; added verification step for `{host="vps"}` in Loki
+
+**PROGRESS.md** (this file):
+- Added "Open TODOs" section with VPS log shipping task
+
+**Key decisions recorded:**
+- Promtail is EOL — do not create new promtail instances; use `services.alloy`
+- VPS log shipping via Alloy over NetBird mesh (not public Loki exposure)
+- Loki needs `http_listen_address = "0.0.0.0"` + `networking.firewall.interfaces."wt0".allowedTCPPorts = [3100]` on pebble to receive remote pushes safely
+- pebble's NetBird IP is `100.102.154.38` (from Stage 7b verification)
+
+---
 
 ### IdP Strategy + NetBird OCI Migration — 2026-04-15
 

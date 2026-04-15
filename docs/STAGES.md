@@ -235,6 +235,11 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 
 **What gets built:** Sanoid snapshots, syncoid replication to NAS, restic backups, deploy-rs remote deployment for both pebble and vps, Justfile with all operations, firewall hardened to minimum open ports on both machines, fail2ban, NetBird ACL policies hardened, VPS SSH restricted to admin IP.
 
+**TODO — VPS log shipping:** VPS logs (NetBird management, signal, coturn, caddy) are not currently
+forwarded to Loki. Implement as part of this stage using `services.alloy` on the VPS pushing over
+the NetBird mesh. See `docs/VPS-LOKI-SHIPPING.md` for the full implementation plan (4 files to
+change, estimated complexity: Low).
+
 **Key files:** `homelab/backup/default.nix`, `justfile`, deploy-rs config in `flake.nix`
 
 **Dependencies:** All prior stages. NAS accessible via SSH for syncoid or NFS/SMB mount for restic.
@@ -250,6 +255,7 @@ netbird-wt0 up --management-url https://netbird.grab-lab.gg --setup-key $(cat /r
 - NetBird Dashboard: default "All → All" ACL policy deleted; group-scoped policies in place
 - VPS: SSH access restricted to admin IP in `networking.firewall`; fail2ban active
 - NetBird setup keys: reusable server key in use; personal device keys are one-off with expiration
+- **VPS log shipping:** Grafana → Explore → Loki → `{host="vps"}` returns VPS journald logs
 
 **Estimated complexity:** Medium. NAS connectivity and ZFS send/receive setup require testing. VPS hardening is mostly firewall rules and ACL configuration.
 

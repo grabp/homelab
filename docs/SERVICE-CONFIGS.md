@@ -533,6 +533,7 @@ services.grafana = {
 - Can use either `configuration` (Nix attrset) or `configFile` (path to YAML)
 - boltdb-shipper is deprecated; use tsdb for new installations
 - `auth_enabled: false` for single-tenant homelab
+- `compactor.delete_request_store = "filesystem"` is **required** when `retention_enabled = true` — Loki rejects the config otherwise (verified in Stage 6)
 
 ```nix
 services.loki = {
@@ -563,30 +564,67 @@ services.loki = {
 };
 ```
 
-To send systemd journal logs to Loki, use **promtail**:
+### Log shippers — use Alloy, not Promtail
+
+⚠️ **Promtail is EOL as of 2026-03-02.** Grafana has ended commercial support and will not issue
+future updates. **Do not add new promtail instances.** Use `services.alloy` instead.
+
+- `services.alloy` exists in nixpkgs (verified: alloy 5.1.0 in nixos-25.11)
+- Options: `enable`, `configPath`, `environmentFile`, `extraFlags`, `package`
+- Alloy uses River/Alloy syntax (`.alloy` files), not YAML
+
+**Alloy config for journald → Loki (local, single-machine):**
 ```nix
-services.promtail = {
+services.alloy = {
   enable = true;
-  configuration = {
-    server = { http_listen_port = 3031; grpc_listen_port = 0; };
-    positions.filename = "/tmp/positions.yaml";
-    clients = [{ url = "http://localhost:3100/loki/api/v1/push"; }];
-    scrape_configs = [{
-      job_name = "journal";
-      journal = {
-        max_age = "12h";
-        labels.job = "systemd-journal";
-      };
-      relabel_configs = [{
-        source_labels = [ "__journal__systemd_unit" ];
-        target_label = "unit";
-      }];
-    }];
-  };
+  configPath = "/etc/alloy/config.alloy";
 };
+
+environment.etc."alloy/config.alloy".text = ''
+  loki.source.journal "journal" {
+    max_age       = "12h"
+    relabel_rules = loki.relabel.labels.rules
+    forward_to    = [loki.write.local.receiver]
+  }
+
+  loki.relabel "labels" {
+    forward_to = []
+    rule {
+      source_labels = ["__journal__systemd_unit"]
+      target_label  = "unit"
+    }
+    rule {
+      replacement  = "pebble"   # change per host
+      target_label = "host"
+    }
+    rule {
+      replacement  = "systemd-journal"
+      target_label = "job"
+    }
+  }
+
+  loki.write "local" {
+    endpoint {
+      url = "http://localhost:3100/loki/api/v1/push"
+    }
+  }
+'';
+
+systemd.tmpfiles.rules = [ "d /var/lib/alloy 0750 alloy alloy -" ];
 ```
 
-⚠ **VERIFY:** `services.promtail` exists in NixOS 25.11. If not, use the `grafana-loki` package's promtail binary as a systemd service.
+### Multi-machine log shipping (VPS → pebble)
+
+**TODO:** VPS logs are not currently shipped to Loki. See `docs/VPS-LOKI-SHIPPING.md` for the
+full implementation plan and safety analysis.
+
+**Summary:** Run `services.alloy` on the VPS; push logs over the NetBird mesh to
+`http://<pebble-netbird-ip>:3100/loki/api/v1/push`. Requires:
+1. Loki `http_listen_address` changed from `127.0.0.1` to `0.0.0.0`
+2. `networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ]` on pebble (NetBird interface only)
+3. `machines/nixos/vps/monitoring.nix` with Alloy config
+
+See `docs/VPS-LOKI-SHIPPING.md` for the complete implementation plan.
 
 ## Home Assistant — native module exists but OCI recommended
 
@@ -893,6 +931,7 @@ boot.kernel.sysctl."net.ipv6.conf.all.forwarding" = 0;
 | Prometheus | ✅ `services.prometheus` | ✅ `prometheus` | Native |
 | Grafana | ✅ `services.grafana` | ✅ `grafana` | Native |
 | Loki | ✅ `services.loki` | ✅ `grafana-loki` | Native |
+| Alloy (log shipper) | ✅ `services.alloy` | ✅ `alloy` (5.1.0) | Native — replaces EOL Promtail |
 | Home Assistant | ✅ `services.home-assistant` | ✅ `home-assistant` | Podman recommended |
 | Uptime Kuma | ✅ `services.uptime-kuma` | ✅ `uptime-kuma` | Native |
 | Authelia | ✅ `services.authelia` | ✅ `authelia` | Fallback if Kanidm proves problematic (see docs/IDP-STRATEGY.md) |
