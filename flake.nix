@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
+    # Used only for the netbird package overlay — 25.11 is stuck on 0.60.2
+    # which is protocol-incompatible with the 0.68.x management server.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     deploy-rs = {
       url = "github:serokell/deploy-rs";
       inputs.nixpkgs.follows = "nixpkgs";

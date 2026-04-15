@@ -19,7 +19,7 @@
     ./prometheus       # Stage 6
     ./grafana          # Stage 6
     ./loki             # Stage 6
-    # ./netbird
+    ./netbird          # Stage 7b
     # ./homepage
     # ./home-assistant
     # ./uptime-kuma
