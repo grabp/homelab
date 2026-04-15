@@ -69,6 +69,18 @@ in
             reverse_proxy localhost:${toString config.my.services.prometheus.port}
           }
 
+          @kanidm host id.${vars.domain}
+          handle @kanidm {
+            # Kanidm runs HTTPS on 8443 with a self-signed cert.
+            # tls_insecure_skip_verify is correct here — Caddy provides public
+            # TLS to clients; Kanidm's cert is internal-only.
+            reverse_proxy localhost:8443 {
+              transport http {
+                tls_insecure_skip_verify
+              }
+            }
+          }
+
           handle {
             respond "Service not found" 404
           }

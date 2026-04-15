@@ -1,7 +1,7 @@
 # Implementation Progress
 
 ## Current Stage: 7c — Identity Provider (Kanidm)
-## Status: NOT STARTED
+## Status: IMPLEMENTED — pending deploy + verification
 
 ---
 
@@ -313,7 +313,51 @@ sudo netbird-wt0 up \
 
 ---
 
-## Stage 7c: Identity Provider — Kanidm — NOT STARTED
+## Stage 7c: Identity Provider — Kanidm — IMPLEMENTED (pending deploy)
+
+**Files created:**
+- `homelab/kanidm/default.nix` — Kanidm module: self-signed TLS cert oneshot, server binding on `127.0.0.1:8443` + LDAPS on `127.0.0.1:636`, declarative provisioning (admin user + homelab_users/homelab_admins groups + grafana OAuth2 client), sops secrets, firewall port 636
+
+**Files modified:**
+- `homelab/default.nix` — enabled `./kanidm` import, updated stage comments
+- `homelab/caddy/default.nix` — added `@kanidm` virtual host for `id.grab-lab.gg` → `localhost:8443` with `tls_insecure_skip_verify`
+- `homelab/grafana/default.nix` — added `"auth.generic_oauth"` OIDC block (Kanidm per-client URLs), added `kanidm/grafana_client_secret` sops declaration with `restartUnits`
+- `machines/nixos/pebble/default.nix` — added `my.services.kanidm.enable = true`
+
+**Configuration notes:**
+- **Package override required**: nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` (EOL, removed). Must explicitly set `services.kanidm.package = pkgs.kanidmWithSecretProvisioning_1_9`. The `_1_7` variant is also removed (insecure). Use `_1_9` (1.9.1).
+- Kanidm requires TLS even on localhost → systemd oneshot `kanidm-tls-cert` generates self-signed EC-P256 cert before `kanidm.service` starts; `kanidm.service` has `requires` + `after` on that oneshot
+- `provision.instanceUrl = "https://127.0.0.1:8443"` + `acceptInvalidCerts = true` — provisioning connects directly (not via Caddy) and accepts the self-signed cert
+- `basicSecretFile` for the Grafana OAuth2 client enables single-phase deploy — secret pre-generated in sops, shared between Kanidm provision and Grafana config
+- `kanidm/grafana_client_secret` declared with `mode = "0444"` (world-readable) so both kanidm provisioning process and grafana service (`$__file{...}` interpolation) can read it
+- Port 636 (LDAPS) opened proactively for future Jellyfin LDAP integration; port 8443 NOT exposed externally (Caddy proxies via localhost only)
+- Pi-hole wildcard `address=/grab-lab.gg/192.168.10.50` already covers `id.grab-lab.gg` — no Pi-hole changes needed
+
+**Pre-deploy action required:**
+```bash
+just edit-secrets
+# Add three entries (generate with `openssl rand -base64 32`):
+# kanidm/admin_password: "<generated>"
+# kanidm/idm_admin_password: "<generated>"
+# kanidm/grafana_client_secret: "<generated, use -base64 48>"
+```
+
+**Post-deploy: set admin person's login password**
+```bash
+# After kanidm starts, the admin *person* exists but has no login password.
+# Set via web UI at https://id.grab-lab.gg, or via CLI:
+sudo kanidm person credential update admin --name admin
+```
+
+**Verification checklist:**
+- [ ] `systemctl status kanidm kanidm-tls-cert` — both active
+- [ ] `curl -k https://127.0.0.1:8443/status` — returns JSON
+- [ ] `curl -sI https://id.grab-lab.gg | head -3` — HTTP 200 with valid TLS
+- [ ] `sudo kanidm system oauth2 list -D admin` — shows `grafana` client
+- [ ] `https://grafana.grab-lab.gg` — "Sign in with Kanidm" button appears
+- [ ] Grafana OIDC round-trip completes, user lands with Admin role
+- [ ] Update this section to COMPLETE after verification
+
 ## Stage 8: Homepage Dashboard — NOT STARTED
 ## Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
 ## Stage 9b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
