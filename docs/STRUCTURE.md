@@ -30,7 +30,7 @@ homelab/
 │       └── vps/               # Hetzner CX22 (NetBird control plane, public IP)
 │           ├── default.nix    # VPS entry point: hostname, GRUB, virtio modules, sops, firewall
 │           ├── disko.nix      # Simple ext4 layout (no ZFS needed on VPS)
-│           ├── netbird-containers.nix  # OCI containers: netbird-management, dashboard, coturn
+│           ├── netbird-server.nix      # OCI containers: netbird-management, signal, dashboard + native coturn
 │           └── caddy.nix      # Native NixOS Caddy: TLS termination + gRPC proxy for NetBird
 │           # NOTE: netbird-server.nix (services.netbird.server) is NOT used —
 │           #       services.netbird.server is not production-ready as of nixos-25.11

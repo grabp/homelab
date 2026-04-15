@@ -3,8 +3,6 @@
 ## Current Stage: 7c — Identity Provider (Kanidm)
 ## Status: NOT STARTED
 
-### Pending commit: Stage 7b final fixes (netbird 0.68.1 overlay + routes + DNS)
-
 ---
 
 ## Stage 1: Base System — COMPLETE (verified 2026-04-11)

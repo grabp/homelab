@@ -170,12 +170,15 @@ This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The hom
 
 ⚠️ **Do NOT use `services.netbird.server`** — the NixOS module exists but is not production-ready as of nixos-25.11. Use OCI containers instead.
 
-**Images (since NetBird v0.62.0):**
-- `netbirdio/netbird:management-latest` — combined management + signal + relay + **embedded Dex IdP**
+**Images (since NetBird v0.62.0, as of v0.68.x):**
+- `netbirdio/management:latest` — management REST API + gRPC + **embedded Dex IdP** (port 8080)
+- `netbirdio/signal:latest` — peer coordination, **still a separate image** (not merged into management)
 - `netbirdio/dashboard:latest` — React web UI
-- `coturn/coturn:latest` — STUN/TURN (host network)
+- native `services.coturn` — STUN/TURN (no container needed)
 
-⚠️ **Pin image tags to specific versions before production** — `management-latest` is a rolling tag. Use `netbirdio/netbird:v0.68.1` (or current stable) in production.
+⚠️ **Common image name mistake:** `netbirdio/netbird:management-latest` does NOT exist on Docker Hub. The correct image is `netbirdio/management:latest`. Signal is NOT merged into management as of v0.68.x.
+
+⚠️ **Pin image tags to specific versions before production** — `management:latest` is a rolling tag. Use `netbirdio/management:v0.68.1` (or current stable) in production.
 
 **VPS ports:** 80/tcp (ACME HTTP-01 via Caddy), 443/tcp (Caddy: dashboard + REST API + gRPC), 3478/udp+tcp (STUN/TURN coturn), 5349/tcp (TURN TLS), 49152–65535/udp (TURN relay range)
 
