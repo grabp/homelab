@@ -41,7 +41,10 @@ in
           token_url           = "https://id.${vars.domain}/oauth2/token";
           api_url             = "https://id.${vars.domain}/oauth2/openid/grafana/userinfo";
           scopes              = "openid profile email groups";
-          role_attribute_path = "contains(groups[*], 'homelab_admins') && 'Admin' || 'Viewer'";
+          # Kanidm returns groups as SPNs: "groupname@kanidm-domain"
+          # e.g. homelab_admins@id.grab-lab.gg — not bare group names.
+          role_attribute_path = "contains(groups[*], 'homelab_admins@id.${vars.domain}') && 'Admin' || 'Viewer'";
+          use_pkce            = true;  # required: Kanidm 1.9 enforces PKCE by default
           allow_sign_up       = true;
           auto_login          = false;
         };

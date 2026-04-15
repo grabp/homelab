@@ -272,7 +272,9 @@ Browser / NetBird clients
 
 **Module status:** ✅ `services.kanidm` EXISTS with `enableServer` and `provision` submodule.
 
-**Package:** `pkgs.kanidm`
+**Package:** `pkgs.kanidmWithSecretProvisioning_1_9` (**not** `pkgs.kanidm`)
+
+⚠️ nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` which is EOL and removed from nixpkgs. Must set `services.kanidm.package = pkgs.kanidmWithSecretProvisioning_1_9` explicitly. `_1_7` is also gone (marked insecure).
 
 **Ports:** 8443/tcp (HTTPS/OIDC — proxied by Caddy, not directly exposed), 636/tcp (LDAPS for Jellyfin)
 
@@ -289,64 +291,113 @@ Browser / NetBird clients
 See `docs/IDP-STRATEGY.md` for the full two-tier IdP design rationale and per-service auth table.
 
 **Known gotchas:**
+- **`kanidm_1_4` removed** — nixos-25.11 module default is gone. Explicitly set `package = pkgs.kanidmWithSecretProvisioning_1_9`.
+- **"admin" username reserved** — Kanidm has a built-in system account named `admin`. Provisioning a person named `admin` → 409 Conflict. Use a distinct username (e.g. the person's actual login name).
+- **sops secret ownership for provisioning** — the provisioning `ExecStartPost` runs as the `kanidm` user. Password secrets need `owner = "kanidm"` or provisioning fails with "permission denied". The OAuth2 `basicSecretFile` secret needs `mode = "0444"` (world-readable for grafana too).
+- **Self-signed cert must have `CA:FALSE`** — Kanidm 1.9 strict TLS rejects OpenSSL default self-signed certs (`CaUsedAsEndEntity` error). Generate with `-addext "basicConstraints=CA:FALSE" -addext "subjectAltName=IP:127.0.0.1,DNS:id.<domain>"`.
+- **`enableClient = true` requires `clientSettings`** — module enforces this. Add CLI to PATH via `environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_9 ]` instead.
+- **PKCE enforced by default** — Kanidm 1.9 requires PKCE on all clients. Grafana needs `use_pkce = true` in `"auth.generic_oauth"`. Other services similarly.
+- **Groups returned as SPNs** — the `groups` OIDC claim contains full SPNs: `groupname@kanidm-domain` (e.g. `homelab_admins@id.grab-lab.gg`). Role mappings must use the full SPN, not bare group names.
 - **Per-client issuer URLs** — not a global issuer. Each service uses `https://id.grab-lab.gg/oauth2/openid/<client-name>/.well-known/openid-configuration`
-- **PKCE S256 enforced by default** — disable per-client for legacy apps: `kanidm system oauth2 warning-enable-legacy-crypto <client>`
 - **ES256 token signing** (not RS256) — most apps handle this; verify per service
 - **Admin is CLI-only** — web UI is end-user self-service only; all provisioning is via `services.kanidm.provision` or `kanidm` CLI
-- **TLS required internally** — Kanidm binds on HTTPS even for localhost. Caddy transport needs `tls_insecure_skip_verify` or a provisioned self-signed cert
+- **TLS required internally** — Kanidm binds on HTTPS even for localhost. Caddy transport needs `tls_insecure_skip_verify`
 - **Kanidm must exist before Outline** — Outline has no local auth fallback; deployment is blocked until Kanidm is verified
 
 ```nix
-# homelab/kanidm/default.nix
-{ config, lib, vars, ... }:
+# homelab/kanidm/default.nix — verified working pattern (Stage 7c)
+{ config, lib, pkgs, vars, ... }:
 let cfg = config.my.services.kanidm; in
 {
   options.my.services.kanidm.enable = lib.mkEnableOption "Kanidm IdP";
 
   config = lib.mkIf cfg.enable {
+    # CLI in PATH without enableClient (which requires clientSettings)
+    environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_9 ];
+
+    # Regenerate self-signed cert if missing or has CA:TRUE (old bad default)
+    systemd.services.kanidm-tls-cert = {
+      description = "Generate Kanidm self-signed TLS certificate";
+      serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+      path = [ pkgs.openssl ];
+      script = ''
+        install -d -m 750 -o kanidm -g kanidm /var/lib/kanidm
+        needs_regen=0
+        [ ! -f /var/lib/kanidm/tls.pem ] && needs_regen=1
+        if [ -f /var/lib/kanidm/tls.pem ]; then
+          openssl x509 -in /var/lib/kanidm/tls.pem -noout -text 2>/dev/null \
+            | grep -q "CA:TRUE" && needs_regen=1
+        fi
+        if [ "$needs_regen" = "1" ]; then
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+            -keyout /var/lib/kanidm/tls.key -out /var/lib/kanidm/tls.pem \
+            -days 3650 -nodes -subj '/CN=id.${vars.domain}' \
+            -addext "basicConstraints=CA:FALSE" \
+            -addext "subjectAltName=IP:127.0.0.1,DNS:id.${vars.domain}"
+          chown kanidm:kanidm /var/lib/kanidm/tls.key /var/lib/kanidm/tls.pem
+          chmod 600 /var/lib/kanidm/tls.key && chmod 644 /var/lib/kanidm/tls.pem
+        fi
+      '';
+    };
+    systemd.services.kanidm = {
+      requires = [ "kanidm-tls-cert.service" ];
+      after    = [ "kanidm-tls-cert.service" ];
+    };
+
     services.kanidm = {
       enableServer = true;
+      package = pkgs.kanidmWithSecretProvisioning_1_9;  # 1_4 is EOL/removed
       serverSettings = {
-        origin = "https://id.${vars.domain}";
-        domain = "id.${vars.domain}";
-        bindaddress = "127.0.0.1:8443";
+        origin          = "https://id.${vars.domain}";
+        domain          = "id.${vars.domain}";
+        bindaddress     = "127.0.0.1:8443";
         ldapbindaddress = "127.0.0.1:636";
+        tls_chain       = "/var/lib/kanidm/tls.pem";
+        tls_key         = "/var/lib/kanidm/tls.key";
       };
       provision = {
-        enable = true;
+        enable             = true;
+        instanceUrl        = "https://127.0.0.1:8443";
+        acceptInvalidCerts = true;
+        # owner = "kanidm" required — provisioning runs as kanidm user
         adminPasswordFile    = config.sops.secrets."kanidm/admin_password".path;
         idmAdminPasswordFile = config.sops.secrets."kanidm/idm_admin_password".path;
-        persons."alice" = {
-          displayName   = "Alice";
-          mailAddresses = [ "alice@${vars.domain}" ];
+        # NOTE: "admin" is reserved — use a distinct person username
+        persons."yourname" = {
+          displayName   = "Your Name";
+          mailAddresses = [ "admin@${vars.domain}" ];
         };
-        groups."homelab_users".members  = [ "alice" ];
-        groups."homelab_admins".members = [ "alice" ];
-        # OAuth2 clients defined in each service's own module (co-located)
+        groups."homelab_users".members  = [ "yourname" ];
+        groups."homelab_admins".members = [ "yourname" ];
       };
     };
 
-    sops.secrets."kanidm/admin_password"     = {};
-    sops.secrets."kanidm/idm_admin_password" = {};
-
-    # Caddy virtual host for id.grab-lab.gg (add in homelab/caddy/default.nix)
-    # services.caddy.virtualHosts."id.${vars.domain}".extraConfig = ''
-    #   reverse_proxy localhost:8443 {
-    #     transport http { tls_insecure_skip_verify }
-    #   }
-    # '';
+    # owner = "kanidm": provisioning post-start runs as kanidm user
+    sops.secrets."kanidm/admin_password"     = { owner = "kanidm"; };
+    sops.secrets."kanidm/idm_admin_password" = { owner = "kanidm"; };
+    # mode 0444: readable by both kanidm provisioning and grafana ($__file{})
+    sops.secrets."kanidm/grafana_client_secret" = { mode = "0444"; };
 
     networking.firewall.allowedTCPPorts = [ 636 ];
-    # 8443 NOT opened — proxied by Caddy
+    # 8443 NOT opened — Caddy proxies via localhost
   };
 }
 ```
 
+**Setting a person's login password (post-deploy):**
+```bash
+# CLI is in PATH via environment.systemPackages
+kanidm --url https://id.grab-lab.gg login --name idm_admin
+# (password: sudo cat /run/secrets/kanidm/idm_admin_password)
+kanidm --url https://id.grab-lab.gg person credential create-reset-token <username>
+# open the printed URL in browser to set password
+```
+
 **Verification steps:**
-- `systemctl status kanidm` — active
-- `kanidm system oauth2 list` — shows all provisioned OAuth2 clients
+- `systemctl status kanidm kanidm-tls-cert` — both active
+- `kanidm --url https://id.grab-lab.gg system oauth2 list --name admin` — shows provisioned clients
 - `https://id.grab-lab.gg` — loads Kanidm self-service UI
-- Grafana OIDC login works (Stage 7c acceptance test)
+- Grafana OIDC login works with Admin role (Stage 7c acceptance test ✅)
 
 ## Homepage Dashboard — native module with structured config
 
@@ -440,6 +491,8 @@ services.prometheus = {
 - **Declarative provisioning** of datasources is powerful but requires specific YAML structure in Nix
 - `settings.server.root_url` must match your Caddy domain for OAuth/embedding to work
 - Plugin installation via `declarativePlugins` with `pkgs.grafanaPlugins.*`
+- **PKCE required for Kanidm 1.9**: set `use_pkce = true` in `"auth.generic_oauth"` or login fails with "Invalid state / No PKCE code challenge"
+- **Groups claim uses SPNs**: Kanidm returns `homelab_admins@id.grab-lab.gg`, not `homelab_admins`. `role_attribute_path` must match the full SPN: `contains(groups[*], 'homelab_admins@id.grab-lab.gg') && 'Admin' || 'Viewer'`
 
 ```nix
 services.grafana = {
