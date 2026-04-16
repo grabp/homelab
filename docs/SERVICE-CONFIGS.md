@@ -416,19 +416,25 @@ kanidm --url https://id.grab-lab.gg person credential create-reset-token <userna
 **Known gotchas:**
 - Config stored in `/var/lib/homepage-dashboard`
 - `listenPort` option sets the port directly
+- **`allowedHosts` is required when accessed via a reverse proxy** — without it Homepage returns 403. Set it to the public hostname (e.g. `"home.grab-lab.gg"`).
+- Services without a web UI (e.g. Caddy) should omit `href` entirely — Homepage renders them as non-clickable informational tiles
 - Use `environmentFile` for API tokens referenced in widget config as `{{HOMEPAGE_VAR_NAME}}`
-- `allowedHosts` may need configuration for reverse proxy access
 
 ```nix
 services.homepage-dashboard = {
   enable = true;
   listenPort = 3010;
-  settings.title = "Homelab";
+  allowedHosts = "home.grab-lab.gg";  # required for reverse-proxy access
+  settings = {
+    title       = "Homelab";
+    headerStyle = "clean";
+    target      = "_blank";
+  };
   services = [
     {
       "Infrastructure" = [
-        { "Pi-hole" = { href = "https://pihole.grab-lab.gg"; description = "DNS"; }; }
-        { "Caddy" = { href = "https://grab-lab.gg"; description = "Reverse Proxy"; }; }
+        { "Pi-hole" = { href = "https://pihole.grab-lab.gg"; description = "DNS sinkhole"; icon = "pi-hole.svg"; }; }
+        { "Caddy"   = {                                       description = "Reverse proxy + TLS"; icon = "caddy.svg"; }; }
       ];
     }
   ];

@@ -81,6 +81,11 @@ in
             }
           }
 
+          @home host home.${vars.domain}
+          handle @home {
+            reverse_proxy localhost:${toString config.my.services.homepage.port}
+          }
+
           handle {
             respond "Service not found" 404
           }

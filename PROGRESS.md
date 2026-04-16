@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 8 — Homepage Dashboard
+## Current Stage: 9a — Services (Mosquitto + HACS + Home Assistant + Uptime Kuma)
 ## Status: NOT STARTED
 
 ---
@@ -355,7 +355,30 @@ kanidm --url https://id.grab-lab.gg person credential create-reset-token grabows
 - [x] `https://grafana.grab-lab.gg` — "Sign in with Kanidm" button appears
 - [x] Grafana OIDC round-trip completes, `grabowskip` lands with Admin role
 
-## Stage 8: Homepage Dashboard — NOT STARTED
+## Stage 8: Homepage Dashboard — COMPLETE (implemented 2026-04-16)
+
+**Files created:**
+- `homelab/homepage/default.nix` — Homepage module: `services.homepage-dashboard`, port 3010, services/bookmarks config
+
+**Files modified:**
+- `homelab/default.nix` — enabled `./homepage` import
+- `homelab/caddy/default.nix` — added `@home` virtual host for `home.grab-lab.gg`
+- `machines/nixos/pebble/default.nix` — `my.services.homepage.enable = true`
+
+**Configuration notes:**
+- Native `services.homepage-dashboard` module (homepage-dashboard 1.7.0 in nixos-25.11)
+- Port 3010 (remapped from default 3000 to avoid Grafana conflict)
+- `allowedHosts = "home.grab-lab.gg"` required for reverse-proxy access — without it homepage returns a 403
+- Services grouped into four sections: Infrastructure (Pi-hole, Caddy), Security (Vaultwarden, Kanidm), Monitoring (Grafana, Prometheus), Networking (NetBird)
+- Auth: Homepage has no native auth. Caddy `forward_auth` via Kanidm (Pattern 22) can be added once the endpoint is verified — see `⚠️ VERIFY` note in `docs/NIX-PATTERNS.md Pattern 22`. Deferred.
+- Pi-hole wildcard `address=/grab-lab.gg/192.168.10.50` already covers `home.grab-lab.gg` — no Pi-hole changes needed
+
+**Verification (all passed 2026-04-17):**
+- [x] `systemctl status homepage-dashboard` — active
+- [x] `https://home.grab-lab.gg` loads dashboard with valid TLS
+- [x] Four service groups visible: Infrastructure, Security, Monitoring, Networking
+- [x] Clicking service links opens correct URLs
+
 ## Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma) — NOT STARTED
 ## Stage 9b: Services (Voice Pipeline + ESPHome + Matter Server) — NOT STARTED
 ## Stage 10: Hardening, Backups, deploy-rs — NOT STARTED

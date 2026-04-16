@@ -22,7 +22,7 @@
     ./loki             # Stage 6
     ./netbird          # Stage 7b
     ./kanidm           # Stage 7c — Kanidm OIDC + LDAP IdP
-    # ./homepage
+    ./homepage         # Stage 8
     # ./home-assistant
     # ./uptime-kuma
     # ./backup
