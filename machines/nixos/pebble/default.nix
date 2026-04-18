@@ -69,9 +69,10 @@
   my.services.loki.enable = true;
   my.services.netbird.enable = true;  # Stage 7b
   my.services.kanidm.enable = true;   # Stage 7c
-  my.services.homepage.enable = true;   # Stage 8
-  # my.services.homeAssistant.enable = true; # Stage 9a
-  # my.services.uptimeKuma.enable = true;
+  my.services.homepage.enable = true;        # Stage 8
+  my.services.mosquitto.enable = true;       # Stage 9a
+  my.services.homeAssistant.enable = true;   # Stage 9a
+  my.services.uptimeKuma.enable = true;      # Stage 9a
 
   system.stateVersion = "25.11";
 }

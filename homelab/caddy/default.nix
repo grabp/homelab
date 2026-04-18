@@ -86,6 +86,18 @@ in
             reverse_proxy localhost:${toString config.my.services.homepage.port}
           }
 
+          @ha host ha.${vars.domain}
+          handle @ha {
+            # Use explicit IPv4 — localhost may resolve to ::1 on dual-stack systems,
+            # which HA rejects as an untrusted proxy in X-Forwarded-For handling.
+            reverse_proxy 127.0.0.1:${toString config.my.services.homeAssistant.port}
+          }
+
+          @uptime host uptime.${vars.domain}
+          handle @uptime {
+            reverse_proxy localhost:${toString config.my.services.uptimeKuma.port}
+          }
+
           handle {
             respond "Service not found" 404
           }
