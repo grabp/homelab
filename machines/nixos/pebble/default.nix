@@ -70,9 +70,12 @@
   my.services.netbird.enable = true;  # Stage 7b
   my.services.kanidm.enable = true;   # Stage 7c
   my.services.homepage.enable = true;        # Stage 8
-  my.services.mosquitto.enable = true;       # Stage 9a
-  my.services.homeAssistant.enable = true;   # Stage 9a
-  my.services.uptimeKuma.enable = true;      # Stage 9a
+  my.services.mosquitto.enable = true;              # Stage 9a
+  my.services.homeAssistant.enable = true;          # Stage 9a
+  my.services.homeAssistant.esphome.enable = true;  # Stage 9b
+  my.services.uptimeKuma.enable = true;             # Stage 9a
+  my.services.wyoming.enable = true;                # Stage 9b
+  my.services.matterServer.enable = true;           # Stage 9b
 
   system.stateVersion = "25.11";
 }

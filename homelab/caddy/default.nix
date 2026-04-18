@@ -98,6 +98,11 @@ in
             reverse_proxy localhost:${toString config.my.services.uptimeKuma.port}
           }
 
+          @esphome host esphome.${vars.domain}
+          handle @esphome {
+            reverse_proxy localhost:${toString config.my.services.homeAssistant.esphome.port}
+          }
+
           handle {
             respond "Service not found" 404
           }
