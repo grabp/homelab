@@ -106,6 +106,13 @@ in
                 icon        = "home-assistant.svg";
               };
             }
+            {
+              "ESPHome" = {
+                href        = "https://esphome.${vars.domain}";
+                description = "ESP device dashboard";
+                icon        = "esphome.svg";
+              };
+            }
           ];
         }
         {

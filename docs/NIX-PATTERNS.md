@@ -522,18 +522,21 @@ The `wyoming-faster-whisper` NixOS module applies systemd hardening with `ProcSu
   };
 
   # === Wake word detection (OpenWakeWord) — single instance, no servers.<name> ===
+  # ⚠️ `preloadModels` was REMOVED in wyoming-openwakeword v2.0.0 (Oct 2025).
+  # nixos-25.11 ships v2.0.0+. Built-in models load automatically.
+  # Do NOT set preloadModels — the option no longer exists and causes an eval error.
   services.wyoming.openwakeword = {
     enable = true;
-    uri = "tcp://0.0.0.0:10400";
-    preloadModels = [ "okay_nabu" ];
-    # ⚠️ VERIFY: use "ok_nabu" if nixpkgs ships wyoming-openwakeword < v2.0.0
+    uri    = "tcp://0.0.0.0:10400";
+    # Built-in models (okay_nabu, hey_jarvis, alexa, hey_mycroft, hey_rhasspy) auto-load.
+    # Add custom models via customModelsDirectories = [ /path/to/models ];
   };
 
   networking.firewall.allowedTCPPorts = [ 10200 10300 10400 ];
 }
 ```
 
-**Source:** NixOS module source at `nixos/modules/services/home-automation/wyoming/`. ProcSubset bug confirmed in nixpkgs PR #372898. `lib.mkForce` pattern is standard NixOS for overriding hardened defaults ✅.
+**Source:** NixOS module source at `nixos/modules/services/home-automation/wyoming/`. ProcSubset bug confirmed in nixpkgs PR #372898 — merged into nixos-25.11 (`ProcSubset = "all"` already in module). `lib.mkForce "all"` override harmless and kept for explicit documentation. `preloadModels` removal verified against nixos-25.11 rev `7e495b747b51` ✅.
 
 ---
 
