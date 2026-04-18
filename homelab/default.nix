@@ -9,7 +9,7 @@
 #   Stage 7b: netbird
 #   Stage 7c: kanidm
 #   Stage 8: homepage
-#   Stage 9: home-assistant, uptime-kuma
+#   Stage 9a: mosquitto, home-assistant, uptime-kuma
 #   Stage 10: backup
 { ... }: {
   imports = [
@@ -23,8 +23,9 @@
     ./netbird          # Stage 7b
     ./kanidm           # Stage 7c — Kanidm OIDC + LDAP IdP
     ./homepage         # Stage 8
-    # ./home-assistant
-    # ./uptime-kuma
+    ./mosquitto        # Stage 9a
+    ./home-assistant   # Stage 9a
+    ./uptime-kuma      # Stage 9a
     # ./backup
   ];
 }

@@ -88,6 +88,24 @@ in
                 icon        = "prometheus.svg";
               };
             }
+            {
+              "Uptime Kuma" = {
+                href        = "https://uptime.${vars.domain}";
+                description = "Service monitor";
+                icon        = "uptime-kuma.svg";
+              };
+            }
+          ];
+        }
+        {
+          "Home Automation" = [
+            {
+              "Home Assistant" = {
+                href        = "https://ha.${vars.domain}";
+                description = "Home automation";
+                icon        = "home-assistant.svg";
+              };
+            }
           ];
         }
         {
