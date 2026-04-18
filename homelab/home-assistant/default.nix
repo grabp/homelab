@@ -55,6 +55,15 @@ in
       description = "Host path for persistent HA configuration";
     };
 
+    # HomeKit bridge ports — one per bridge configured in HA (default starts at 21064).
+    # Must match the port assigned in HA Settings → Devices & Services → HomeKit Bridge.
+    # Open one port per bridge instance; second bridge gets 21065, etc.
+    homekitPorts = lib.mkOption {
+      type    = lib.types.listOf lib.types.port;
+      default = [];
+      description = "TCP ports for HomeKit bridge(s) to open in the firewall";
+    };
+
     # ESPHome dashboard — co-located here because it is part of the HA ecosystem.
     # Native services.esphome has three unresolved bugs; use the OCI container.
     esphome = {
@@ -184,7 +193,8 @@ EOF
       };
 
       # 8123 is served on the host network stack directly (--network=host).
-      networking.firewall.allowedTCPPorts = [ cfg.port ];
+      # HomeKit bridge ports (21064+) must also be open for Apple Home pairing.
+      networking.firewall.allowedTCPPorts = [ cfg.port ] ++ cfg.homekitPorts;
 
       # Avahi mDNS — required for ESPHome device discovery and .local resolution.
       # Use nssmdns4 (not nssmdns) to avoid slow lookups for non-.local domains.

@@ -638,7 +638,7 @@ See `docs/VPS-LOKI-SHIPPING.md` for the complete implementation plan.
 
 **Package:** `pkgs.home-assistant`
 
-**Ports:** 8123/tcp
+**Ports:** 8123/tcp; 21064+/tcp per HomeKit bridge (21064 first bridge, 21065 second, etc.)
 
 **Secrets:** HA manages its own secrets via `secrets.yaml`
 
@@ -652,6 +652,7 @@ See `docs/VPS-LOKI-SHIPPING.md` for the complete implementation plan.
 - UniFi integration requires a **local admin user** on UniFi controller (not SSO account)
 - Configure `http.use_x_forwarded_for: true` and `trusted_proxies: [127.0.0.1]` for Caddy reverse proxy
 - HA onboarding is interactive — not fully declarative
+- **HomeKit bridge:** each bridge instance needs its TCP port open in the firewall (21064 for the first, 21065 for the second, etc.). mDNS (`_hap._tcp`) is advertised by Avahi automatically via `--network=host`, but pairing will silently fail if the HAP port is blocked. Use `my.services.homeAssistant.homekitPorts = [ 21064 21065 ]` in the machine config.
 
 **Companion services (Stage 8b):** Deploy Mosquitto (MQTT), the Wyoming voice pipeline (Whisper STT, Piper TTS, OpenWakeWord), ESPHome, and Matter Server alongside HA. HACS is auto-installed via a systemd oneshot. All companion services connect to HA over `localhost` since HA uses `--network=host`. See dedicated sections below for each service.
 
