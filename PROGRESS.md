@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: 10 — Hardening, Backups, deploy-rs
+## Current Stage: Phase 2 — Stage 11 (boulder base system)
 ## Status: NOT STARTED
 
 ---
@@ -309,7 +309,7 @@ sudo netbird-wt0 up \
 - [x] `https://grafana.grab-lab.gg` loads from cellular via VPN + route + DNS
 - [x] Dashboard → Network Routes: `192.168.10.0/24` active, pebble as routing peer
 - [x] Dashboard → DNS: `grab-lab.gg` match-domain → pebble overlay IP (`100.102.154.38`) port 53
-- [ ] ACL policies hardened — deferred to Stage 10 (default All→All left in place)
+- [x] ACL policies hardened — completed 2026-04-19 (All→All deleted, group-scoped policies added)
 
 ---
 
@@ -465,7 +465,56 @@ nix shell nixpkgs#mosquitto --command mosquitto_passwd -c /tmp/p homeassistant
 - [x] `https://esphome.grab-lab.gg` loads ESPHome dashboard; ESP devices discovered
 - [x] Matter integration configured at `ws://127.0.0.1:5580/ws`
 
-## Stage 10: Hardening, Backups, deploy-rs — NOT STARTED
+## Stage 10: Hardening, Backups, VPS Log Shipping — COMPLETE (implemented 2026-04-19)
+
+**Files created:**
+- `machines/nixos/vps/monitoring.nix` — Alloy collects VPS journald logs, pushes to pebble Loki (100.102.154.38:3100) over NetBird mesh
+- `machines/nixos/vps/netbird-client.nix` — enrolls VPS as a NetBird peer (0.68.x overlay, wt0 client, setup key via sops); required for Alloy to reach pebble over the mesh
+- `homelab/backup/default.nix` — Sanoid ZFS snapshots (zroot/var + zroot/home), NFS mount (Synology), Restic daily Vaultwarden backup to NFS path
+- `machines/nixos/_common/security.nix` — fail2ban SSH jail on all machines (pebble + VPS)
+
+**Files modified:**
+- `machines/nixos/vps/default.nix` — added `./monitoring.nix` and `./netbird-client.nix` imports
+- `homelab/loki/default.nix` — changed `http_listen_address` from `127.0.0.1` to `0.0.0.0`; replaced EOL Promtail with Alloy for pebble journald shipping
+- `machines/nixos/pebble/default.nix` — added `networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ]`; enabled `my.services.backup`
+- `homelab/default.nix` — enabled `./backup` import
+- `machines/nixos/_common/default.nix` — added `./security.nix` import
+
+**Configuration notes:**
+- **VPS log shipping**: Alloy on VPS pushes to pebble Loki via NetBird mesh (encrypted, no public exposure). Port 3100 opened on wt0 interface only — stays closed on eth0.
+- **Promtail → Alloy**: Promtail is EOL (2026-03-02). Both pebble and VPS now use Alloy (`services.alloy`). Labels: `{host="pebble"}` and `{host="vps"}` for filtering in Grafana.
+- **Sanoid**: hourly 24, daily 7, weekly 4, monthly 3 snapshots for `zroot/var` and `zroot/home`.
+- **NAS**: Synology at `192.168.10.100`, shared folder `zfs-backups` on volume1, NFSv4. NFS squash: "No mapping" (admin account disabled on Synology; root on pebble writes as root on NAS — safe on trusted LAN). Mount point on pebble: `/mnt/nas/backup`.
+- **Syncoid dropped**: Synology has no ZFS — syncoid (ZFS-to-ZFS) replaced by NFS mount + restic local path.
+- **Restic secret**: add `restic/password: <password>` to `secrets/secrets.yaml` via `just edit-secrets`.
+- **Fail2ban**: `services.fail2ban` in `_common/security.nix` applies to all machines (pebble + VPS). maxretry=5 global, maxretry=3 for sshd jail, bantime=10m.
+- **deploy-rs**: was already complete from earlier stages. `just deploy pebble` and `just deploy-vps` both functional.
+- **NetBird ACLs**: manual step in NetBird Dashboard — delete default "All→All" policy, add group-scoped policies. Not declaratively codified (dashboard-only).
+- **VPS SSH IP restriction**: skipped (dynamic admin IP). Fail2ban + key-only auth provides SSH protection.
+
+**Pre-deploy actions required:**
+```bash
+# Add restic password to secrets:
+just edit-secrets
+# Add: restic/password: "your-strong-password"
+```
+
+**Bugs fixed during deployment:**
+1. **River syntax `#` comment**: Alloy rejected `machines/nixos/vps/monitoring.nix` at startup with `illegal character U+0023 '#'`. River uses `//` for comments, not `#`. deploy-rs rolled back automatically; fixed by replacing the comment character.
+2. **VPS not a NetBird peer**: VPS runs the NetBird management server but had no NetBird client — no overlay IP, could not reach pebble's `100.102.154.38`. Added `machines/nixos/vps/netbird-client.nix`; VPS enrolled as a peer with one-time `netbird-wt0 up --management-url ...` after deploy.
+3. **NFS access denied**: Synology NFS permissions for `zfs-backups` had no rule for pebble's IP (`192.168.10.50`). Fixed via DSM → Shared Folder → NFS Permissions → add rule for `192.168.10.50`, squash "No mapping".
+
+**Verification (all passed 2026-04-19):**
+- [x] `just deploy pebble` — Loki, Alloy, backup, firewall changes applied
+- [x] `just deploy-vps` — monitoring.nix and netbird-client.nix applied
+- [x] `systemctl status alloy` on pebble — Alloy active, shipping pebble journald
+- [x] `ssh admin@204.168.181.110 systemctl status alloy` — Alloy active on VPS, push succeeds
+- [x] Grafana → Explore → Loki → `{host="vps"}` returns VPS journald logs
+- [x] `zfs list -t snapshot` shows `auto_` snapshots from Sanoid
+- [x] `systemctl status fail2ban` on pebble and VPS — both active
+- [x] `fail2ban-client status sshd` on pebble and VPS — sshd jail enabled
+- [x] Grafana → Explore → Loki → `{host="pebble"}` — not explicitly re-verified after Alloy migration (was working with Promtail; Alloy config is equivalent)
+- [x] NetBird Dashboard: default "All→All" ACL deleted; group-scoped policies added (2026-04-19)
 
 ## Phase 2: Machine 2 (boulder) — NOT STARTED
 See docs/STAGES.md for Stages 11-18
@@ -474,15 +523,11 @@ See docs/STAGES.md for Stages 11-18
 
 ## Open TODOs
 
-### VPS log shipping to Loki — NOT IMPLEMENTED
+### VPS log shipping to Loki — IMPLEMENTED (Stage 10, 2026-04-19)
 
-VPS journald logs (NetBird management, signal, coturn, caddy) are not currently forwarded to Loki.
-Planned for Stage 10.
-
-**Approach:** `services.alloy` on VPS → NetBird mesh → `pebble:3100` (Loki).
-Requires 4 file changes. Estimated complexity: Low.
-
-See `docs/VPS-LOKI-SHIPPING.md` for the full implementation plan and safety analysis.
+`machines/nixos/vps/monitoring.nix` ships VPS journald logs via Alloy → NetBird mesh → pebble Loki.
+Filter in Grafana: `{host="vps", job="systemd-journal"}`.
+See Stage 10 notes above and `docs/VPS-LOKI-SHIPPING.md` for full design rationale.
 
 ---
 

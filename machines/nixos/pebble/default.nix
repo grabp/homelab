@@ -50,6 +50,9 @@
 
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
+  # Loki: allow VPS Alloy to push logs over NetBird mesh only.
+  # wt0 is the NetBird WireGuard interface; port 3100 stays closed on eth0 (LAN).
+  networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ];
 
   # DNS: Pi-hole owns port 53, but systemd-resolved runs for NetBird DNS routing
   # (Pattern 15: DNSStubListener=no frees port 53 while keeping resolved daemon)
@@ -77,6 +80,7 @@
   my.services.uptimeKuma.enable = true;             # Stage 9a
   my.services.wyoming.enable = true;                # Stage 9b
   my.services.matterServer.enable = true;           # Stage 9b
+  my.services.backup.enable = true;                # Stage 10
 
   system.stateVersion = "25.11";
 }

@@ -10,7 +10,8 @@
       "WebFetch(domain:netbird.io)",
       "WebFetch(domain:api.github.com)",
       "Bash(xargs:*)",
-      "Bash(git -C /home/grabowskip/Projects/lab diff HEAD)"
+      "Bash(git -C /home/grabowskip/Projects/lab diff HEAD)",
+      "WebFetch(domain:tricked.dev)"
     ]
   }
 }
