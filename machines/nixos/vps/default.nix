@@ -3,6 +3,7 @@
     ./disko.nix
     ./netbird-server.nix
     ./caddy.nix
+    ./monitoring.nix       # Stage 10: Alloy → pebble Loki over NetBird mesh
     ../../../modules/podman
   ];
 

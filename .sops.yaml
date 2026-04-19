@@ -2,6 +2,7 @@ keys:
   - &admin age1pvhdtd73kzap707an0g8fqpr3jqjjfh6x6dez4gw4hza7helffcsym6sgm
   - &pebble age1967s7ux5z32ak6yn2gzs0pghs7gm7qe4smrgyhge0xa3l2xgzuhsszwrfn
   - &vps age1vkupqmrupls5qam4fwxcfa955zzmec3ft9klrcmuyyj4tzj48ddqssh75u
+  - &admin-gpg 6C4D33083EDEF83D043C897BD4ADECA93F52036C
 
 creation_rules:
   - path_regex: secrets/secrets\.yaml$
@@ -9,6 +10,8 @@ creation_rules:
       - age:
           - *admin
           - *pebble
+        pgp:
+          - *admin-gpg
 
   # VPS secrets: currently encrypted for admin (dev machine) only.
   # After running `just gen-vps-hostkey` and adding &vps above:
@@ -19,3 +22,5 @@ creation_rules:
       - age:
           - *admin
           - *vps # uncomment after adding &vps key above
+        pgp:
+          - *admin-gpg

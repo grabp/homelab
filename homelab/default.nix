@@ -29,6 +29,6 @@
     ./uptime-kuma      # Stage 9a
     ./wyoming          # Stage 9b — Whisper STT + Piper TTS + OpenWakeWord
     ./matter-server    # Stage 9b — Matter Server OCI container
-    # ./backup
+    ./backup           # Stage 10 — Sanoid + Syncoid + Restic
   ];
 }
