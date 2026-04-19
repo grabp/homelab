@@ -484,7 +484,8 @@ nix shell nixpkgs#mosquitto --command mosquitto_passwd -c /tmp/p homeassistant
 - **Promtail → Alloy**: Promtail is EOL (2026-03-02). Both pebble and VPS now use Alloy (`services.alloy`). Labels: `{host="pebble"}` and `{host="vps"}` for filtering in Grafana.
 - **Sanoid**: hourly 24, daily 7, weekly 4, monthly 3 snapshots for `zroot/var` and `zroot/home`.
 - **Syncoid SSH key**: generate `/root/.ssh/syncoid_ed25519` on pebble, add pubkey to NAS. See `homelab/backup/default.nix` comment.
-- **NAS placeholders**: `nasUser`, `nasIP`, `nasPool` in `homelab/backup/default.nix` must be filled in before first deploy.
+- **NAS**: Synology at `192.168.10.100`, shared folder `zfs-backups` on volume1, NFSv4. NFS squash: "Map all users to admin". Mount point on pebble: `/mnt/nas/backup`.
+- **Syncoid dropped**: Synology has no ZFS — syncoid (ZFS-to-ZFS) replaced by NFS mount + restic local path.
 - **Restic secret**: add `restic/password: <password>` to `secrets/secrets.yaml` via `just edit-secrets`.
 - **Fail2ban**: `services.fail2ban` in `_common/security.nix` applies to all machines (pebble + VPS). maxretry=5 global, maxretry=3 for sshd jail, bantime=10m.
 - **deploy-rs**: was already complete from earlier stages. `just deploy pebble` and `just deploy-vps` both functional.
@@ -493,16 +494,6 @@ nix shell nixpkgs#mosquitto --command mosquitto_passwd -c /tmp/p homeassistant
 
 **Pre-deploy actions required:**
 ```bash
-# On pebble (as root):
-sudo ssh-keygen -t ed25519 -f /root/.ssh/syncoid_ed25519 -N "" -C "syncoid@pebble"
-sudo cat /root/.ssh/syncoid_ed25519.pub  # add to NAS authorized_keys
-
-# Fill in NAS details in homelab/backup/default.nix:
-#   nasUser = "your-nas-user";
-#   nasIP   = "192.168.10.X";
-#   nasPool = "your-pool-name";
-#   NAS must have: tank/pebble/var, tank/pebble/home (syncoid), /tank/backups/restic/vaultwarden/ (restic)
-
 # Add restic password to secrets:
 just edit-secrets
 # Add: restic/password: "your-strong-password"

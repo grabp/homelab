@@ -1,24 +1,37 @@
 { config, lib, ... }:
 
 let
-  cfg = config.my.services.backup;
-
-  # ── NAS connection details ────────────────────────────────────────────────
-  # PLACEHOLDER: fill in before first deploy, then run:
-  #   sudo ssh-keygen -t ed25519 -f /root/.ssh/syncoid_ed25519 -N "" -C "syncoid@pebble"
-  #   sudo cat /root/.ssh/syncoid_ed25519.pub  # add to NAS authorized_keys
-  nasUser = "admin";          # NAS SSH username
-  nasIP   = "192.168.10.X";  # NAS IP address
-  nasPool = "tank";           # NAS ZFS pool name (syncoid) or base path (restic)
+  cfg     = config.my.services.backup;
+  nasIP   = "192.168.10.100";
+  nasExport = "/volume1/zfs-backups";   # Synology volume 1, shared folder "zfs-backups"
+  mountPoint = "/mnt/nas/backup";
 in
 {
   options.my.services.backup.enable =
-    lib.mkEnableOption "Sanoid snapshots + Syncoid NAS replication + Restic";
+    lib.mkEnableOption "Sanoid snapshots + Restic NFS backup";
 
   config = lib.mkIf cfg.enable {
 
+    # ── NFS mount — Synology NAS ─────────────────────────────────────────────
+    # NFSv4, automounted on demand, unmounted after 10 min idle.
+    # Synology NFS permission: pebble IP (192.168.10.50), squash = Map all users to admin.
+    # _netdev: mount after network is up; nofail: don't block boot if NAS is unreachable.
+    fileSystems."${mountPoint}" = {
+      device  = "${nasIP}:${nasExport}";
+      fsType  = "nfs";
+      options = [
+        "nfsvers=4"
+        "nofail"                          # don't block boot if NAS is down
+        "_netdev"                         # mount after network-online.target
+        "x-systemd.automount"             # mount on first access, not at boot
+        "x-systemd.idle-timeout=600"      # unmount after 10 min idle
+        "x-systemd.mount-timeout=30"      # fail fast if NAS unreachable at access time
+      ];
+    };
+
     # ── ZFS snapshots — Sanoid ───────────────────────────────────────────────
-    # Runs on pebble only (ZFS is required). Snapshots are local; syncoid replicates them.
+    # Local ZFS snapshots on pebble. No NAS involvement — runs regardless of NAS state.
+    # Datasets: zroot/var (all service state), zroot/home (admin home dir).
     services.sanoid = {
       enable = true;
       templates.homelab = {
@@ -30,51 +43,37 @@ in
         autoprune = true;
       };
       datasets = {
-        "zroot/var"  = { useTemplate = [ "homelab" ]; };  # all service state
-        "zroot/home" = { useTemplate = [ "homelab" ]; };  # admin home dir
+        "zroot/var"  = { useTemplate = [ "homelab" ]; };
+        "zroot/home" = { useTemplate = [ "homelab" ]; };
       };
     };
 
-    # ── ZFS replication to NAS — Syncoid ─────────────────────────────────────
-    # Runs hourly (default). Sends incremental snapshots created by sanoid to the NAS.
-    # Pre-deploy: generate /root/.ssh/syncoid_ed25519 and add pubkey to NAS authorized_keys.
-    # NAS must have destination datasets: ${nasPool}/pebble/var, ${nasPool}/pebble/home
-    services.syncoid = {
-      enable = true;
-      sshKey = "/root/.ssh/syncoid_ed25519";
-      commands = {
-        "var-to-nas" = {
-          source = "zroot/var";
-          target = "${nasUser}@${nasIP}:${nasPool}/pebble/var";
-        };
-        "home-to-nas" = {
-          source = "zroot/home";
-          target = "${nasUser}@${nasIP}:${nasPool}/pebble/home";
-        };
-      };
-    };
-
-    # ── Restic: Vaultwarden daily SQLite backups → NAS SFTP ──────────────────
-    # Backs up /var/backup/vaultwarden (daily SQLite dumps from services.vaultwarden.backupDir).
-    # ZFS snapshots cover the raw database; restic provides file-level point-in-time restores.
-    # Pre-deploy: add "restic/password: <password>" to secrets via: just edit-secrets
-    # NAS must have: /${nasPool}/backups/restic/vaultwarden/ writable by ${nasUser}
+    # ── Restic: Vaultwarden daily backups → NAS (NFS) ────────────────────────
+    # Backs up /var/backup/vaultwarden (daily SQLite dumps via services.vaultwarden.backupDir).
+    # Repository: local path on the NFS mount — simplest restic backend, no auth needed.
+    # Pre-deploy: just edit-secrets → add: restic/password: "your-strong-password"
     sops.secrets."restic/password" = {};
 
     services.restic.backups.vaultwarden = {
-      initialize  = true;    # create repo on first run if it doesn't exist
+      initialize   = true;   # create repo on first run if it doesn't exist
       passwordFile = config.sops.secrets."restic/password".path;
-      repository  = "sftp:${nasUser}@${nasIP}:/${nasPool}/backups/restic/vaultwarden";
-      paths       = [ "/var/backup/vaultwarden" ];
-      timerConfig = {
+      repository   = "${mountPoint}/restic/vaultwarden";
+      paths        = [ "/var/backup/vaultwarden" ];
+      timerConfig  = {
         OnCalendar = "daily";
-        Persistent = true;   # run immediately if last run was missed (e.g. pebble was off)
+        Persistent = true;   # run immediately if last scheduled run was missed
       };
       pruneOpts = [
         "--keep-daily 7"
         "--keep-weekly 4"
         "--keep-monthly 3"
       ];
+    };
+
+    # Ensure restic runs after the NFS automount unit is active.
+    systemd.services."restic-backups-vaultwarden" = {
+      after    = [ "mnt-nas-backup.automount" ];
+      requires = [ "mnt-nas-backup.automount" ];
     };
   };
 }
