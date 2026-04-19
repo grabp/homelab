@@ -4,6 +4,6 @@ repos:
       - id: gitleaks
         name: Detect hardcoded secrets
         description: Scan staged changes for secrets using gitleaks
-        entry: gitleaks protect --staged --redact --verbose
+        entry: nix run nixpkgs#gitleaks -- protect --staged --redact --verbose
         language: system
         pass_filenames: false

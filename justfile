@@ -113,6 +113,10 @@ history:
 fmt:
     nix fmt
 
+# Install pre-commit hooks without entering the devShell
+install-hooks:
+    nix run nixpkgs#pre-commit -- install
+
 repl:
     nix repl -f flake:nixpkgs
 
