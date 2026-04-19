@@ -1,4 +1,4 @@
-{ config, lib, vars, ... }:
+{ config, lib, pkgs, vars, ... }:
 
 let
   cfg = config.my.services.pihole;
@@ -49,6 +49,9 @@ in
         # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
         echo "address=/${vars.domain}/${vars.serverIP}"
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
+      # Reload Pi-hole's DNS engine to pick up the new config.
+      # Silently ignored if the container isn't running yet (e.g. first boot).
+      ${pkgs.podman}/bin/podman exec pihole pihole restartdns reload 2>/dev/null || true
     '';
 
     virtualisation.oci-containers.containers.pihole = {
