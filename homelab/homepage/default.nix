@@ -3,8 +3,8 @@
 # Native NixOS module: services.homepage-dashboard
 # Port: 3010 (remapped from default 3000 to avoid Grafana conflict)
 # URL: https://home.grab-lab.gg
-# Auth: Homepage has no native auth. Add Caddy forward_auth via Kanidm
-#       (Pattern 22) once verified — see ⚠️ note in docs/NIX-PATTERNS.md.
+# Auth: oauth2-proxy (port 4180) in front of Homepage, Kanidm as OIDC backend.
+#       Caddy → oauth2-proxy:4180 → Homepage:3010
 { config, lib, vars, ... }:
 
 let
@@ -18,6 +18,12 @@ in
       type    = lib.types.port;
       default = 3010;
       description = "Listen port — remapped from 3000 to avoid Grafana conflict";
+    };
+
+    oauth2ProxyPort = lib.mkOption {
+      type    = lib.types.port;
+      default = 4180;
+      description = "oauth2-proxy listen port — Caddy proxies here, oauth2-proxy proxies to Homepage";
     };
   };
 
@@ -138,5 +144,47 @@ in
         }
       ];
     };
+
+    # ── oauth2-proxy ─────────────────────────────────────────────────────────
+    # Sits between Caddy and Homepage. Handles the PKCE OAuth2 dance with
+    # Kanidm, issues a session cookie, then proxies authenticated requests to
+    # Homepage. Unauthenticated requests are redirected to Kanidm login.
+    #
+    # --network=host: both the upstream (localhost:3010) and the bind address
+    # (127.0.0.1:4180) live on the host network stack.
+    #
+    # No Netavark/firewall fix needed: host networking has no port-publish DNAT
+    # rules to lose when firewall.service reloads.
+    virtualisation.oci-containers.containers.oauth2-proxy-homepage = {
+      image = "quay.io/oauth2-proxy/oauth2-proxy:v7.8.1";
+      # --upstream passed as a CLI arg: oauth2-proxy v7.8.1 does not reliably
+      # pick up OAUTH2_PROXY_UPSTREAM from the environment (Viper mapping issue).
+      # Trailing slash is required — bare host:port is rejected by the URL parser.
+      cmd = [ "--upstream=http://127.0.0.1:${toString cfg.port}/" ];
+      environment = {
+        # Kanidm per-client OIDC discovery:
+        # https://id.DOMAIN/oauth2/openid/homepage/.well-known/openid-configuration
+        OAUTH2_PROXY_PROVIDER              = "oidc";
+        OAUTH2_PROXY_OIDC_ISSUER_URL       = "https://id.${vars.domain}/oauth2/openid/homepage";
+        OAUTH2_PROXY_CLIENT_ID             = "homepage";
+        OAUTH2_PROXY_REDIRECT_URL          = "https://home.${vars.domain}/oauth2/callback";
+        OAUTH2_PROXY_HTTP_ADDRESS          = "127.0.0.1:${toString cfg.oauth2ProxyPort}";
+        OAUTH2_PROXY_EMAIL_DOMAINS         = "*";  # Kanidm email is optional; allow any domain
+        OAUTH2_PROXY_SCOPE                 = "openid profile email";
+        OAUTH2_PROXY_CODE_CHALLENGE_METHOD = "S256";  # PKCE — required by Kanidm 1.9
+        OAUTH2_PROXY_SKIP_PROVIDER_BUTTON  = "true";  # auto-redirect to Kanidm, no button page
+        OAUTH2_PROXY_COOKIE_SECURE         = "true";
+        OAUTH2_PROXY_COOKIE_SAMESITE       = "lax";
+      };
+      # OAUTH2_PROXY_CLIENT_SECRET and OAUTH2_PROXY_COOKIE_SECRET injected here.
+      environmentFiles = [ config.sops.secrets."oauth2-proxy/homepage_env".path ];
+      extraOptions = [ "--network=host" ];
+    };
+
+    # oauth2-proxy/homepage_env must contain:
+    #   OAUTH2_PROXY_CLIENT_SECRET=<same value as kanidm/homepage_client_secret>
+    #   OAUTH2_PROXY_COOKIE_SECRET=<openssl rand -hex 16>  ← must be exactly 32 chars
+    # Add with: just edit-secrets
+    sops.secrets."oauth2-proxy/homepage_env" = { };
   };
 }
