@@ -28,8 +28,8 @@ in
 
     image = lib.mkOption {
       type    = lib.types.str;
-      default = "ghcr.io/home-assistant-libs/python-matter-server:stable";
-      description = "OCI image tag — pin to a specific version (e.g. 8.1.2) for reproducibility";
+      default = "ghcr.io/home-assistant-libs/python-matter-server:stable@sha256:170aa093ce91c76cde4cc390918307590f0f5558fcec93f913af3cb019e6562a";
+      description = "OCI image tag — pin to a specific version for reproducibility";
     };
   };
 

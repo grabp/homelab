@@ -45,7 +45,7 @@ in
 
     image = lib.mkOption {
       type    = lib.types.str;
-      default = "ghcr.io/home-assistant/home-assistant:stable";
+      default = "ghcr.io/home-assistant/home-assistant:2026.4.3@sha256:ae0800c81fea16bc1241ce03bddb9c6260566e90f58b09d3e5a629e4f68bdc0b";
       description = "OCI image tag — pin to a specific release for reproducibility, e.g. 2026.4.3";
     };
 
@@ -77,7 +77,7 @@ in
 
       image = lib.mkOption {
         type    = lib.types.str;
-        default = "ghcr.io/esphome/esphome:2026.3.1";
+        default = "ghcr.io/esphome/esphome:2026.3.1@sha256:cb9875ef7b63ecefea0e599c97981bea22e4d8ee5c822b03fbf22ccebcbbb49c";
         description = "OCI image tag — pin to a specific release for reproducibility";
       };
 
