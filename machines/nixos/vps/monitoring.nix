@@ -30,7 +30,7 @@
 
     loki.write "pebble" {
       endpoint {
-        # pebble NetBird overlay IP (verified Stage 7b: just netbird-status)
+        // pebble NetBird overlay IP (verified Stage 7b: just netbird-status)
         url = "http://100.102.154.38:3100/loki/api/v1/push"
       }
     }

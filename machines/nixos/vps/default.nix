@@ -2,6 +2,7 @@
   imports = [
     ./disko.nix
     ./netbird-server.nix
+    ./netbird-client.nix   # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
     ./caddy.nix
     ./monitoring.nix       # Stage 10: Alloy → pebble Loki over NetBird mesh
     ../../../modules/podman
