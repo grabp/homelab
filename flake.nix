@@ -50,5 +50,16 @@
           (system: deployLib: deployLib.deployChecks self.deploy)
           deploy-rs.lib;
       }
+
+      {
+        devShells.x86_64-linux.default =
+          nixpkgs.legacyPackages.x86_64-linux.mkShell {
+            packages = with nixpkgs.legacyPackages.x86_64-linux; [
+              pre-commit
+              gitleaks
+            ];
+            shellHook = "pre-commit install";
+          };
+      }
     ];
 }
