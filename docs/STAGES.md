@@ -108,7 +108,7 @@ Each stage is independently deployable and testable. Complete each stage before 
 
 ## Stage 7a: VPN — VPS provisioning + NetBird control plane (OCI containers)
 
-**What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running as **Podman OCI containers** (`virtualisation.oci-containers`) with native NixOS Caddy for TLS and native coturn for STUN/TURN. NetBird dashboard accessible at `https://netbird.grab-lab.gg`. Embedded Dex IdP auto-configures during the setup wizard. VPS secrets stored in `secrets/vps.yaml`.
+**What gets built:** Hetzner CX22 VPS provisioned via `nixos-anywhere`, NixOS deployed with `machines/nixos/vps/`, NetBird control plane running as **Podman OCI containers** (`virtualisation.oci-containers`) with native NixOS Caddy for TLS and native coturn for STUN/TURN. NetBird dashboard accessible at `https://netbird.grab-lab.gg`. **Pocket ID** (`pocket-id` OCI container) provides passkey-only OIDC for NetBird auth (`EmbeddedIdP.Enabled = false`). VPS secrets stored in `secrets/vps.yaml`.
 
 **Note:** VPS runs NixOS managed by the same flake + deploy-rs. NetBird server components run as OCI containers, but the VPS host itself is declaratively managed. This hybrid approach gives battle-tested NetBird containers with declarative TLS management via native Caddy.
 
@@ -123,13 +123,14 @@ Each stage is independently deployable and testable. Complete each stage before 
 **Verification steps:**
 - `podman ps` on VPS shows 3 containers running: `netbird-management`, `netbird-dashboard`, and coturn (or check via `systemctl status podman-*`)
 - `https://netbird.grab-lab.gg` loads the NetBird dashboard; TLS certificate valid (Let's Encrypt via HTTP-01)
-- Setup wizard at `https://netbird.grab-lab.gg/setup` completes: embedded Dex admin account created
-- NetBird client authenticates via embedded Dex device code flow
+- Pocket ID setup at `https://pocket-id.grab-lab.gg/login/setup` completes: passkey admin created
+- NetBird OIDC client in Pocket ID: **Public client ON**, PKCE ON, redirect URIs `/nb-auth` + `/nb-silent-auth`
+- `https://netbird.grab-lab.gg` redirects to Pocket ID for passkey auth → lands on dashboard
 - Setup key created in Dashboard → Setup Keys (reusable key, "homelab-servers" group)
 - Key encrypted into `secrets/secrets.yaml` with `just edit-secrets` (needed for Stage 7b)
 - `systemctl status coturn caddy` — both active on VPS
 
-**Estimated complexity:** Medium. `nixos-anywhere` provisioning requires computing the VPS age key. Native Caddy on VPS requires verifying gRPC proxy syntax. Embedded Dex setup wizard is one-time interactive.
+**Estimated complexity:** Medium. `nixos-anywhere` provisioning requires computing the VPS age key. Native Caddy on VPS requires verifying gRPC proxy syntax. Pocket ID OIDC client must be **Public** (not confidential); `offline_access` scope unsupported. After IdP switch: approve new user via SQLite (`blocked=0, pending_approval=0`) before first login.
 
 ## Stage 7b: VPN — Homelab NetBird client + routes + DNS + ACLs
 

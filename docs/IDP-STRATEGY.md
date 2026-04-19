@@ -9,15 +9,15 @@ This homelab uses two identity providers, each handling a distinct authenticatio
 │                                                                 │
 │  Tier 1: VPS                        Tier 2: Homelab (pebble)   │
 │  ┌──────────────────────────┐        ┌──────────────────────┐   │
-│  │ netbird-management       │        │ Kanidm               │   │
-│  │ (embedded Dex IdP)       │        │ services.kanidm      │   │
-│  │                          │        │ ~50–80 MB RAM        │   │
-│  │ Handles: NetBird VPN     │        │                      │   │
-│  │ auth ONLY                │        │ Handles: ALL service │   │
-│  │ Device code flow         │        │ SSO (OIDC + LDAP)    │   │
-│  │ ~0 extra RAM             │        │ Accessible via VPN   │   │
-│  └──────────────────────────┘        │ only (not internet)  │   │
-│                                      └──────────────────────┘   │
+│  │ Pocket ID                │        │ Kanidm               │   │
+│  │ (passkey-only OIDC)      │        │ services.kanidm      │   │
+│  │ pocket-id OCI container  │        │ ~50–80 MB RAM        │   │
+│  │                          │        │                      │   │
+│  │ Handles: NetBird VPN     │        │ Handles: ALL service │   │
+│  │ auth ONLY                │        │ SSO (OIDC + LDAP)    │   │
+│  │ PKCE + WebAuthn/passkey  │        │ Accessible via VPN   │   │
+│  │ ~20 MB RAM               │        │ only (not internet)  │   │
+│  └──────────────────────────┘        └──────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,14 +31,14 @@ the VPN. A single homelab IdP would create a deadlock where you can't authentica
 the VPN without being on VPN.
 
 **The solution:**
-- **Tier 1 (VPS):** Embedded Dex in the `netbird-management` container handles VPN
-  authentication exclusively. It's always reachable (public IP). Zero configuration —
-  auto-configures during the NetBird setup wizard.
+- **Tier 1 (VPS):** Pocket ID (`pocket-id` OCI container) handles VPN authentication
+  exclusively. It's always reachable (public IP). Passkey/FIDO2 only — no passwords.
+  Co-located on the VPS alongside the NetBird stack.
 - **Tier 2 (homelab):** Kanidm on pebble handles all service SSO. Never exposed to the
   internet — accessible only via NetBird VPN tunnel. Reduced attack surface.
 
 **Additional benefits:**
-- VPS stays lean: ~500 MB total for NetBird stack + Dex, no PostgreSQL/Redis needed
+- VPS stays lean: ~500 MB total for NetBird stack + Pocket ID, no PostgreSQL/Redis needed
 - Kanidm uses embedded SQLite + single binary (~50–80 MB RAM idle)
 - Homelab has 16+ GB RAM headroom — Kanidm is negligible overhead
 - VPS compromise cannot affect service credentials (Kanidm is on a different machine)
@@ -49,7 +49,7 @@ the VPN without being on VPN.
 
 | Service | Machine | Auth Method | IdP | Notes |
 |---------|---------|-------------|-----|-------|
-| NetBird VPN | VPS | Device code flow | Embedded Dex | Built into `netbird-management` container |
+| NetBird VPN | VPS | PKCE + passkey (WebAuthn) | Pocket ID | `pocket-id` OCI container on VPS; `EmbeddedIdP.Enabled = false` |
 | Grafana | pebble | Native OIDC | Kanidm | `settings."auth.generic_oauth"` |
 | Vaultwarden | pebble | Native OIDC | Kanidm | Master password still required for vault decryption |
 | Uptime Kuma | pebble | Caddy forward_auth | Kanidm | No native SSO support |
@@ -66,24 +66,31 @@ the VPN without being on VPN.
 
 ---
 
-## Tier 1: Embedded Dex (VPS)
+## Tier 1: Pocket ID (VPS)
 
-The embedded Dex IdP has been built into the `netbird-management` container since
-NetBird v0.62.0. **It requires zero configuration from us** — the setup wizard at
-`https://netbird.grab-lab.gg/setup` creates the initial admin account on first run.
+Pocket ID is a minimal, passkey-only OIDC provider. It replaces the embedded Dex
+that shipped with `netbirdio/management` — `EmbeddedIdP.Enabled = false` in
+`management.json`. Pocket ID runs as a separate OCI container on the VPS
+(`ghcr.io/pocket-id/pocket-id:v1.3.1`) at `https://pocket-id.grab-lab.gg`.
 
 **Characteristics:**
-- Hardcoded OIDC clients (NetBird dashboard + NetBird clients only)
-- Cannot serve external applications
-- Email/password auth with bcrypt hashing
-- Users managed entirely in the NetBird Dashboard UI
-- No CLI, no declarative provisioning — this is fine since we have only 2–3 VPN users
+- WebAuthn/FIDO2 passkeys only — no email/password auth possible
+- Public OIDC client (browser SPA, no client secret) with PKCE
+- Serves NetBird dashboard only (OIDC client: `4c1b8f6b-736c-4f52-800b-022c45a8970f`)
+- Users managed in Pocket ID Admin UI; synced to NetBird via IDP manager API
+- SQLite backend, single binary, ~20 MB RAM
 
-**Auth flow for NetBird clients:**
-1. `netbird-wt0 up` triggers device code flow
-2. Browser opens `https://netbird.grab-lab.gg/` → Dex login page
-3. User enters email/password created in Dashboard
-4. Client receives token, connects to WireGuard tunnel
+**Auth flow for NetBird dashboard:**
+1. Browser opens `https://netbird.grab-lab.gg/` → redirects to Pocket ID
+2. User authenticates with passkey at `https://pocket-id.grab-lab.gg`
+3. Pocket ID redirects back to `/nb-auth` with auth code
+4. Dashboard exchanges code (PKCE) for tokens, calls NetBird management API
+
+**Known gotchas:**
+- Setup page in v1.3.1 is `/login/setup`, not `/setup`
+- OIDC client must be **Public** (not confidential) — SPA never sends a client secret; confidential → HTTP 400 on token exchange
+- `offline_access` scope not supported — use `openid profile email groups` only
+- After switching from embedded Dex: new Pocket ID users are synced with `blocked=1 / pending_approval=1`; approve via SQLite before first login (see `pocket-id.nix` header comment)
 
 ---
 
@@ -257,12 +264,15 @@ deploying any service that requires SSO.
 
 ## Future: unified credentials (optional, not day-one)
 
-Once Kanidm is stable, it can optionally be added as an external OIDC provider in
-NetBird, replacing the embedded Dex for VPN auth. This gives unified credentials
-(one login for everything). However it reintroduces the chicken-and-egg dependency,
-so it requires a separate NetBird "bootstrap" user that authenticates via embedded Dex.
+Pocket ID could be replaced by Kanidm as the NetBird OIDC provider, giving unified
+credentials (one passkey/login for everything). However this reintroduces the
+chicken-and-egg dependency — you need VPN to reach Kanidm, but need Kanidm to
+authenticate VPN. A separate NetBird bootstrap user or a dedicated admin DNS path
+would be required.
 
-This is a future optimization — the two-tier architecture works well independently.
+Pocket ID's current role is intentionally minimal: passkeys only, VPN auth only,
+co-located on the VPS. This keeps the VPN authentication path independent of pebble
+availability. This is a future optimization — the two-tier architecture works well.
 
 ---
 

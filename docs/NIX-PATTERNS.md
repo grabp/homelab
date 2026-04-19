@@ -1125,32 +1125,43 @@ breaking SSH access. Required physical console recovery ✅.
 
 ---
 
-## Pattern 19: NetBird server via OCI containers on NixOS VPS (embedded Dex)
+## Pattern 19: NetBird server via OCI containers on NixOS VPS (Pocket ID OIDC)
 
 ⚠️ **Do NOT use `services.netbird.server`** — it exists in nixpkgs but is not
 production-ready as of nixos-25.11 (sparse documentation, unclear option interactions).
 Use `virtualisation.oci-containers` on the NixOS VPS instead.
 
-As of v0.68.x the container stack is **3 OCI containers + 1 native service**:
-- `netbirdio/management:latest` — REST API + gRPC + **embedded Dex IdP** (port 8080)
-- `netbirdio/signal:latest` — peer coordination, still a **separate** image (port 10000 on host, 80 in container)
-- `netbirdio/dashboard:latest` — React web UI (port 3000 on host, 80 in container)
+As of v0.68.x the container stack is **4 OCI containers + 1 native service**:
+- `netbirdio/management:0.68.3` — REST API + gRPC (`EmbeddedIdP.Enabled = false`; uses Pocket ID as external OIDC provider)
+- `netbirdio/signal:0.68.3` — peer coordination, still a **separate** image (port 10000 on host, 80 in container)
+- `netbirdio/dashboard:v2.36.0` — React web UI (port 3000 on host, 80 in container)
+- `ghcr.io/pocket-id/pocket-id:v1.3.1` — passkey-only OIDC provider at port 1411
 - native `services.coturn` — STUN/TURN (reads Caddy ACME certs; no container needed)
 
 ⚠️ **Common image name mistake:** `netbirdio/netbird:management-latest` does **not** exist on
 Docker Hub. The correct image is `netbirdio/management:latest`. Signal is NOT merged into
 the management image as of v0.68.x.
 
-### management.json — embedded Dex configuration
+### management.json — Pocket ID OIDC configuration
 
-Enable embedded Dex with `EmbeddedIdP.Enabled = true`. The binary auto-configures
-`HttpConfig` (issuer, audience, OIDC endpoint) from the `Issuer` value — do **not**
-set `OIDCConfigEndpoint` manually. `IdpManagerConfig` must be **omitted** (it is for
-external IdPs only; its presence alongside `EmbeddedIdP` causes conflicts).
+Set `EmbeddedIdP.Enabled = false` and configure `HttpConfig.OIDCConfigEndpoint` to
+point at Pocket ID's discovery URL. `AuthAudience` must match the OIDC client ID
+created in Pocket ID. `IdpManagerConfig` is replaced by environment variables
+(`NETBIRD_MGMT_IDP=pocketid`).
 
-`DashboardRedirectURIs` registers extra redirect URIs beyond the auto-registered
-`/api/reverse-proxy/callback`. Both `/nb-auth` (PKCE callback) and `/nb-silent-auth`
-(silent token renewal) must be listed or Dex will reject them with `BAD_REQUEST`.
+**Pocket ID OIDC client requirements:**
+- **Public client: ON** — the dashboard is a browser SPA and never sends a `client_secret`;
+  confidential client → HTTP 400 "client id or secret not provided" on token exchange
+- **PKCE: ON**
+- **Scopes:** `openid profile email groups` — Pocket ID does NOT support `offline_access`
+- Redirect URIs: `https://<domain>/nb-auth`, `https://<domain>/nb-silent-auth`
+
+**First login after IdP switch:** Users synced by the IDP manager arrive with
+`blocked=1 / pending_approval=1`. Approve via SQLite before first login:
+```bash
+sudo sqlite3 /var/lib/netbird-mgmt/store.db \
+  "UPDATE users SET blocked=0, pending_approval=0, role='owner' WHERE id='<pocket-id-user-uuid>';"
+```
 
 ```nix
 # machines/nixos/vps/netbird-server.nix (relevant excerpt)
@@ -1158,33 +1169,21 @@ external IdPs only; its presence alongside `EmbeddedIdP` causes conflicts).
 let
   domain = "netbird.${vars.domain}";
   mgmtConfigTemplate = pkgs.writeText "management.json.tmpl" (builtins.toJSON {
-    Stuns = [{ Proto = "udp"; URI = "${domain}:3478"; Username = null; Password = null; }];
+    Stuns = [{ Proto = "udp"; URI = "stun:${domain}:3478"; Username = null; Password = null; }];
     TURNConfig = {
       Turns = [{ Proto = "udp"; URI = "turn:${domain}:3478"; Username = "netbird"; Password = "TURN_PLACEHOLDER"; }];
       CredentialsTTL = "12h";
       Secret = "TURN_PLACEHOLDER";
-      TimeBasedCredentials = false;
+      TimeBasedCredentials = true;
     };
     Signal = { Proto = "https"; URI = "${domain}:443"; Username = null; Password = null; };
     HttpConfig = {
       Address = "0.0.0.0:8080";
-      # OIDCConfigEndpoint is auto-set by the binary when EmbeddedIdP is enabled.
-      # Do NOT set it manually — it will be ignored / conflict.
+      OIDCConfigEndpoint = "https://pocket-id.${vars.domain}/.well-known/openid-configuration";
+      AuthAudience = "<pocket-id-client-id>";  # UUID from Pocket ID OIDC client
       IdpSignKeyRefreshEnabled = true;
     };
-    EmbeddedIdP = {
-      Enabled = true;
-      # Issuer must match the public URL Caddy exposes for /oauth2/*.
-      Issuer = "https://${domain}/oauth2";
-      # These are registered as allowed redirect_uris in the netbird-dashboard Dex client.
-      # The binary auto-registers /api/reverse-proxy/callback; these are extra.
-      # AUTH_REDIRECT_URI and AUTH_SILENT_REDIRECT_URI in the dashboard env must match.
-      DashboardRedirectURIs = [
-        "https://${domain}/nb-auth"
-        "https://${domain}/nb-silent-auth"
-      ];
-    };
-    # IdpManagerConfig must be OMITTED when using embedded Dex.
+    EmbeddedIdP.Enabled = false;  # Pocket ID is the external OIDC provider
     DataStoreEncryptionKey = "ENC_PLACEHOLDER";
     StoreConfig.Engine = "sqlite";
     Datadir = "/var/lib/netbird";
@@ -1192,17 +1191,23 @@ let
     ReverseProxy = { TrustedPeers = [ "0.0.0.0/0" ]; TrustedHTTPProxies = []; TrustedHTTPProxiesCount = 0; };
   });
 in {
+  sops.secrets."pocket-id/netbird-env" = { };  # NETBIRD_IDP_MGMT_EXTRA_API_TOKEN=<token>
+
   virtualisation.oci-containers.containers = {
 
-    # Management REST API + gRPC + embedded Dex IdP
+    # Management REST API + gRPC — Pocket ID external OIDC, no embedded Dex
     netbird-management = {
-      image = "netbirdio/management:latest";
-      # ⚠️ Pin to a specific version tag before production — rolling tag
+      image = "netbirdio/management:0.68.3";
       ports = [ "127.0.0.1:8080:8080" ];
       volumes = [
         "/var/lib/netbird-mgmt:/var/lib/netbird"
         "/var/lib/netbird-mgmt/management.json:/etc/netbird/management.json:ro"
       ];
+      environment = {
+        NETBIRD_MGMT_IDP = "pocketid";
+        NETBIRD_IDP_MGMT_EXTRA_MANAGEMENT_ENDPOINT = "https://pocket-id.${vars.domain}";
+      };
+      environmentFiles = [ config.sops.secrets."pocket-id/netbird-env".path ];
       cmd = [
         "--port" "8080" "--log-file" "console"
         "--disable-anonymous-metrics" "true"
@@ -1213,19 +1218,19 @@ in {
     # Signal — peer coordination (still a separate image in v0.68.x)
     # Signal binary listens on port 80 inside the container.
     netbird-signal = {
-      image = "netbirdio/signal:latest";
+      image = "netbirdio/signal:0.68.3";
       ports = [ "127.0.0.1:10000:80" ];
     };
 
     netbird-dashboard = {
-      image = "netbirdio/dashboard:latest";
+      image = "netbirdio/dashboard:v2.36.0";
       ports = [ "127.0.0.1:3000:80" ];
       environment = {
-        # AUTH_AUTHORITY = the embedded Dex issuer path (not /idp — that's wrong)
-        AUTH_AUTHORITY = "https://${domain}/oauth2";
-        AUTH_CLIENT_ID = "netbird-dashboard";
-        AUTH_AUDIENCE  = "netbird-dashboard";
-        AUTH_SUPPORTED_SCOPES = "openid profile email offline_access groups";
+        AUTH_AUTHORITY = "https://pocket-id.${vars.domain}";
+        AUTH_CLIENT_ID = "<pocket-id-client-id>";   # UUID from Pocket ID OIDC client
+        AUTH_AUDIENCE  = "<pocket-id-client-id>";
+        # offline_access NOT supported by Pocket ID — omit it
+        AUTH_SUPPORTED_SCOPES = "openid profile email groups";
         # ⚠️ MUST be relative paths — the dashboard prepends window.location.origin.
         # Full URLs ("https://domain/nb-auth") cause doubling: "https://domainhttps://domain/nb-auth".
         AUTH_REDIRECT_URI        = "/nb-auth";
@@ -1263,25 +1268,31 @@ in {
 }
 ```
 
-### Setup wizard gotchas
+### Pocket ID setup gotchas
 
-**First boot:** Visit `https://<domain>/setup`. The management API endpoint `/api/setup`
-(POST, unauthenticated) accepts `{Email, Password, Name}` and creates the owner user.
-The dashboard wizard POSTs to this endpoint directly — no Dex login required for setup.
+**Setup page URL (v1.3.1):** `/login/setup` — not `/setup`. Navigating to `/setup`
+returns a 404 that falls through to the login redirect.
 
-**"setup_required: false" blocks wizard:** If a previous deployment left a `store.db`
-(e.g., from a Zitadel-era run), the management server thinks setup is done and the
-`/setup` page redirects straight to login. Users can't log in because the embedded Dex
-password store (`idp.db`) has no accounts. Fix:
+**Public client required:** The NetBird dashboard is a browser SPA. It never sends a
+`client_secret`. Creating the Pocket ID OIDC client as "confidential" causes Pocket ID
+to reject the token exchange with HTTP 400 "client id or secret not provided". Always
+create the client with **Public client: ON**.
+
+**`offline_access` scope:** Not supported by Pocket ID — omit from `AUTH_SUPPORTED_SCOPES`.
+Use `openid profile email groups` only.
+
+**First login after IdP switch — pending_approval:** The Pocket ID IDP manager syncs
+users from Pocket ID's API and pre-creates them in the management store as
+`blocked=1 / pending_approval=1`. The OIDC auth flow completes but the management API
+rejects the request with "user is pending approval". No self-service escape. Fix:
 ```bash
-systemctl stop podman-netbird-management
-rm /var/lib/netbird-mgmt/store.db /var/lib/netbird-mgmt/idp.db
-systemctl start podman-netbird-management
-# Now curl http://localhost:8080/api/instance returns {"setup_required":true}
+sudo sqlite3 /var/lib/netbird-mgmt/store.db \
+  "UPDATE users SET blocked=0, pending_approval=0, role='owner' WHERE id='<pocket-id-uuid>';"
+# No container restart needed — management reads SQLite live
 ```
 
-**Source:** Verified against `netbirdio/management:latest` v0.68.3 in production ✅.
-Image names confirmed via Docker Hub API. Dex client registration from
+**Source:** Verified against `netbirdio/management:0.68.3` + `pocket-id:v1.3.1` in production ✅.
+Image names confirmed via Docker Hub API. Pocket ID client registration from
 `management/server/idp/embedded.go` source ✅.
 
 ---

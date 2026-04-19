@@ -42,9 +42,9 @@ in
     system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
       mkdir -p /var/lib/pihole-dnsmasq
       {
-        # NetBird control plane is on the public VPS, not pebble.
-        # Specific entry overrides the wildcard below.
+        # VPS-hosted services — specific entries override the wildcard below.
         echo "address=/netbird.${vars.domain}/${vars.vpsIP}"
+        echo "address=/pocket-id.${vars.domain}/${vars.vpsIP}"
 
         # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
         echo "address=/${vars.domain}/${vars.serverIP}"

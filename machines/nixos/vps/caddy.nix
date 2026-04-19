@@ -1,16 +1,21 @@
-# Caddy reverse proxy for NetBird control plane on VPS.
+# Caddy reverse proxy for VPS services (NetBird control plane + Pocket ID).
 # HTTP-01 ACME challenge works here (public IP) — no Cloudflare DNS plugin needed.
 # Caddy proxies gRPC natively via h2c:// (cleartext HTTP/2 to backend).
 { vars, ... }:
 
 let
-  domain = "netbird.${vars.domain}";
+  domain    = "netbird.${vars.domain}";
+  pocketId  = "pocket-id.${vars.domain}";
 in
 {
   services.caddy = {
     enable = true;
     globalConfig = ''
       email ${vars.adminEmail}
+    '';
+
+    virtualHosts."${pocketId}".extraConfig = ''
+      reverse_proxy localhost:1411
     '';
 
     virtualHosts."${domain}".extraConfig = ''
@@ -27,11 +32,6 @@ in
       # Signal gRPC — separate netbirdio/signal container on port 10000
       handle /signalexchange.SignalExchange/* {
         reverse_proxy h2c://localhost:10000
-      }
-
-      # Embedded Dex IdP — OAuth2/OIDC endpoints served by management container
-      handle /oauth2/* {
-        reverse_proxy localhost:8080
       }
 
       # Dashboard SPA — catch-all

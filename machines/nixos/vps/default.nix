@@ -5,6 +5,7 @@
     ./netbird-client.nix   # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
     ./caddy.nix
     ./monitoring.nix       # Stage 10: Alloy → pebble Loki over NetBird mesh
+    ./pocket-id.nix
     ../../../modules/podman
   ];
 
@@ -56,6 +57,7 @@
   };
 
   my.services.netbird.server.enable = true;
+  my.services.pocketId.enable = true;
 
   system.stateVersion = "25.11";
 }

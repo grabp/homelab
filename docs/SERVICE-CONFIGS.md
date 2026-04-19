@@ -170,10 +170,11 @@ This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The hom
 
 ⚠️ **Do NOT use `services.netbird.server`** — the NixOS module exists but is not production-ready as of nixos-25.11. Use OCI containers instead.
 
-**Images (since NetBird v0.62.0, as of v0.68.x):**
-- `netbirdio/management:latest` — management REST API + gRPC + **embedded Dex IdP** (port 8080)
-- `netbirdio/signal:latest` — peer coordination, **still a separate image** (not merged into management)
-- `netbirdio/dashboard:latest` — React web UI
+**Images (as of v0.68.x):**
+- `netbirdio/management:0.68.3` — management REST API + gRPC (`EmbeddedIdP.Enabled = false`; external OIDC via Pocket ID)
+- `netbirdio/signal:0.68.3` — peer coordination, **still a separate image** (not merged into management)
+- `netbirdio/dashboard:v2.36.0` — React web UI
+- `ghcr.io/pocket-id/pocket-id:v1.3.1` — passkey-only OIDC provider for NetBird auth
 - native `services.coturn` — STUN/TURN (no container needed)
 
 ⚠️ **Common image name mistake:** `netbirdio/netbird:management-latest` does NOT exist on Docker Hub. The correct image is `netbirdio/management:latest`. Signal is NOT merged into management as of v0.68.x.
@@ -186,19 +187,19 @@ This project self-hosts the NetBird control plane on a Hetzner CX22 VPS. The hom
 
 **DNS record:** A record `netbird.grab-lab.gg → 204.168.181.110` — **DNS only** in Cloudflare (gray cloud). Cloudflare proxying breaks gRPC.
 
-**Identity provider:** Embedded Dex (built into `netbird-management` container since v0.62.0). Zero configuration — auto-configures during setup wizard at `/setup`. No Zitadel, no CockroachDB, no external IdP accounts needed.
+**Identity provider:** Pocket ID (`ghcr.io/pocket-id/pocket-id:v1.3.1`) — passkey-only OIDC, separate OCI container at `https://pocket-id.grab-lab.gg`. `EmbeddedIdP.Enabled = false` in `management.json`. No passwords — WebAuthn/FIDO2 only.
 
 **Architecture:**
 ```
 Browser / NetBird clients
        ↓ HTTPS 443
   Caddy (native, services.caddy)
-   ┌────┼──────────────────────────┐
-   /   /api   /management…/   /signalexchange…/
-        ↓            ↓
-     :8080        :8080
-  (combined mgmt+signal+relay OCI container)
-  (embedded Dex IdP at /idp/*)
+   ┌────┼──────────────────────────────────────────────┐
+   /   /api   /management…/   /signalexchange…/   pocket-id.*
+        ↓            ↓                                 ↓
+     :8080        :10000                             :1411
+  netbird-mgmt     netbird-signal                 pocket-id
+  (no embedded Dex)
               coturn :3478/:5349 (native)
   netbird-dashboard :3000 (OCI, proxied at /)
 ```
@@ -206,7 +207,8 @@ Browser / NetBird clients
 **management.json secret injection:** `management.json` is generated at build time via `pkgs.writeText` (with placeholder values), then a systemd oneshot (`netbird-management-config`) uses `jq` at runtime to substitute the real sops secret values before the container starts.
 
 **Known gotchas:**
-- The setup wizard at `https://netbird.grab-lab.gg/setup` must be completed once to create the admin account (embedded Dex auto-configures on first run)
+- Pocket ID setup: browse to `https://pocket-id.grab-lab.gg/login/setup` (v1.3.1 path); OIDC client must be **Public** (not confidential); `offline_access` scope unsupported — use `openid profile email groups`
+- After IdP switch: new users are synced as `blocked=1/pending_approval=1`; approve via `sqlite3 /var/lib/netbird-mgmt/store.db "UPDATE users SET blocked=0,pending_approval=0,role='owner' WHERE id='<uuid>';"` before first login
 - `services.caddy.enable = true` must be set explicitly; use native Caddy (no Cloudflare plugin needed — HTTP-01 works on public VPS)
 - coturn needs read access to ACME certs — `users.users.turnserver.extraGroups = ["caddy"]` (not nginx) when using native Caddy
 - ⚠️ VERIFY: gRPC proxy syntax for Caddy (`reverse_proxy h2c://localhost:8080`) vs nginx (`grpc_pass grpc://127.0.0.1:8080`)

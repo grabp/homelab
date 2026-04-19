@@ -489,11 +489,11 @@ Single source of truth for all `*.grab-lab.gg` subdomains.
 
 This homelab uses a **two-tier IdP architecture** — see `docs/IDP-STRATEGY.md` for the full design rationale, per-service auth table, and NixOS configuration snippets.
 
-**Tier 1 — VPS: NetBird's embedded Dex**
-- Built into the `netbird-management` container since NetBird v0.62.0
-- Handles NetBird VPN authentication only (device code flow)
-- Zero configuration required — auto-configures during the setup wizard
-- Cannot serve other applications (hardcoded OIDC clients)
+**Tier 1 — VPS: Pocket ID**
+- `ghcr.io/pocket-id/pocket-id:v1.3.1` OCI container at `https://pocket-id.grab-lab.gg`
+- Handles NetBird VPN authentication only (PKCE + WebAuthn/passkeys)
+- `EmbeddedIdP.Enabled = false` in `management.json`; Pocket ID is the external OIDC provider
+- Cannot serve other applications — single OIDC client for the NetBird dashboard
 
 **Tier 2 — pebble: Kanidm**
 - Native NixOS module: `services.kanidm` with declarative provisioning
@@ -503,7 +503,7 @@ This homelab uses a **two-tier IdP architecture** — see `docs/IDP-STRATEGY.md`
 - All OAuth2 clients defined declaratively in their respective service modules
 
 **Why not one IdP:** VPN auth cannot depend on the homelab — chicken-and-egg problem.
-Embedded Dex on VPS breaks the deadlock. See `docs/IDP-STRATEGY.md` for details.
+Pocket ID on VPS breaks the deadlock. See `docs/IDP-STRATEGY.md` for details.
 
 ---
 

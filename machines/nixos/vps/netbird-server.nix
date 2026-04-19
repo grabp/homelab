@@ -51,23 +51,15 @@ let
       };
       HttpConfig = {
         Address = "0.0.0.0:8080";
-        # OIDCConfigEndpoint is auto-set to Issuer + "/.well-known/openid-configuration"
-        # when EmbeddedIdP is enabled. Listed here for documentation only.
-        # Effective value: "https://${domain}/oauth2/.well-known/openid-configuration"
+        # Pocket ID OIDC discovery — management validates peer JWTs against this.
+        OIDCConfigEndpoint = "https://pocket-id.${vars.domain}/.well-known/openid-configuration";
+        # Audience must match the Client ID created in Pocket ID for NetBird.
+        AuthAudience = "4c1b8f6b-736c-4f52-800b-022c45a8970f"; # gitleaks:allow — public OIDC client ID
         IdpSignKeyRefreshEnabled = true;
       };
       EmbeddedIdP = {
-        # Activates Dex IdP built into the management binary (since v0.62.0).
-        # Issuer must match the public URL Caddy exposes for /oauth2/*.
-        Enabled = true;
-        Issuer = "https://${domain}/oauth2";
-        # Dex auto-registers the management reverse-proxy callback
-        # (https://<domain>/api/reverse-proxy/callback). These extra URIs are
-        # needed for the dashboard's PKCE flow and silent token renewal.
-        DashboardRedirectURIs = [
-          "https://${domain}/nb-auth"
-          "https://${domain}/nb-silent-auth"
-        ];
+        # Embedded Dex disabled — Pocket ID on the VPS is the OIDC provider.
+        Enabled = false;
       };
       DataStoreEncryptionKey = "ENC_PLACEHOLDER";
       StoreConfig.Engine = "sqlite";
@@ -98,6 +90,8 @@ in
       "netbird/encryption_key" = {
         mode = "0440";
       };
+      # Contains: NETBIRD_IDP_MGMT_EXTRA_API_TOKEN=<pocket-id-api-token>
+      "pocket-id/netbird-env" = { };
     };
 
     # ── coturn (native) ───────────────────────────────────────────────────────
@@ -180,7 +174,7 @@ in
 
     virtualisation.oci-containers.containers = {
 
-      # Management REST API + gRPC + embedded Dex IdP
+      # Management REST API + gRPC — Pocket ID OIDC for auth, no embedded Dex
       # Signal is still a separate image (not merged as of v0.68.x)
       netbird-management = {
         image = "netbirdio/management:0.68.3";
@@ -189,6 +183,13 @@ in
           "/var/lib/netbird-mgmt:/var/lib/netbird"
           "/var/lib/netbird-mgmt/management.json:/etc/netbird/management.json:ro"
         ];
+        environment = {
+          # User management: Pocket ID API (list/sync users in NetBird dashboard)
+          NETBIRD_MGMT_IDP = "pocketid";
+          NETBIRD_IDP_MGMT_EXTRA_MANAGEMENT_ENDPOINT = "https://pocket-id.${vars.domain}";
+        };
+        # Contains: NETBIRD_IDP_MGMT_EXTRA_API_TOKEN=<pocket-id-api-token>
+        environmentFiles = [ config.sops.secrets."pocket-id/netbird-env".path ];
         cmd = [
           "--port"
           "8080"
@@ -213,11 +214,12 @@ in
         image = "netbirdio/dashboard:v2.36.0";
         ports = [ "127.0.0.1:3000:80" ];
         environment = {
-          # Embedded Dex IdP — served by the management container at /oauth2
-          AUTH_AUTHORITY = "https://${domain}/oauth2";
-          AUTH_CLIENT_ID = "netbird-dashboard";
-          AUTH_AUDIENCE = "netbird-dashboard";
-          AUTH_SUPPORTED_SCOPES = "openid profile email offline_access groups";
+          # Pocket ID OIDC — passkey-only IdP on the VPS
+          AUTH_AUTHORITY = "https://pocket-id.${vars.domain}";
+          AUTH_CLIENT_ID = "4c1b8f6b-736c-4f52-800b-022c45a8970f"; # gitleaks:allow — public OIDC client ID
+          AUTH_AUDIENCE = "4c1b8f6b-736c-4f52-800b-022c45a8970f"; # gitleaks:allow — public OIDC client ID
+          # offline_access not supported by Pocket ID — omit it
+          AUTH_SUPPORTED_SCOPES = "openid profile email groups";
           # Relative paths required — dashboard prepends window.location.origin.
           # Full URLs cause doubling: "https://domain" + "https://domain/nb-auth".
           AUTH_REDIRECT_URI = "/nb-auth";

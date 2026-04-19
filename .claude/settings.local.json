@@ -11,7 +11,12 @@
       "WebFetch(domain:api.github.com)",
       "Bash(xargs:*)",
       "Bash(git -C /home/grabowskip/Projects/lab diff HEAD)",
-      "WebFetch(domain:tricked.dev)"
+      "WebFetch(domain:tricked.dev)",
+      "WebFetch(domain:docs.pocket-id.org)",
+      "WebFetch(domain:pocket-id.org)",
+      "WebFetch(domain:ghcr.io)",
+      "WebSearch",
+      "WebFetch(domain:deepwiki.com)"
     ]
   }
 }
