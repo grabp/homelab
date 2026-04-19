@@ -97,6 +97,17 @@ in
         groups."homelab_users".members = [ "grabowskip" ];
         groups."homelab_admins".members = [ "grabowskip" ];
 
+        # --- Homepage OAuth2 client ------------------------------------------
+        # oauth2-proxy sits in front of Homepage and handles the PKCE dance.
+        # Redirect URI matches oauth2-proxy's default /oauth2/callback path.
+        systems.oauth2."homepage" = {
+          displayName = "Homepage";
+          originUrl    = "https://home.${vars.domain}/oauth2/callback";
+          originLanding = "https://home.${vars.domain}";
+          basicSecretFile = config.sops.secrets."kanidm/homepage_client_secret".path;
+          scopeMaps."homelab_users" = [ "openid" "profile" "email" ];
+        };
+
         # --- Grafana OAuth2 client -------------------------------------------
         # Co-located here per STRUCTURE.md convention (auth config lives alongside
         # the IdP config, not centralised in kanidm/default.nix for the service).
@@ -134,6 +145,13 @@ in
     # This is an internal OAuth2 client secret — not a user credential.
     sops.secrets."kanidm/grafana_client_secret" = {
       mode = "0444";
+    };
+
+    # Homepage client secret — kanidm provisioning reads it to set the OAuth2
+    # client credential. oauth2-proxy reads its copy from oauth2-proxy/homepage_env
+    # (a separate sops secret) so this stays owner=kanidm, 0400.
+    sops.secrets."kanidm/homepage_client_secret" = {
+      owner = "kanidm";
     };
 
     # -------------------------------------------------------------------------

@@ -1,4 +1,5 @@
-{ vars, ... }: {
+{ vars, ... }:
+{
   imports = [
     ./disko.nix
     ./hardware.nix
@@ -9,10 +10,6 @@
     defaultSopsFile = ../../../secrets/secrets.yaml;
     defaultSopsFormat = "yaml";
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
-
-    secrets = {
-      "test_secret" = { };
-    };
   };
 
   networking.hostName = "pebble";
@@ -26,7 +23,7 @@
   boot.zfs.forceImportRoot = true;
   boot.kernelParams = [
     "nohibernate"
-    "zfs.zfs_arc_max=4294967296"  # Cap ARC at 4GB, leaving ~12GB for services
+    "zfs.zfs_arc_max=4294967296" # Cap ARC at 4GB, leaving ~12GB for services
   ];
 
   # ZFS maintenance
@@ -45,7 +42,10 @@
     gateway = "192.168.10.1";
     # Pi-hole primary; 1.1.1.1 fallback for pebble's own lookups
     # (avoids ACME/deploy failures when Pi-hole restarts during nixos-rebuild)
-    nameservers = [ "127.0.0.1" "1.1.1.1" ];
+    nameservers = [
+      "127.0.0.1"
+      "1.1.1.1"
+    ];
   };
 
   # Firewall — default deny, SSH allowed via _common/ssh.nix
@@ -67,20 +67,23 @@
   my.services.caddy.enable = true;
   my.services.vaultwarden.enable = true;
 
-  my.services.prometheus.enable = true;  # Stage 6
+  my.services.prometheus.enable = true; # Stage 6
   my.services.grafana.enable = true;
   my.services.loki.enable = true;
-  my.services.netbird.enable = true;  # Stage 7b
-  my.services.kanidm.enable = true;   # Stage 7c
-  my.services.homepage.enable = true;        # Stage 8
-  my.services.mosquitto.enable = true;              # Stage 9a
-  my.services.homeAssistant.enable = true;                    # Stage 9a
-  my.services.homeAssistant.homekitPorts = [ 21064 21065 ];  # two HomeKit bridges
-  my.services.homeAssistant.esphome.enable = true;           # Stage 9b
-  my.services.uptimeKuma.enable = true;             # Stage 9a
-  my.services.wyoming.enable = true;                # Stage 9b
-  my.services.matterServer.enable = true;           # Stage 9b
-  my.services.backup.enable = true;                # Stage 10
+  my.services.netbird.enable = true; # Stage 7b
+  my.services.kanidm.enable = true; # Stage 7c
+  my.services.homepage.enable = true; # Stage 8
+  my.services.mosquitto.enable = true; # Stage 9a
+  my.services.homeAssistant.enable = true; # Stage 9a
+  my.services.homeAssistant.homekitPorts = [
+    21064
+    21065
+  ]; # two HomeKit bridges
+  my.services.homeAssistant.esphome.enable = true; # Stage 9b
+  my.services.uptimeKuma.enable = true; # Stage 9a
+  my.services.wyoming.enable = true; # Stage 9b
+  my.services.matterServer.enable = true; # Stage 9b
+  my.services.backup.enable = true; # Stage 10
 
   system.stateVersion = "25.11";
 }

@@ -83,7 +83,9 @@ in
 
           @home host home.${vars.domain}
           handle @home {
-            reverse_proxy localhost:${toString config.my.services.homepage.port}
+            # Proxy to oauth2-proxy, which guards Homepage with Kanidm OIDC auth.
+            # oauth2-proxy handles /oauth2/* callbacks and proxies the rest to Homepage.
+            reverse_proxy localhost:${toString config.my.services.homepage.oauth2ProxyPort}
           }
 
           @ha host ha.${vars.domain}
