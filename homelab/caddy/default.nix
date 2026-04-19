@@ -49,6 +49,17 @@ in
             resolvers 1.1.1.1
           }
 
+          # Security headers applied to all responses from this wildcard block.
+          # X-Frame-Options SAMEORIGIN prevents clickjacking.
+          # HSTS with preload and includeSubDomains enforces HTTPS for all subdomains.
+          # -Server strips the Caddy version banner from responses.
+          header {
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            X-Content-Type-Options "nosniff"
+            X-Frame-Options "SAMEORIGIN"
+            -Server
+          }
+
           @pihole host pihole.${vars.domain}
           handle @pihole {
             reverse_proxy localhost:${toString config.my.services.pihole.webPort}

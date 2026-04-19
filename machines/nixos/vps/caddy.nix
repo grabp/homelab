@@ -14,11 +14,25 @@ in
       email ${vars.adminEmail}
     '';
 
+    extraConfig = ''
+      (security_headers) {
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+          X-Content-Type-Options "nosniff"
+          X-Frame-Options "SAMEORIGIN"
+          -Server
+        }
+      }
+    '';
+
     virtualHosts."${pocketId}".extraConfig = ''
+      import security_headers
       reverse_proxy localhost:1411
     '';
 
     virtualHosts."${domain}".extraConfig = ''
+      import security_headers
+
       # Management REST API
       handle /api/* {
         reverse_proxy localhost:8080
