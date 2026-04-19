@@ -122,6 +122,19 @@ in
         fingerprint
         no-tlsv1
         no-tlsv1_1
+        # Block SSRF: deny relay to RFC1918, loopback, link-local, and cloud metadata
+        denied-peer-ip=10.0.0.0-10.255.255.255
+        denied-peer-ip=172.16.0.0-172.31.255.255
+        denied-peer-ip=192.168.0.0-192.168.255.255
+        denied-peer-ip=127.0.0.0-127.255.255.255
+        denied-peer-ip=169.254.0.0-169.254.255.255
+        # Block IPv4-mapped IPv6 bypass (affects coturn < 4.9.0)
+        denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
+        no-multicast-peers
+        no-cli
+        user-quota=10
+        total-quota=100
+        max-bps=512000
       '';
     };
 
