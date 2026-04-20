@@ -51,7 +51,9 @@ in
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
       # Reload Pi-hole's DNS engine to pick up the new config.
       # Silently ignored if the container isn't running yet (e.g. first boot).
-      ${pkgs.podman}/bin/podman exec pihole pihole restartdns reload 2>/dev/null || true
+      # Note: `pihole restartdns reload` (soft reload) is not valid in Pi-hole 2025.x;
+      # use `restartdns` alone which triggers a full FTL restart inside the container.
+      ${pkgs.podman}/bin/podman exec pihole pihole restartdns >/dev/null 2>&1 || true
     '';
 
     virtualisation.oci-containers.containers.pihole = {
