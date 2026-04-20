@@ -156,9 +156,9 @@ in
     # No Netavark/firewall fix needed: host networking has no port-publish DNAT
     # rules to lose when firewall.service reloads.
     virtualisation.oci-containers.containers.oauth2-proxy-homepage = {
-      image = "quay.io/oauth2-proxy/oauth2-proxy:v7.8.1";
-      # --upstream passed as a CLI arg: oauth2-proxy v7.8.1 does not reliably
-      # pick up OAUTH2_PROXY_UPSTREAM from the environment (Viper mapping issue).
+      image = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2@sha256:7c25fd50e1998798b79d051bd7d98ebac8dc4c6c1e54c99f4cb06f3e7d117dbd";
+      # --upstream passed as a CLI arg: oauth2-proxy does not reliably pick up
+      # OAUTH2_PROXY_UPSTREAM from the environment (Viper mapping issue).
       # Trailing slash is required — bare host:port is rejected by the URL parser.
       cmd = [ "--upstream=http://127.0.0.1:${toString cfg.port}/" ];
       environment = {
