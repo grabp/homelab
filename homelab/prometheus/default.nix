@@ -3,6 +3,7 @@
 let
   cfg = config.my.services.prometheus;
   blackboxPort = 9115;
+  alertmanagerPort = 9093;
 
   # All public HTTPS endpoints probed for TLS cert validity and HTTP reachability.
   # Services behind oauth2-proxy return 302; follow_redirects=true keeps probe_success=1
@@ -32,11 +33,79 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Telegram credentials env file — add to secrets/secrets.yaml as:
+    #   alertmanager:
+    #     telegram_env: |
+    #       TELEGRAM_BOT_TOKEN=<bot_token_from_botfather>
+    #       TELEGRAM_CHAT_ID=<chat_id>
+    # systemd reads EnvironmentFile as root before dropping privileges,
+    # so root ownership (sops default) is correct — no DynamicUser owner issue.
+    sops.secrets."alertmanager/telegram_env" = { };
+
+    # -------------------------------------------------------------------------
+    # Alertmanager — routes Prometheus alerts to Telegram.
+    # Listens on loopback only; port 9093 is not opened in the firewall.
+    #
+    # configText + environmentFile pattern: the alertmanager NixOS module runs
+    # `envsubst` on configText in preStart, substituting $TELEGRAM_BOT_TOKEN
+    # from the EnvironmentFile before alertmanager reads the config.
+    # -------------------------------------------------------------------------
+    services.prometheus.alertmanager = {
+      enable = true;
+      port = alertmanagerPort;
+      listenAddress = "127.0.0.1";
+      environmentFile = config.sops.secrets."alertmanager/telegram_env".path;
+      # amtool check-config runs at build time but can't see environmentFile secrets,
+      # so it would fail on $TELEGRAM_BOT_TOKEN. Disable build-time validation.
+      checkConfig = false;
+
+      configText = ''
+        global:
+          resolve_timeout: 5m
+
+        route:
+          group_by: [alertname, severity]
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          receiver: telegram
+          routes:
+            - matchers:
+                - severity=critical
+              receiver: telegram
+              repeat_interval: 1h
+
+        receivers:
+          - name: telegram
+            telegram_configs:
+              - chat_id: $TELEGRAM_CHAT_ID
+                bot_token: $TELEGRAM_BOT_TOKEN
+                parse_mode: HTML
+                send_resolved: true
+                message: |
+                  {{ if eq .Status "firing" }}🔥 <b>FIRING</b>{{ else }}✅ <b>RESOLVED</b>{{ end }} — {{ .GroupLabels.alertname }}
+                  {{ range .Alerts -}}
+                  <b>Severity:</b> {{ .Labels.severity }}
+                  {{ with .Annotations.summary -}}<b>Summary:</b> {{ . }}
+                  {{ end -}}
+                  {{ with .Annotations.description -}}<b>Details:</b> {{ . }}
+                  {{ end -}}
+                  {{ end -}}
+      '';
+    };
+
     services.prometheus = {
       enable = true;
       port = cfg.port;
       listenAddress = "127.0.0.1";
       retentionTime = "30d";
+
+      # Tell Prometheus where Alertmanager lives.
+      alertmanagers = [
+        {
+          static_configs = [{ targets = [ "127.0.0.1:${toString alertmanagerPort}" ]; }];
+        }
+      ];
 
       exporters.node = {
         enable = true;
@@ -65,7 +134,6 @@ in
         '';
       };
 
-      # Alert rules — fire in Prometheus now; routed by Alertmanager in the next TODO.
       ruleFiles = [
         (pkgs.writeText "tls-alerts.yml" ''
           groups:
@@ -86,6 +154,23 @@ in
                     severity: critical
                   annotations:
                     summary: "TLS cert EXPIRED on {{ $labels.instance }}"
+        '')
+        (pkgs.writeText "service-alerts.yml" ''
+          groups:
+            - name: services
+              rules:
+                # Fires when any systemd unit has been in failed state for 5+ minutes.
+                # Requires node_exporter with enabledCollectors = ["systemd"].
+                # SSH brute-force / root login / sudo alerts are implemented via
+                # Loki ruler (see homelab/loki/default.nix — lokiRules).
+                - alert: SystemdServiceFailed
+                  expr: node_systemd_unit_state{state="failed"} == 1
+                  for: 5m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "Systemd unit failed: {{ $labels.name }}"
+                    description: "{{ $labels.name }} has been in a failed state for more than 5 minutes"
         '')
       ];
 

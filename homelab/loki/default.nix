@@ -1,7 +1,73 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.my.services.loki;
+
+  # LogQL alert rules stored in the Nix store (read-only is fine — Loki only
+  # reads from storage.local.directory). Tenant "fake" is the default when
+  # auth_enabled = false.
+  lokiRules = pkgs.writeTextDir "fake/security-alerts.yaml" ''
+    groups:
+      - name: security
+        rules:
+          # Fires when > 10 failed SSH auth attempts from the same source IP occur
+          # in any 5-minute window. Grouped by (host, source_ip) so each attacker
+          # gets a separate alert series.
+          # regexp extracts `source_ip` from: "Failed ... from <ip> port <port>"
+          # \S+ handles both IPv4 and IPv6 addresses.
+          - alert: SSHBruteForce
+            expr: |
+              sum by (host, source_ip) (
+                count_over_time(
+                  {job="systemd-journal",unit="sshd.service"}
+                  |= "Failed"
+                  | regexp `from (?P<source_ip>\S+) port`
+                  [5m]
+                )
+              ) > 10
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "SSH brute force from {{ $labels.source_ip }} on {{ $labels.host }}"
+              description: "{{ $value }} failed SSH auth attempts in 5 minutes from {{ $labels.source_ip }}"
+
+          # Fires immediately on any successful SSH login as root.
+          # Extracts source IP from: "Accepted <method> for root from <ip> port <port>"
+          - alert: SSHRootLogin
+            expr: |
+              sum by (host, source_ip) (
+                count_over_time(
+                  {job="systemd-journal",unit="sshd.service"}
+                  |~ "Accepted .+ for root from"
+                  | regexp `from (?P<source_ip>\S+) port`
+                  [1m]
+                )
+              ) > 0
+            for: 0m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Root SSH login from {{ $labels.source_ip }} on {{ $labels.host }}"
+
+          # Fires when sudo PAM authentication fails (wrong password for sudo).
+          # Two guards against self-referential false positives (the ruler/Grafana log
+          # their own query strings to journald, which contain the search terms):
+          #   unit!="loki.service"  — excludes Loki ruler log lines at stream level
+          #   |= "pam_unix(sudo"   — matches only actual PAM messages, not query text
+          - alert: SudoAuthFailure
+            expr: |
+              count_over_time(
+                {job="systemd-journal", unit!="loki.service"}
+                |= "pam_unix(sudo" |= "authentication failure"
+                [5m]
+              ) > 0
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Sudo auth failure on {{ $labels.host }}"
+  '';
 in
 {
   options.my.services.loki = {
@@ -59,13 +125,30 @@ in
           retention_enabled = true;
           delete_request_store = "filesystem";  # required when retention_enabled = true
         };
+
+        # Ruler: evaluates LogQL alert rules and sends to Alertmanager.
+        # Monolithic mode (default target=all) includes the ruler component.
+        # storage.local.directory points to a Nix store path (read-only OK — Loki
+        # only reads rule files from here). rule_path is the writable temp dir.
+        ruler = {
+          storage = {
+            type = "local";
+            local.directory = "${lokiRules}";
+          };
+          rule_path = "/var/lib/loki/rules-temp";
+          alertmanager_url = "http://127.0.0.1:9093";
+          ring.kvstore.store = "inmemory";
+          enable_api = true;
+          enable_alertmanager_v2 = true;
+        };
       };
     };
 
-    # Alloy state directory (WAL, positions).
-    # Added as a precaution — same pattern as the promtail 226/NAMESPACE fix.
     systemd.tmpfiles.rules = [
-      "d /var/lib/alloy 0750 alloy alloy -"
+      # Alloy state directory (WAL, positions).
+      "d /var/lib/alloy      0750 alloy alloy -"
+      # Loki ruler temp dir — writable scratch space for compiled rule evaluation.
+      "d /var/lib/loki/rules-temp 0750 loki  loki  -"
     ];
 
     # Alloy ships systemd-journal logs to Loki (replaces EOL Promtail, 2026-03-02).
