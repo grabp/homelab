@@ -15,7 +15,7 @@ in
 
     image = lib.mkOption {
       type = lib.types.str;
-      default = "pihole/pihole:2025.02.1";
+      default = "pihole/pihole:2026.04.0@sha256:84eab06f21fba049215dd4f6a0d6ce5ace65bb165265b00eeb9de0c0f58dfd7e";
       description = "Pi-hole OCI image with version tag";
     };
   };
@@ -155,7 +155,7 @@ in
       partOf = [ "firewall.service" ];
     };
 
-    networking.firewall.allowedTCPPorts = [ 53 cfg.webPort ];
+    networking.firewall.allowedTCPPorts = [ 53 ];  # webPort (8089) intentionally omitted — Caddy proxies internally
     networking.firewall.allowedUDPPorts = [ 53 ];
   };
 }
