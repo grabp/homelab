@@ -8,7 +8,8 @@
 #
 # HA integration (after deploy):
 #   Settings → Voice assistants → create pipeline using these endpoints.
-#   Each service listens on 0.0.0.0 — reachable from HA (--network=host) on localhost.
+#   Each service binds to 127.0.0.1 — HA uses --network=host and connects via localhost.
+#   No firewall ports needed; LAN devices have no access to these ports.
 #
 # ⚠ CRITICAL: ProcSubset fix for faster-whisper (nixpkgs PR #372898).
 #   The systemd unit hardening sets ProcSubset=pid, blocking CTranslate2 from
@@ -29,7 +30,7 @@ in
     # === Speech-to-text (Faster-Whisper) ===
     services.wyoming.faster-whisper.servers."main" = {
       enable   = true;
-      uri      = "tcp://0.0.0.0:10300";
+      uri      = "tcp://127.0.0.1:10300";
       model    = "small-int8";   # Best latency/accuracy on Ryzen + 16 GB (~500-600 MB RAM, 2-4 s/utterance)
       language = "en";
       device   = "cpu";          # nixpkgs CTranslate2 is not compiled with CUDA; cpu is correct
@@ -45,7 +46,7 @@ in
     # === Text-to-speech (Piper) ===
     services.wyoming.piper.servers."main" = {
       enable = true;
-      uri    = "tcp://0.0.0.0:10200";
+      uri    = "tcp://127.0.0.1:10200";
       voice  = "en_US-lessac-medium";   # ~65 MB, auto-downloads from HuggingFace on first use
     };
 
@@ -56,9 +57,9 @@ in
     # nixos-25.11 ships v2.0.0+; no model selection option needed.
     services.wyoming.openwakeword = {
       enable = true;
-      uri    = "tcp://0.0.0.0:10400";
+      uri    = "tcp://127.0.0.1:10400";
     };
 
-    networking.firewall.allowedTCPPorts = [ 10200 10300 10400 ];
+    # No firewall ports — Wyoming binds to 127.0.0.1 only (HA connects via localhost)
   };
 }
