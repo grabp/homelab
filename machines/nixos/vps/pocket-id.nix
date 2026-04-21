@@ -7,7 +7,7 @@
 # Served at https://pocket-id.grab-lab.gg via Caddy (caddy.nix).
 #
 # POST-DEPLOY SETUP (completed 2026-04-20):
-#   1. Browse to https://pocket-id.grab-lab.gg/login/setup  ← v1.3.1 path (NOT /setup)
+#   1. Browse to https://pocket-id.grab-lab.gg/setup  (v2.x path)
 #   2. Create admin account with a passkey; register backup passkey.
 #   3. Admin → OIDC Clients → Add client:
 #        Name:            NetBird
@@ -58,7 +58,7 @@ in
     ];
 
     virtualisation.oci-containers.containers.pocket-id = {
-      image = "ghcr.io/pocket-id/pocket-id:v1.3.1@sha256:879760286ae9314df0bc2f28a3a838a99400b6331cee45ff062bc503fb8066c5";
+      image = "ghcr.io/pocket-id/pocket-id:v2.6.0@sha256:49c6a96d92b8f92f27afd17edff98873776ec16b757afd31ba8a4f767f10366a";
       ports = [ "127.0.0.1:1411:1411" ];
       volumes = [ "/var/lib/pocket-id:/app/data" ];
       environment = {

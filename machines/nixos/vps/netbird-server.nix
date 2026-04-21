@@ -190,6 +190,10 @@ in
         };
         # Contains: NETBIRD_IDP_MGMT_EXTRA_API_TOKEN=<pocket-id-api-token>
         environmentFiles = [ config.sops.secrets."pocket-id/netbird-env".path ];
+        # Container DNS cannot resolve external hostnames for same-host services.
+        # Pin pocket-id.grab-lab.gg directly to the VPS public IP so OIDC discovery
+        # and user sync reach Caddy without a DNS roundtrip.
+        extraOptions = [ "--add-host=pocket-id.${vars.domain}:${vars.vpsIP}" ];
         cmd = [
           "--port"
           "8080"
