@@ -37,9 +37,15 @@ in
           name                = "Kanidm";
           client_id           = "grafana";
           client_secret       = "$__file{${config.sops.secrets."kanidm/grafana_client_secret".path}}";
+          # auth_url is browser-facing — must use the public hostname.
           auth_url            = "https://id.${vars.domain}/ui/oauth2";
-          token_url           = "https://id.${vars.domain}/oauth2/token";
-          api_url             = "https://id.${vars.domain}/oauth2/openid/grafana/userinfo";
+          # token_url and api_url are server-side calls from Grafana → Kanidm.
+          # Use 127.0.0.1 to bypass DNS (Pi-hole resolves *.grab-lab.gg but the
+          # Grafana service may run before Pi-hole or use a different resolver).
+          # tls_skip_verify_insecure required because Kanidm uses a self-signed cert.
+          token_url                = "https://127.0.0.1:8443/oauth2/token";
+          api_url                  = "https://127.0.0.1:8443/oauth2/openid/grafana/userinfo";
+          tls_skip_verify_insecure = true;
           scopes              = "openid profile email groups";
           # Kanidm returns groups as SPNs: "groupname@kanidm-domain"
           # e.g. homelab_admins@id.grab-lab.gg — not bare group names.
@@ -78,7 +84,9 @@ in
     # with mode = "0444". sops-nix merges declarations — restartUnits here ensures
     # Grafana restarts when the secret is rotated.
     sops.secrets."kanidm/grafana_client_secret" = {
-      mode = "0444";
+      owner        = "kanidm";
+      group        = "grafana";
+      mode         = "0440";
       restartUnits = [ "grafana.service" ];
     };
   };

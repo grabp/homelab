@@ -140,11 +140,13 @@ in
       owner = "kanidm";
     };
 
-    # mode 0444: world-readable so both the kanidm provisioning process and the
-    # grafana service (which reads it via $__file{...}) can access it.
-    # This is an internal OAuth2 client secret — not a user credential.
+    # owner=kanidm: provisioning reads it to set the Grafana OAuth2 client credential.
+    # group=grafana: Grafana service reads it via $__file{...} at runtime.
+    # mode=0440: owner+group readable only — no world-read.
     sops.secrets."kanidm/grafana_client_secret" = {
-      mode = "0444";
+      owner = "kanidm";
+      group = "grafana";
+      mode  = "0440";
     };
 
     # Homepage client secret — kanidm provisioning reads it to set the OAuth2
