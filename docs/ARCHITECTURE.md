@@ -358,7 +358,7 @@ fileSystems."/mnt/nas/${name}" = {
   device = "${vars.nasIP}:/mnt/pool/${name}";
   fsType = "nfs";
   options = [
-    "nfsvers=4.2"      # NFSv4.2 for better performance
+    "nfsvers=4.1"      # NFSv4.1 — max supported by Synology DSM
     "hard"             # Retry indefinitely (vs soft which errors)
     "noatime"          # Reduce write overhead
     "x-systemd.automount"      # Mount on first access

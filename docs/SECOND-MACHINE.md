@@ -72,7 +72,7 @@ fileSystems."/mnt/nas/photos" = {
   device = "${vars.nasIP}:/mnt/pool/photos";
   fsType = "nfs";
   options = [
-    "nfsvers=4.2"
+    "nfsvers=4.1"
     "hard"
     "noatime"
     "x-systemd.automount"
