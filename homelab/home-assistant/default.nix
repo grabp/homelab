@@ -177,11 +177,17 @@ EOF
           TZ = vars.timeZone;
         };
 
-        # --network=host: required for mDNS (Zigbee, Chromecast, UniFi, etc.)
-        # --privileged: required for hardware access (USB, Bluetooth, raw sockets)
+        # --network=host: required for mDNS device discovery (UniFi, Chromecast, etc.)
+        # Capabilities: NET_ADMIN (multicast for HomeKit bridge) + NET_RAW (UniFi raw sockets)
+        # USB device: /dev/ttyUSB0 (Zigbee coordinator)
+        # Matter/Bluetooth handled via separate matter-server container
         extraOptions = [
           "--network=host"
-          "--privileged"
+          "--device=/dev/ttyUSB0:/dev/ttyUSB0"
+          "--cap-drop=ALL"
+          "--cap-add=NET_ADMIN"
+          "--cap-add=NET_RAW"
+          "--security-opt=no-new-privileges"
         ];
       };
 
