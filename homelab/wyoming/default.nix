@@ -29,25 +29,32 @@ in
 
     # === Speech-to-text (Faster-Whisper) ===
     services.wyoming.faster-whisper.servers."main" = {
-      enable   = true;
-      uri      = "tcp://127.0.0.1:10300";
-      model    = "small-int8";   # Best latency/accuracy on Ryzen + 16 GB (~500-600 MB RAM, 2-4 s/utterance)
+      enable = true;
+      uri = "tcp://127.0.0.1:10300";
+      model = "small-int8"; # Best latency/accuracy on Ryzen + 16 GB (~500-600 MB RAM, 2-4 s/utterance)
       language = "en";
-      device   = "cpu";          # nixpkgs CTranslate2 is not compiled with CUDA; cpu is correct
+      device = "cpu"; # nixpkgs CTranslate2 is not compiled with CUDA; cpu is correct
+      # model    = "base-int8";
+      beamSize = 1;
+      extraArgs = [
+        "--compute-type"
+        "int8"
+        "--cpu-threads"
+        "8"
+      ];
     };
 
     # Override systemd ProcSubset hardening if it is "pid" (nixpkgs PR #372898).
     # nixos-25.11 already ships the fix (ProcSubset=all in the module), but
     # lib.mkForce is kept as explicit documentation — it is harmless when already "all".
     # Without "all", CTranslate2 cannot read /proc/cpuinfo: a 3-second clip takes ~20 s.
-    systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset =
-      lib.mkForce "all";
+    systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
 
     # === Text-to-speech (Piper) ===
     services.wyoming.piper.servers."main" = {
       enable = true;
-      uri    = "tcp://127.0.0.1:10200";
-      voice  = "en_US-lessac-medium";   # ~65 MB, auto-downloads from HuggingFace on first use
+      uri = "tcp://127.0.0.1:10200";
+      voice = "en_US-lessac-medium"; # ~65 MB, auto-downloads from HuggingFace on first use
     };
 
     # === Wake word detection (OpenWakeWord) ===
@@ -57,7 +64,7 @@ in
     # nixos-25.11 ships v2.0.0+; no model selection option needed.
     services.wyoming.openwakeword = {
       enable = true;
-      uri    = "tcp://127.0.0.1:10400";
+      uri = "tcp://127.0.0.1:10400";
     };
 
     # No firewall ports — Wyoming binds to 127.0.0.1 only (HA connects via localhost)
