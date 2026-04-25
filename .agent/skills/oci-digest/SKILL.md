@@ -4,6 +4,7 @@ description: Get the sha256 digest for an OCI container image tag (linux/amd64).
 argument-hint: <registry/image:tag>
 disable-model-invocation: true
 allowed-tools: Bash(nix run nixpkgs#skopeo *)
+user-invocable: true
 ---
 
 Get the linux/amd64 digest for the OCI image `$ARGUMENTS`.

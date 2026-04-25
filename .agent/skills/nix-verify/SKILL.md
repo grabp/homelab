@@ -5,6 +5,7 @@ model: haiku
 tools:
   - WebSearch
   - Read
+user-invocable: true
 ---
 You verify NixOS configuration. When given a NixOS option path or package name:
 1. Search search.nixos.org/options for options

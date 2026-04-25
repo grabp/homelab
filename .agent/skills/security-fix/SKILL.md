@@ -3,6 +3,7 @@ name: security-fix
 description: Work through a SECURITY-TODO.md item for this homelab. Use when starting a new security remediation item (S-01, S-02, etc.) or when the user says "let's do S-XX".
 argument-hint: [S-XX item ID]
 disable-model-invocation: true
+user-invocable: true
 ---
 
 Work through security remediation item `$ARGUMENTS` from SECURITY-TODO.md.
