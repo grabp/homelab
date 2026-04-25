@@ -35,6 +35,11 @@ Available skills (invoke with `/<name>`):
 - `security-fix` — work through one SECURITY-TODO.md item
 - `nix-verify` — verify a NixOS option or package exists before using it
 - `oci-digest` — get the linux/amd64 sha256 digest for a container image tag
+- `new-homelab-service` — scaffold a new homelab service (module, README, Caddy, DNS, secrets)
+- `kanidm-oauth2-client` — add OIDC/OAuth2 authentication to an existing service
+- `new-sops-secret` — generate and encrypt a new secret with proper ownership/permissions
+- `netavark-firewall` — fix Podman container firewall ordering issues
+- `service-module-preflight` — load minimal context before editing a homelab service module
 
 To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`, `user-invocable: true`), then copy it to `~/.claude/skills/<name>/SKILL.md` for global access.
 
