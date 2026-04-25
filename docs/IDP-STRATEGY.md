@@ -1,3 +1,6 @@
+> **Status:** Updated for Stage 10b. Pocket ID replaced embedded Dex as the NetBird IdP.
+> Kanidm remains the homelab service SSO provider. See ARCHITECTURE.md §Auth.
+
 # IDP-STRATEGY.md — Identity Provider Architecture
 
 ## Two-tier IdP design
@@ -70,7 +73,8 @@ the VPN without being on VPN.
 
 Pocket ID is a minimal, passkey-only OIDC provider. It replaces the embedded Dex
 that shipped with `netbirdio/management` — `EmbeddedIdP.Enabled = false` in
-`management.json`. Pocket ID runs as a separate OCI container on the VPS
+`management.json`. Dex was used during Stage 10a and replaced in Stage 10b.
+Pocket ID runs as a separate OCI container on the VPS
 (`ghcr.io/pocket-id/pocket-id:v1.3.1`) at `https://pocket-id.grab-lab.gg`.
 
 **Characteristics:**
