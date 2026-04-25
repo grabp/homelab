@@ -26,6 +26,18 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 - Propose a commit after each meaningful unit of work with conventional commits. Only user can commit
 - If you don't know, ask
 
+## Skills
+
+Agent skills live in `.agent/skills/<name>/SKILL.md`. The `.claude/skills` directory symlinks to `.agent/skills` so Claude Code discovers them automatically.
+
+Available skills (invoke with `/<name>`):
+- `implement-plan` — work through one PLAN.md item end-to-end
+- `security-fix` — work through one SECURITY-TODO.md item
+- `nix-verify` — verify a NixOS option or package exists before using it
+- `oci-digest` — get the linux/amd64 sha256 digest for a container image tag
+
+To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`, `user-invocable: true`), then copy it to `~/.claude/skills/<name>/SKILL.md` for global access.
+
 ## Commands
 - `just build` — build without switching
 - `just switch` — build and switch locally
