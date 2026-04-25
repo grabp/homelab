@@ -153,6 +153,10 @@ The homelab's ISP uses symmetric NAT (Endpoint-Dependent Mapping). STUN hole-pun
 
 One A record: `netbird.grab-lab.gg → <VPS_PUBLIC_IP>`. Set it to **DNS only** in Cloudflare (gray cloud) — Cloudflare's HTTP proxy breaks gRPC.
 
+### TLS termination
+
+We use native NixOS Caddy (`services.caddy`) on the VPS for TLS termination — not Traefik or a Caddy container. Native Caddy handles Let's Encrypt via HTTP-01 challenge and avoids container overhead.
+
 ### Split DNS via NetBird match-domain nameserver
 
 VPN clients resolve `*.grab-lab.gg` through Pi-hole via a NetBird nameserver group:
