@@ -13,7 +13,7 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 
 ## Architecture Docs (read before implementing)
 - docs/ARCHITECTURE.md — decisions on ZFS, isolation, networking, secrets
-- docs/STAGES.md — staged implementation plan (follow this order)
+- docs/roadmap/ — staged implementation plan (follow this order)
 - docs/NIX-PATTERNS.md — verified code patterns (use these, don't invent)
 - docs/SERVICE-CONFIGS.md — per-service configs and gotchas
 - docs/STRUCTURE.md — repo layout (follow exactly)
@@ -21,7 +21,7 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 ## Critical Rules
 - Never invent NixOS options. If unsure whether an option exists, say so.
 - Use code patterns from docs/NIX-PATTERNS.md as templates.
-- One stage at a time per docs/STAGES.md.
+- One stage at a time per docs/roadmap/.
 - Update PROGRESS.md after completing work.
 - Propose a commit after each meaningful unit of work with conventional commits. Only user can commit
 - If you don't know, ask

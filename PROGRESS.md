@@ -28,7 +28,7 @@
 
 ## Phase 2: Machine 2 (boulder)
 
-See [docs/STAGES.md](docs/STAGES.md) for Stages 11-18.
+See [docs/roadmap/](docs/roadmap/) for Stages 11-18.
 
 ---
 
@@ -54,7 +54,7 @@ just edit-secrets-vps    # VPS secrets
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — High-level architecture decisions
-- [docs/STAGES.md](docs/STAGES.md) — Implementation stages and plan
+- [docs/roadmap/](docs/roadmap/) — Implementation stages and plan
 - [docs/NIX-PATTERNS.md](docs/NIX-PATTERNS.md) — Verified code patterns
 - [docs/SERVICE-CONFIGS.md](docs/SERVICE-CONFIGS.md) — Per-service configuration notes
 - [docs/STRUCTURE.md](docs/STRUCTURE.md) — Repository layout
