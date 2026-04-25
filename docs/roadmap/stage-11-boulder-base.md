@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 11
+title: Boulder Base System
+status: not-started
+---
+
 # Stage 11: Base System — Boulder Hardware Provisioning
 
 ## Status

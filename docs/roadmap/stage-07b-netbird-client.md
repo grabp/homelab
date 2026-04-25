@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 7b
+title: NetBird Homelab Client + Routes
+status: complete
+---
+
 # Stage 7b: VPN — Homelab Client + Routes + DNS + ACLs
 
 ## Status

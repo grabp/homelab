@@ -1,3 +1,11 @@
+---
+kind: archive
+status: archived
+superseded_by: docs/roadmap/stage-09a-ha-services.md
+tags: [home-assistant, wyoming, esphome, matter]
+archived_date: 2026-04-26
+---
+
 # Home Assistant companion services on bare-metal NixOS 25.11
 
 **All six companion services have native NixOS modules in nixpkgs**, making bare-metal NixOS one of the most declarative platforms for a Home Assistant stack. The recommended architecture is a hybrid: run Mosquitto and the Wyoming voice pipeline (Whisper, Piper, OpenWakeWord) natively via NixOS modules for tighter integration and simpler management, while running ESPHome and Matter Server as Podman containers due to unresolved native packaging bugs. HACS can be automated via a NixOS systemd oneshot service. This guide provides verified option paths, working configuration snippets, and specific image tags for each service.

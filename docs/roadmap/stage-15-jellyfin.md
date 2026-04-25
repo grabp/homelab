@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 15
+title: Jellyfin Media Server
+status: not-started
+---
+
 # Stage 15: Jellyfin Media Server
 
 ## Status

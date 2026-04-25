@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 9b
+title: Voice Pipeline + ESPHome + Matter
+status: complete
+---
+
 # Stage 9b: Services (Voice Pipeline + ESPHome + Matter Server)
 
 ## Status

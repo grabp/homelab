@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 10b
+title: Pocket ID — NetBird Passkey IdP
+status: complete
+---
+
 # Stage 10b: Pocket ID — NetBird Passkey IdP
 
 ## Status

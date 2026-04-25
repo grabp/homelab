@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 7a
+title: VPS Provisioning + NetBird Control Plane
+status: complete
+---
+
 # Stage 7a: VPN — VPS Provisioning + NetBird Control Plane (OCI containers)
 
 ## Status

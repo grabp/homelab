@@ -1,3 +1,9 @@
+---
+kind: reference
+title: Service Configurations Reference
+tags: [services, configuration]
+---
+
 # SERVICE-CONFIGS.md — Per-Service Research
 
 ## Pi-hole — OCI container required, no native module

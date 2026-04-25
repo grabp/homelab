@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 2
+title: Secrets Management
+status: complete
+---
+
 # Stage 2: Secrets Management
 
 ## Status

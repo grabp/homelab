@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 7c
+title: Identity Provider (Kanidm)
+status: complete
+---
+
 # Stage 7c: Identity Provider — Kanidm
 
 ## Status

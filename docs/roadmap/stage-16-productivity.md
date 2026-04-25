@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 16
+title: Productivity Apps
+status: not-started
+---
+
 # Stage 16: Productivity Apps — Outline, Vikunja, Karakeep, Actual Budget
 
 ## Status

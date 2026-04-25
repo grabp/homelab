@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 4
+title: Reverse Proxy with Caddy
+status: complete
+---
+
 # Stage 4: Reverse Proxy (Caddy)
 
 ## Status

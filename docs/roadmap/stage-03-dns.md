@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 3
+title: DNS with Pi-hole
+status: complete
+---
+
 # Stage 3: DNS (Pi-hole)
 
 ## Status

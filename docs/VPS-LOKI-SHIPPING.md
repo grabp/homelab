@@ -1,6 +1,12 @@
+---
+kind: research
+title: VPS Log Shipping to Loki
+status: implemented
+---
+
 # VPS Log Shipping to Loki
 
-## Status: TODO — not implemented
+## Status: COMPLETE — implemented in Stage 10
 
 Researched 2026-04-16. Implement as part of Stage 10 hardening, or as a standalone task before Stage 8.
 

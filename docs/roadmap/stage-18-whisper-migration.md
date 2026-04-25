@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 18
+title: Whisper Migration
+status: not-started
+---
+
 # Stage 18: Whisper Migration — Move STT from Pebble to Boulder
 
 ## Status

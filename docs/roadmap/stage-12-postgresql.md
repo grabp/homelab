@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 12
+title: PostgreSQL Shared Instance
+status: not-started
+---
+
 # Stage 12: PostgreSQL Shared Instance
 
 ## Status

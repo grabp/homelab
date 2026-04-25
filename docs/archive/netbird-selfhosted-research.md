@@ -1,3 +1,10 @@
+---
+kind: archive
+status: archived
+superseded_by: docs/roadmap/stage-07a-vps-netbird.md
+archived_date: 2026-04-26
+---
+
 > **Archived research document.** Superseded by Stage 10b.
 > The production stack uses Pocket ID (not embedded Dex) for NetBird auth.
 > See PROGRESS.md Stage 10b and docs/IDP-STRATEGY.md for the current setup.

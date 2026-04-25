@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 6
+title: Monitoring Stack
+status: complete
+---
+
 # Stage 6: Monitoring (Prometheus + Grafana + Loki)
 
 ## Status

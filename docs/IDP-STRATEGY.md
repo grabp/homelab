@@ -1,3 +1,9 @@
+---
+kind: architecture
+title: Identity Provider Strategy
+superseded_by: docs/architecture/auth.md
+---
+
 > **Status:** Updated for Stage 10b. Pocket ID replaced embedded Dex as the NetBird IdP.
 > Kanidm remains the homelab service SSO provider. See ARCHITECTURE.md §Auth.
 

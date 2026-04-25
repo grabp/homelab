@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 8
+title: Homepage Dashboard
+status: complete
+---
+
 # Stage 8: Homepage Dashboard
 
 ## Status

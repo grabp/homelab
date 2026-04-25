@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 10
+title: Hardening and Backups
+status: complete
+---
+
 # Stage 10: Hardening, Backups, VPS Log Shipping
 
 ## Status

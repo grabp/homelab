@@ -1,3 +1,9 @@
+---
+kind: architecture
+title: Architecture Decisions
+tags: [architecture, overview, zfs, networking, auth]
+---
+
 # ARCHITECTURE.md — Architecture Decisions
 
 ## ZFS on a single SSD delivers snapshots, compression, and integrity without redundancy

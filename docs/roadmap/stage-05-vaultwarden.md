@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 5
+title: Password Vault with Vaultwarden
+status: complete
+---
+
 # Stage 5: Password Management (Vaultwarden)
 
 ## Status

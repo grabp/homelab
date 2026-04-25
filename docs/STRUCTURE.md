@@ -1,3 +1,9 @@
+---
+kind: reference
+title: Repository Structure
+tags: [structure, layout]
+---
+
 # STRUCTURE.md — Repository Layout
 
 ## Directory structure adapted from notthebee/nix-config for a two-machine homelab (pebble + VPS)

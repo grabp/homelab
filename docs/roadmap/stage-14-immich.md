@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 14
+title: Immich Photo Management
+status: not-started
+---
+
 # Stage 14: Immich Photo Management
 
 ## Status

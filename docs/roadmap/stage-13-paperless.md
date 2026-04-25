@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 13
+title: Paperless-ngx + Stirling-PDF
+status: not-started
+---
+
 # Stage 13: Paperless-ngx + Stirling-PDF
 
 ## Status

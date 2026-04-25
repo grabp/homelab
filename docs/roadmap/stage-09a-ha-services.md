@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 9a
+title: Home Assistant Services
+status: complete
+---
+
 # Stage 9a: Services (Mosquitto + HACS + Home Assistant + Uptime Kuma)
 
 ## Status

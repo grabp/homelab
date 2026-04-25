@@ -1,3 +1,10 @@
+---
+kind: roadmap
+stage: 17
+title: Windows VM
+status: not-started
+---
+
 # Stage 17: Windows VM — libvirt/QEMU
 
 ## Status
