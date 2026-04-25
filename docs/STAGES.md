@@ -407,28 +407,31 @@ See `docs/SECOND-MACHINE.md` for detailed hardware specs and service configurati
 
 # Stage summary
 
-| Phase | Stage | Name | Machine |
-|-------|-------|------|---------|
-| 1 | 1 | Base system | pebble |
-| 1 | 2 | Secrets management | pebble |
-| 1 | 3 | DNS (Pi-hole) | pebble |
-| 1 | 4 | Reverse proxy (Caddy) | pebble |
-| 1 | 5 | Password management (Vaultwarden) | pebble |
-| 1 | 6 | Monitoring | pebble |
-| 1 | 7a | VPN — VPS provisioning (OCI containers + embedded Dex) | vps |
-| 1 | 7b | VPN — Homelab client | pebble |
-| 1 | 7c | Identity Provider — Kanidm | pebble |
-| 1 | 8 | Homepage dashboard | pebble |
-| 1 | 9a | HA + MQTT + HACS | pebble |
-| 1 | 9b | Voice + ESPHome + Matter | pebble |
-| 1 | 10 | Hardening + backups | pebble + vps |
-| 2 | 11 | Base system | boulder |
-| 2 | 12 | PostgreSQL | boulder |
-| 2 | 13 | Paperless + Stirling-PDF | boulder |
-| 2 | 14 | Immich | boulder |
-| 2 | 15 | Jellyfin | boulder |
-| 2 | 16 | Productivity apps | boulder |
-| 2 | 17 | Windows VM | boulder |
-| 2 | 18 | Whisper migration | boulder + pebble |
+Current stage: **Stage 11** (boulder base system) — not started. See PROGRESS.md.
+
+| Phase | Stage | Name | Machine | Status |
+|-------|-------|------|---------|--------|
+| 1 | 1 | Base system | pebble | ✅ Complete |
+| 1 | 2 | Secrets management | pebble | ✅ Complete |
+| 1 | 3 | DNS (Pi-hole) | pebble | ✅ Complete |
+| 1 | 4 | Reverse proxy (Caddy) | pebble | ✅ Complete |
+| 1 | 5 | Password management (Vaultwarden) | pebble | ✅ Complete |
+| 1 | 6 | Monitoring | pebble | ✅ Complete |
+| 1 | 7a | VPN — VPS provisioning (OCI containers + embedded Dex) | vps | ✅ Complete |
+| 1 | 7b | VPN — Homelab client | pebble | ✅ Complete |
+| 1 | 7c | Identity Provider — Kanidm | pebble | ✅ Complete |
+| 1 | 8 | Homepage dashboard | pebble | ✅ Complete |
+| 1 | 9a | HA + MQTT + HACS | pebble | ✅ Complete |
+| 1 | 9b | Voice + ESPHome + Matter | pebble | ✅ Complete |
+| 1 | 10 | Hardening + backups | pebble + vps | ✅ Complete |
+| 1 | 10b | Pocket ID migration (IdP switch) | pebble + vps | ✅ Complete |
+| 2 | 11 | Base system | boulder | NOT STARTED |
+| 2 | 12 | PostgreSQL | boulder | NOT STARTED |
+| 2 | 13 | Paperless + Stirling-PDF | boulder | NOT STARTED |
+| 2 | 14 | Immich | boulder | NOT STARTED |
+| 2 | 15 | Jellyfin | boulder | NOT STARTED |
+| 2 | 16 | Productivity apps | boulder | NOT STARTED |
+| 2 | 17 | Windows VM | boulder | NOT STARTED |
+| 2 | 18 | Whisper migration | boulder + pebble | NOT STARTED |
 
 ---
