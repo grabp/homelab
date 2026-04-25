@@ -187,7 +187,7 @@ Extremely lightweight: **< 100–200 MB RAM**, negligible CPU. Designed to run c
 services.wyoming.openwakeword = {
   enable = true;
   uri = "tcp://0.0.0.0:10400";
-  preloadModels = [ "okay_nabu" ];  # ⚠️ VERIFY: use "ok_nabu" if on older package version
+  preloadModels = [ "okay_nabu" ];  # (verified in Stage 9b, see PROGRESS.md — nixos-25.11 ships v2.0.0+)
 };
 ```
 
@@ -254,7 +254,7 @@ virtualisation.oci-containers.containers.esphome = {
   image = "ghcr.io/esphome/esphome:2026.3.1";
   extraOptions = [ "--network=host" ];
   environment = {
-    TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    TZ = "Europe/Warsaw";  # (verified in Stage 9b, see PROGRESS.md — uses vars.timeZone)
   };
   volumes = [
     "/var/lib/esphome:/config"
@@ -594,7 +594,7 @@ in {
   services.wyoming.openwakeword = {
     enable = true;
     uri = "tcp://0.0.0.0:10400";
-    preloadModels = [ "okay_nabu" ];  # ⚠️ VERIFY: "ok_nabu" on older package versions
+    preloadModels = [ "okay_nabu" ];  # (verified in Stage 9b, see PROGRESS.md — nixos-25.11 ships v2.0.0+)
   };
 
   # === ESPHome (container — native has compilation bugs) ===
@@ -602,7 +602,7 @@ in {
   virtualisation.oci-containers.containers.esphome = {
     image = "ghcr.io/esphome/esphome:2026.3.1";
     extraOptions = [ "--network=host" ];
-    environment.TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    environment.TZ = "Europe/Warsaw";  # (verified in Stage 9b, see PROGRESS.md — uses vars.timeZone)
     volumes = [
       "/var/lib/esphome:/config"
       "/etc/localtime:/etc/localtime:ro"
@@ -626,7 +626,7 @@ in {
   virtualisation.oci-containers.containers.homeassistant = {
     image = "ghcr.io/home-assistant/home-assistant:stable";
     extraOptions = [ "--network=host" ];
-    environment.TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    environment.TZ = "Europe/Warsaw";  # (verified in Stage 9a, see PROGRESS.md — uses vars.timeZone)
     volumes = [
       "${haConfigDir}:/config"
       "/run/dbus:/run/dbus:ro"
