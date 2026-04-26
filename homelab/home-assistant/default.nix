@@ -136,7 +136,7 @@ EOF
 
       # HACS installation — runs once before the HA container starts.
       # Idempotent: skipped if __init__.py already exists (i.e. HACS is installed).
-      # Pattern 11 (Approach A) from docs/NIX-PATTERNS.md.
+      # Pattern 11: docs/patterns/11-hacs-install.md (Approach A — download latest on first boot)
       systemd.services.hacs-install = {
         description = "Install HACS custom component for Home Assistant";
         wantedBy    = [ "multi-user.target" ];
@@ -237,7 +237,7 @@ EOF
       };
 
       # ESPHome needs Avahi mDNS running before it can discover ESP devices.
-      # (Pattern 16C in docs/NIX-PATTERNS.md — soft start ordering)
+      # (Pattern 16: docs/patterns/16-systemd-dependencies.md — soft start ordering)
       systemd.services.podman-esphome = {
         wants = [ "avahi-daemon.service" ];
         after = [ "avahi-daemon.service" ];

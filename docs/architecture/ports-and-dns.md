@@ -115,24 +115,6 @@ Only `netbird.grab-lab.gg` has a public A record. All other subdomains return NX
 | Outline | 3000 | 3020 | Grafana conflict |
 | Karakeep | 3000 | 9443 | Multiple 3000 conflicts |
 
-## Generating This File
-
-To regenerate from current modules:
-
-```bash
-just docs-update
-```
-
-This runs:
-
-```bash
-# Ports: scan homelab/*/default.nix for port assignments
-grep -rh "port\s*=\s*[0-9]" homelab/*/default.nix | sort -t= -k2 -n
-
-# DNS: scan for virtualHosts and customDNS entries
-grep -rh "virtualHosts\.\|customDNS\." homelab/*/default.nix | sort
-```
-
 ## Key Files
 
 | File | Purpose |

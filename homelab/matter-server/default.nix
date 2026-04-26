@@ -56,7 +56,7 @@ in
     };
 
     # Matter requires Avahi mDNS to be running before it can discover devices.
-    # (Pattern 16C in docs/NIX-PATTERNS.md — soft start ordering)
+    # (Pattern 16: docs/patterns/16-systemd-dependencies.md — soft start ordering)
     systemd.services.podman-matter-server = {
       wants = [ "avahi-daemon.service" ];
       after = [ "avahi-daemon.service" ];

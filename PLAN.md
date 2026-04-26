@@ -387,26 +387,9 @@ Depends on: P-01 (IDP fix), P-06 (Traefik fix), P-15 (ADRs exist first)
    known gotchas. Add frontmatter: `kind: architecture`, `tags: [auth,
    oidc, kanidm, pocket-id]`, `supersedes: [docs/IDP-STRATEGY.md]`.
 
-3. Create `docs/architecture/ports-and-dns.md` as a generated reference
-   table. Do NOT hand-write the values — derive them from the actual
-   modules:
-   ```bash
-   # Ports: scan homelab/*/default.nix for port assignments
-   grep -rh "port\s*=\s*[0-9]" homelab/*/default.nix | sort -t= -k2 -n
-
-   # DNS: scan for virtualHosts and customDNS entries
-   grep -rh "virtualHosts\.\|customDNS\." homelab/*/default.nix | sort
-   ```
-   Format as two markdown tables (Ports, DNS). Add a comment at the top:
+3. Create `docs/architecture/ports-and-dns.md` as a reference table of all
+   port assignments and DNS entries. Format as two markdown tables (Ports, DNS).
    Add frontmatter: `kind: architecture`, `tags: [ports, dns]`.
-
-4. Add a `docs-update` recipe to `justfile`:
-   ```make
-   docs-update:
-       # Regenerate ports-and-dns.md from live module scan
-       cd docs/architecture && ../../scripts/gen-ports-dns.sh > ports-and-dns.md
-   ```
-   (The script can be a simple bash wrapper around the greps above.)
 
 **Verification:**
 ```bash
@@ -435,14 +418,14 @@ All content already exists — it is scattered across PROGRESS.md stage
 notes, NIX-PATTERNS.md, and ARCHITECTURE.md. Extract and consolidate,
 do not invent.
 
-1. `docs/operations/deploy.md` — distill from NIX-PATTERNS.md Pattern 18
+1. `docs/operations/deploy.md` — distill from Pattern 18
    (IP-based deploy), Pattern 13 (nixos-anywhere VPS provisioning), and
    the deploy sections of PROGRESS.md Stages 1, 7a, 10. Sections:
    Normal deploy (deploy-rs, `just deploy pebble`), VPS deploy, Initial
    provisioning (nixos-anywhere), Rollback procedure, Common failures.
    Frontmatter: `kind: runbook`, `tags: [deploy, deploy-rs]`.
 
-2. `docs/operations/secrets.md` — distill from NIX-PATTERNS.md Pattern 6
+2. `docs/operations/secrets.md` — distill from Pattern 6
    (sops-nix declaration) and the secrets sections of PROGRESS.md
    Stages 2, 7a. Sections: Adding a new secret, Rotating a secret,
    Adding a new host to a creation rule, Rekeying, Recovery (lost key).

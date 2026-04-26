@@ -333,7 +333,7 @@ Caddy handles TLS termination; native coturn handles STUN/TURN.
 The **embedded Dex IdP** requires zero configuration — it auto-sets up during the
 `/setup` wizard on first boot. No Zitadel, no CockroachDB, no external accounts.
 
-See **NIX-PATTERNS.md Pattern 19** for the full OCI container configuration and
+See **Pattern 19: docs/patterns/19-netbird-server-oci.md** for the full OCI container configuration and
 **Pattern 20** for the native Caddy reverse proxy setup. These are the patterns
 used in `machines/nixos/vps/netbird-containers.nix`.
 

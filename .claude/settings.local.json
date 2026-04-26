@@ -18,5 +18,8 @@
       "WebSearch",
       "WebFetch(domain:deepwiki.com)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "homelab"
+  ]
 }

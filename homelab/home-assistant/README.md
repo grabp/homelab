@@ -41,7 +41,7 @@ HA manages its own secrets via `/var/lib/homeassistant/secrets.yaml` — not via
 ## OIDC
 
 Not natively supported. Authentication proxied at the Caddy layer via
-`forward_auth` (NIX-PATTERNS.md Pattern 22). Internal HA users still exist
+`forward_auth` (Pattern 22: docs/patterns/22-caddy-forward-auth.md). Internal HA users still exist
 for local/LAN access without VPN.
 
 Requires in `configuration.yaml`:

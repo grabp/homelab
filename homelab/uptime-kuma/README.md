@@ -34,7 +34,7 @@ None — Uptime Kuma manages its own admin account internally via the web UI
 ## OIDC
 
 Not supported natively. Access control relies on Uptime Kuma's own login.
-Optional: add Caddy `forward_auth` via Kanidm (NIX-PATTERNS.md Pattern 22)
+Optional: add Caddy `forward_auth` via Kanidm (Pattern 22: docs/patterns/22-caddy-forward-auth.md)
 as an additional layer.
 
 ## Known gotchas
