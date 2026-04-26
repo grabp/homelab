@@ -26,6 +26,25 @@ Read PROGRESS.md first. It tracks what's done and what's next.
 - Propose a commit after each meaningful unit of work with conventional commits. Only user can commit
 - If you don't know, ask
 
+## MCP Server
+
+An MCP (Model Context Protocol) server provides tools for efficient repository introspection:
+
+**Available tools:**
+- `get_machine_ip` — get pebble/vps IP from vars.nix
+- `list_services` — enumerate all homelab services
+- `get_service_path` — resolve service module paths
+
+**How it works:**
+- Server runs as subprocess during Claude Code sessions
+- Communicates via stdin/stdout using JSON-RPC
+- Provides cached, parsed data instead of repeated file reads
+- Configured in `.mcp.json` at repo root
+
+**Setup:** See `.agent/mcp/README.md` for development and deployment.
+
+**Why MCP?** Faster than file reads, caches results, abstracts parsing logic.
+
 ## Skills
 
 Agent skills live in `.agent/skills/<name>/SKILL.md`. The `.claude/skills` directory symlinks to `.agent/skills` so Claude Code discovers them automatically.

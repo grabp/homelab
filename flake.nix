@@ -60,6 +60,20 @@
             ];
             shellHook = "pre-commit install";
           };
+
+        devShells.x86_64-linux.mcp =
+          nixpkgs.legacyPackages.x86_64-linux.mkShell {
+            packages = with nixpkgs.legacyPackages.x86_64-linux; [
+              python311
+              python311Packages.pip
+              python311Packages.pytest
+              python311Packages.pytest-asyncio
+            ];
+            shellHook = ''
+              cd .agent/mcp
+              pip install -e ".[dev]" --quiet
+            '';
+          };
       }
     ];
 }

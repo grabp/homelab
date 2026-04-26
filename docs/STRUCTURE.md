@@ -42,7 +42,7 @@ tags: [navigation, structure]
 
 **Claude Code skills:** `.agent/skills/<name>/SKILL.md` defines custom skills for common homelab tasks. The `.claude/skills` directory symlinks to `.agent/skills` so Claude Code discovers project skills automatically.
 
-**MCP server:** `.agent/mcp/` contains the homelab MCP (Model Context Protocol) server. The server provides tools for querying homelab state, running justfile recipes, and deploying hosts. `.mcp.json` at the repo root registers the server with Claude Desktop.
+**MCP server:** `.agent/mcp/` contains the homelab MCP (Model Context Protocol) server. The server provides tools for repository introspection: get machine IPs from `vars.nix`, list services, resolve service paths. `.mcp.json` at the repo root registers the server with Claude Code. See `.agent/mcp/README.md` for architecture and development.
 
 ## Generating the current tree
 
