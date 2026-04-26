@@ -16,7 +16,8 @@
       "WebFetch(domain:pocket-id.org)",
       "WebFetch(domain:ghcr.io)",
       "WebSearch",
-      "WebFetch(domain:deepwiki.com)"
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(hatch run pytest:*)"
     ]
   },
   "enabledMcpjsonServers": [

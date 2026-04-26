@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services
+from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services, get_service_info
 
 
 def test_get_repo_root():
@@ -40,3 +40,42 @@ def test_get_services():
     assert len(services) > 0
     assert "caddy" in services
     assert all(isinstance(s, str) for s in services)
+
+
+def test_get_service_info_caddy():
+    """Test getting service info for caddy."""
+    info = get_service_info("caddy")
+    assert info is not None
+    assert "ports" in info
+    assert "secrets" in info
+    assert "patterns" in info
+
+    # Caddy should have ports 80 and 443
+    assert isinstance(info["ports"], list)
+    assert 80 in info["ports"]
+    assert 443 in info["ports"]
+
+    # Caddy should have caddy/env secret
+    assert isinstance(info["secrets"], list)
+    assert "caddy/env" in info["secrets"]
+
+    # Patterns should be a list
+    assert isinstance(info["patterns"], list)
+
+
+def test_get_service_info_home_assistant():
+    """Test getting service info for home-assistant (has pattern references)."""
+    info = get_service_info("home-assistant")
+    assert info is not None
+
+    # Home Assistant has pattern references (11, 14, 16)
+    assert "patterns" in info
+    assert isinstance(info["patterns"], list)
+    # Should contain at least some pattern IDs
+    assert len(info["patterns"]) > 0
+
+
+def test_get_service_info_invalid():
+    """Test getting service info for non-existent service."""
+    info = get_service_info("nonexistent-service")
+    assert info is None

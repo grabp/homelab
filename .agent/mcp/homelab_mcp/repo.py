@@ -69,3 +69,63 @@ def get_services() -> list[str]:
             services.append(item.name)
 
     return sorted(services)
+
+
+def get_service_info(service_name: str) -> Optional[dict]:
+    """Get detailed information about a homelab service.
+
+    Returns a dict with:
+    - ports: list of TCP ports from networking.firewall.allowedTCPPorts
+    - secrets: list of sops secret paths (e.g., "caddy/env")
+    - patterns: list of pattern IDs referenced in comments (e.g., ["11", "16"])
+    """
+    repo_root = get_repo_root()
+    service_path = repo_root / "homelab" / service_name / "default.nix"
+
+    if not service_path.exists():
+        return None
+
+    content = service_path.read_text()
+
+    # Extract ports from networking.firewall.allowedTCPPorts = [ ... ];
+    ports = []
+    in_ports_block = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if "allowedTCPPorts" in stripped:
+            in_ports_block = True
+            # Check if ports are on same line: allowedTCPPorts = [ 80 443 ];
+            if "[" in stripped and "]" in stripped:
+                bracket_content = stripped.split("[")[1].split("]")[0]
+                ports.extend([p.strip() for p in bracket_content.split() if p.strip().isdigit()])
+                in_ports_block = False
+        elif in_ports_block:
+            if "]" in stripped:
+                # Get content before the closing bracket
+                bracket_content = stripped.split("]")[0]
+                ports.extend([p.strip() for p in bracket_content.split() if p.strip().isdigit()])
+                in_ports_block = False
+            else:
+                # Just port numbers on this line
+                ports.extend([p.strip() for p in stripped.split() if p.strip().isdigit()])
+
+    # Extract secrets from sops.secrets."service/..." declarations
+    secrets = set()
+    import re
+    secret_pattern = re.compile(r'sops\.secrets\."([^"]+)"')
+    for match in secret_pattern.finditer(content):
+        secrets.add(match.group(1))
+
+    # Extract pattern IDs from comments (Pattern NN or pattern NN)
+    patterns = []
+    pattern_id_regex = re.compile(r'[Pp]attern\s+(\d+)')
+    for match in pattern_id_regex.finditer(content):
+        pattern_id = match.group(1)
+        if pattern_id not in patterns:
+            patterns.append(pattern_id)
+
+    return {
+        "ports": [int(p) for p in ports],
+        "secrets": sorted(list(secrets)),
+        "patterns": sorted(patterns),
+    }

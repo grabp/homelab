@@ -8,7 +8,7 @@ from typing import Any
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
 
-from .repo import get_repo_root, get_machine_ip, get_services
+from .repo import get_repo_root, get_machine_ip, get_services, get_service_info
 
 
 # Create server instance
@@ -56,6 +56,20 @@ async def list_tools() -> list[Tool]:
                 "required": ["service"],
             },
         ),
+        Tool(
+            name="get_service_info",
+            description="Get detailed information about a homelab service (ports, secrets, patterns)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "service": {
+                        "type": "string",
+                        "description": "Service name (e.g., 'caddy', 'kanidm')",
+                    },
+                },
+                "required": ["service"],
+            },
+        ),
     ]
 
 
@@ -91,6 +105,17 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
 
         if service_path.exists() and (service_path / "default.nix").exists():
             return [TextContent(type="text", text=str(service_path))]
+        else:
+            return [TextContent(type="text", text=f"Error: Service '{service}' not found")]
+
+    elif name == "get_service_info":
+        service = arguments.get("service")
+        if not service:
+            return [TextContent(type="text", text="Error: service parameter required")]
+
+        info = get_service_info(service)
+        if info:
+            return [TextContent(type="text", text=json.dumps(info, indent=2))]
         else:
             return [TextContent(type="text", text=f"Error: Service '{service}' not found")]
 
