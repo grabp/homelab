@@ -2,3 +2,4 @@
 .sops.yaml.bak
 result         # nix build output
 .direnv/
+.mcp.json      # machine-specific MCP config (run `just mcp-setup` to generate)

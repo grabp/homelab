@@ -3,7 +3,7 @@ site_url: https://docs.grab-lab.gg
 site_description: NixOS homelab documentation portal
 site_author: Patryk Grabowski
 
-repo_url: https://github.com/patrykgrabowski/lab
+repo_url: https://github.com/grabp/homelab
 repo_name: lab
 
 theme:
@@ -132,4 +132,4 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/patrykgrabowski/lab
+      link: https://github.com/grabp/homelab
