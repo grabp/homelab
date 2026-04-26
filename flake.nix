@@ -52,6 +52,29 @@
       }
 
       {
+        # Standalone docs-site package for local preview and CI builds
+        packages.x86_64-linux.docs-site = nixpkgs.legacyPackages.x86_64-linux.stdenv.mkDerivation {
+          name = "homelab-docs-site";
+          src = ./.;
+
+          nativeBuildInputs = with nixpkgs.legacyPackages.x86_64-linux; [
+            python311
+            python311Packages.mkdocs
+            python311Packages.mkdocs-material
+            python311Packages.pymdown-extensions
+          ];
+
+          buildPhase = ''
+            export HOME=$(mktemp -d)
+            mkdocs build --strict --site-dir $out
+          '';
+
+          installPhase = ''
+            # Output is already in $out from buildPhase
+            echo "Site built to $out"
+          '';
+        };
+
         devShells.x86_64-linux.default =
           nixpkgs.legacyPackages.x86_64-linux.mkShell {
             packages = with nixpkgs.legacyPackages.x86_64-linux; [

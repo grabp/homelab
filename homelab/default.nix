@@ -31,5 +31,6 @@
     ./wyoming # Stage 9b — Whisper STT + Piper TTS + OpenWakeWord
     ./matter-server # Stage 9b — Matter Server OCI container
     ./backup # Stage 10 — Sanoid + Syncoid + Restic
+    ./docs-site # Stage 11 — MkDocs documentation portal
   ];
 }

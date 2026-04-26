@@ -1,0 +1,134 @@
+site_name: Homelab Documentation
+site_url: https://docs.grab-lab.gg
+site_description: NixOS homelab documentation portal
+site_author: Patryk Grabowski
+
+repo_url: https://github.com/patrykgrabowski/lab
+repo_name: lab
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Authentication: architecture/auth.md
+      - Ports & DNS: architecture/ports-and-dns.md
+      - Architecture Decisions:
+          - 0001 Caddy not Traefik: architecture/adr/0001-caddy-not-traefik.md
+          - 0002 Pocket ID not Dex: architecture/adr/0002-pocket-id-not-dex.md
+          - 0003 OCI over NixOS modules: architecture/adr/0003-oci-over-nixos-server-module.md
+          - 0004 Restic not Syncoid: architecture/adr/0004-restic-not-syncoid.md
+          - 0005 Kanidm 1.9 pin: architecture/adr/0005-kanidm-1_9-pin.md
+  - Operations:
+      - Deploy: operations/deploy.md
+      - Secrets: operations/secrets.md
+      - Backup & Restore: operations/backup-and-restore.md
+      - Monitoring: operations/monitoring.md
+  - Patterns:
+      - Index: patterns/index.md
+      - "01 Flake with deploy+disko+sops": patterns/01-flake-with-deploy-disko-sops.md
+      - "02 DRY machine definitions": patterns/02-dry-machine-definitions.md
+      - "03 ZFS ephemeral root": patterns/03-zfs-ephemeral-root.md
+      - "04 ext4 simple": patterns/04-ext4-simple.md
+      - "05 Custom module options": patterns/05-custom-module-options.md
+      - "06 sops secrets": patterns/06-sops-secrets.md
+      - "07 Caddy + Cloudflare": patterns/07-caddy-cloudflare.md
+      - "08 systemd sops service": patterns/08-systemd-sops-service.md
+      - "09 justfile commands": patterns/09-justfile-commands.md
+      - "10 Wyoming procsubset": patterns/10-wyoming-procsubset.md
+      - "11 HACS install": patterns/11-hacs-install.md
+      - "12 Multi-machine flake": patterns/12-multi-machine-flake.md
+      - "13 nixos-anywhere VPS": patterns/13-nixos-anywhere-vps.md
+      - "14 NetBird client": patterns/14-netbird-client.md
+      - "15 systemd-resolved + NetBird": patterns/15-systemd-resolved-netbird.md
+      - "16 systemd dependencies": patterns/16-systemd-dependencies.md
+      - "17 Podman volume UID": patterns/17-podman-volume-uid.md
+      - "18 SSH IP addresses": patterns/18-ssh-ip-addresses.md
+      - "19 NetBird server OCI": patterns/19-netbird-server-oci.md
+      - "20 VPS native Caddy": patterns/20-vps-native-caddy.md
+      - "21 Kanidm OAuth2": patterns/21-kanidm-oauth2.md
+      - "22 Caddy forward auth": patterns/22-caddy-forward-auth.md
+      - "23 Grafana Kanidm OIDC": patterns/23-grafana-kanidm-oidc.md
+  - Roadmap:
+      - Stages: roadmap/index.md
+      - Stage 01 Base System: roadmap/stage-01-base-system.md
+      - Stage 02 Secrets: roadmap/stage-02-secrets.md
+      - Stage 03 Pi-hole: roadmap/stage-03-pihole.md
+      - Stage 04 Caddy: roadmap/stage-04-caddy.md
+      - Stage 05 Vaultwarden: roadmap/stage-05-vaultwarden.md
+      - Stage 06 Monitoring: roadmap/stage-06-monitoring.md
+      - Stage 07a NetBird VPS: roadmap/stage-07a-netbird-vps.md
+      - Stage 07b NetBird Client: roadmap/stage-07b-netbird-client.md
+      - Stage 07c Kanidm: roadmap/stage-07c-kanidm.md
+      - Stage 08 Homepage: roadmap/stage-08-homepage.md
+      - Stage 09a HA Services: roadmap/stage-09a-ha-services.md
+      - Stage 09b Voice & Matter: roadmap/stage-09b-voice-matter.md
+      - Stage 10 Hardening & Backups: roadmap/stage-10-hardening-backups.md
+      - Stage 11 Boulder: roadmap/stage-11-boulder.md
+      - Stage 12 Jellyfin: roadmap/stage-12-jellyfin.md
+      - Stage 13 Paperless: roadmap/stage-13-paperless.md
+      - Stage 14 Immich: roadmap/stage-14-immich.md
+      - Stage 15 Actual Budget: roadmap/stage-15-actual.md
+      - Stage 16 Productivity: roadmap/stage-16-productivity.md
+      - Stage 17 BOINC: roadmap/stage-17-boinc.md
+      - Stage 18 Whisper Migration: roadmap/stage-18-whisper-migration.md
+      - Phase 2 Boulder: roadmap/phase-2-boulder.md
+  - Archive:
+      - HA Companion Services Research: archive/ha-companion-services-research.md
+      - IDP Strategy Exploration: archive/idp-strategy-exploration.md
+      - NetBird Selfhosted Research: archive/netbird-selfhosted-research.md
+      - VPS Loki Shipping Research: archive/vps-loki-shipping-research.md
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/patrykgrabowski/lab

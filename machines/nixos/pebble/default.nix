@@ -84,6 +84,7 @@
   my.services.wyoming.enable = true; # Stage 9b
   my.services.matterServer.enable = true; # Stage 9b
   my.services.backup.enable = true; # Stage 10
+  my.services.docsSite.enable = true; # Stage 11
 
   system.stateVersion = "25.11";
 }

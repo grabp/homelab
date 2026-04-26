@@ -135,3 +135,12 @@ disko-install disk:
 # Generate hostId for networking.hostId in pebble/default.nix
 gen-hostid:
     head -c4 /dev/urandom | od -A none -t x4 | tr -d ' \n' && echo
+
+# ── Documentation ──────────────────────────────
+# Serve docs locally at http://localhost:8000
+docs-serve:
+    mkdocs serve
+
+# Build static site to site/ directory
+docs-build:
+    nix build .#docs-site && echo "BUILD OK"

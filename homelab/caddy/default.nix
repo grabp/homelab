@@ -116,6 +116,11 @@ in
             reverse_proxy localhost:${toString config.my.services.homeAssistant.esphome.port}
           }
 
+          @docs host docs.${vars.domain}
+          handle @docs {
+            reverse_proxy localhost:${toString config.my.services.docsSite.port}
+          }
+
           handle {
             respond "Service not found" 404
           }
