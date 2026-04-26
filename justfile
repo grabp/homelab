@@ -152,36 +152,9 @@ docs-build:
 
 # ── MCP Server ─────────────────────────────────
 
-# Setup MCP server venv, install dependencies, and create .mcp.json (run once per machine)
+# Setup MCP server venv, install dependencies, and create configs for Claude Code and OpenCode
 mcp-setup:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    REPO_ROOT="$(pwd)"
-    cd .agent/mcp
-    if [ ! -d "venv" ]; then
-        python3 -m venv venv
-        echo "✓ Created venv"
-    else
-        echo "✓ venv already exists"
-    fi
-    source venv/bin/activate
-    pip install -q -e ".[dev]"
-    echo "✓ Installed homelab_mcp package"
-
-    # Generate .mcp.json from example
-    cd "$REPO_ROOT"
-    if [ ! -f ".mcp.json" ]; then
-        sed "s|REPO_ROOT|$REPO_ROOT|g" .mcp.json.example > .mcp.json
-        echo "✓ Created .mcp.json"
-        echo ""
-        echo "MCP server ready. Restart Claude Code to connect."
-    else
-        echo ""
-        echo "Note: .mcp.json already exists. Delete it to regenerate."
-    fi
-
-    echo ""
-    echo "To test: just mcp-serve"
+    .agent/mcp/setup-venv.sh
 
 # Run MCP server manually (for testing)
 mcp-serve:
