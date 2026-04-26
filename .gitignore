@@ -1,5 +1,5 @@
-*.age          # private age keys
+*.age
 .sops.yaml.bak
-result         # nix build output
+result
 .direnv/
-.mcp.json      # machine-specific MCP config (run `just mcp-setup` to generate)
+.mcp.json
