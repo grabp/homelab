@@ -57,7 +57,7 @@ with open('$OPENCONFIG_JSON', 'r') as f:
 config['mcp'] = {
     'homelab': {
         'type': 'local',
-        'command': ['/bin/bash', '$MCP_DIR/run-mcp.sh'],
+        'command': ['$MCP_DIR/run-mcp.sh'],
         'enabled': True,
         'environment': {
             'PEBBLE_IP': '$PEBBLE_IP',
@@ -80,7 +80,7 @@ else
   "mcp": {
     "homelab": {
       "type": "local",
-      "command": ["/bin/bash", "$MCP_DIR/run-mcp.sh"],
+      "command": ["$MCP_DIR/run-mcp.sh"],
       "enabled": true,
       "environment": {
         "PEBBLE_IP": "$PEBBLE_IP",
