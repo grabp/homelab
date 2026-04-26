@@ -13,14 +13,13 @@ creation_rules:
         pgp:
           - *admin-gpg
 
-  # VPS secrets: currently encrypted for admin (dev machine) only.
-  # After running `just gen-vps-hostkey` and adding &vps above:
-  #   1. Uncomment `- *vps` below
-  #   2. Run: sops updatekeys secrets/vps.yaml
+  # VPS host key is active (see &vps above and *vps in creation rules below).
+  # To add a new host: just gen-<host>-hostkey, add &<host> to keys,
+  # add *<host> to relevant creation_rules, then run: just rekey
   - path_regex: secrets/vps\.yaml$
     key_groups:
       - age:
           - *admin
-          - *vps # uncomment after adding &vps key above
+          - *vps
         pgp:
           - *admin-gpg

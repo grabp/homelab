@@ -33,7 +33,7 @@ Work through plan item `$ARGUMENTS` from PLAN.md.
 ## Constraints
 
 - Never invent NixOS options. If unsure an option exists, say so and stop.
-- Use patterns from docs/NIX-PATTERNS.md (or docs/patterns/ after P-11) as templates.
+- Use patterns from docs/patterns/ as templates.
 - For NixOS changes: always run `nix flake check` as part of verification.
 - For Python/MCP changes (P-09): always run `pytest -q` as part of verification.
 - Before any deploy, spell out required manual steps and wait for user confirmation.

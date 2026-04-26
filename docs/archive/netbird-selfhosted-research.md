@@ -1,3 +1,15 @@
+---
+kind: archive
+status: archived
+superseded_by: docs/roadmap/stage-07a-vps-netbird.md
+archived_date: 2026-04-26
+---
+
+> **Archived research document.** Superseded by Stage 10b.
+> The production stack uses Pocket ID (not embedded Dex) for NetBird auth.
+> See PROGRESS.md Stage 10b and docs/IDP-STRATEGY.md for the current setup.
+> This file is retained as research context for future migrations.
+
 # Self-hosting NetBird VPN behind CGNAT on NixOS
 
 **NetBird's self-hosted control plane runs comfortably on a ~€4/month Hetzner VPS, tunnels reliably through CGNAT via automatic relay fallback, and integrates with NixOS declaratively — but DNS coexistence with Pi-hole and initial NixOS server configuration require careful planning.** Since v0.62.0, NetBird ships an embedded identity provider and combined server binary, collapsing what was once a 7-container stack into just 4 containers with ~500MB idle RAM. The critical tradeoff: peers behind CGNAT's symmetric NAT will almost always relay through the VPS rather than connecting peer-to-peer, adding **~70ms latency** and capping throughput around **7 Mbps** on a budget VPS — acceptable for accessing Home Assistant and media services, but worth understanding upfront.
@@ -321,7 +333,7 @@ Caddy handles TLS termination; native coturn handles STUN/TURN.
 The **embedded Dex IdP** requires zero configuration — it auto-sets up during the
 `/setup` wizard on first boot. No Zitadel, no CockroachDB, no external accounts.
 
-See **NIX-PATTERNS.md Pattern 19** for the full OCI container configuration and
+See **Pattern 19: docs/patterns/19-netbird-server-oci.md** for the full OCI container configuration and
 **Pattern 20** for the native Caddy reverse proxy setup. These are the patterns
 used in `machines/nixos/vps/netbird-containers.nix`.
 

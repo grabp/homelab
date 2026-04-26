@@ -1,3 +1,12 @@
+---
+kind: roadmap
+status: active
+tags: [boulder, phase-2, immich, jellyfin]
+---
+
+> Active planning document for Phase 2 (Stages 11–18).
+> See docs/roadmap/stages.md for the stage overview.
+
 # Second Machine Research — HP EliteDesk 705 G4 (boulder)
 
 **The second homelab machine runs media, productivity, and compute-intensive services that benefit from dedicated resources and separate maintenance windows.** With 32 GB RAM and AMD Ryzen APU, it handles Immich photo processing, Jellyfin transcoding, Paperless-ngx OCR, and a Windows VM for edge cases — all services that would compete for resources with Home Assistant's real-time requirements on machine 1.

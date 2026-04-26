@@ -40,7 +40,7 @@ Work through security remediation item `$ARGUMENTS` from SECURITY-TODO.md.
 ## Constraints (from SECURITY-SESSION.md)
 
 - Never invent NixOS options. If unsure an option exists, say so and ask.
-- Use patterns from docs/NIX-PATTERNS.md as templates.
+- Use patterns from docs/patterns/ as templates.
 - `just build` targets the local machine (koksownik) which is not in this flake.
   Always use `nix build .#nixosConfigurations.<host>...` directly.
 - Before deploying, spell out any required manual steps (secrets rotation,

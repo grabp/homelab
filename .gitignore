@@ -1,4 +1,5 @@
-*.age          # private age keys
+*.age
 .sops.yaml.bak
-result         # nix build output
+result
 .direnv/
+.mcp.json

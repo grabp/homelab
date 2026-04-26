@@ -1,3 +1,11 @@
+---
+kind: archive
+status: archived
+superseded_by: docs/roadmap/stage-09a-ha-services.md
+tags: [home-assistant, wyoming, esphome, matter]
+archived_date: 2026-04-26
+---
+
 # Home Assistant companion services on bare-metal NixOS 25.11
 
 **All six companion services have native NixOS modules in nixpkgs**, making bare-metal NixOS one of the most declarative platforms for a Home Assistant stack. The recommended architecture is a hybrid: run Mosquitto and the Wyoming voice pipeline (Whisper, Piper, OpenWakeWord) natively via NixOS modules for tighter integration and simpler management, while running ESPHome and Matter Server as Podman containers due to unresolved native packaging bugs. HACS can be automated via a NixOS systemd oneshot service. This guide provides verified option paths, working configuration snippets, and specific image tags for each service.
@@ -187,7 +195,7 @@ Extremely lightweight: **< 100–200 MB RAM**, negligible CPU. Designed to run c
 services.wyoming.openwakeword = {
   enable = true;
   uri = "tcp://0.0.0.0:10400";
-  preloadModels = [ "okay_nabu" ];  # ⚠️ VERIFY: use "ok_nabu" if on older package version
+  preloadModels = [ "okay_nabu" ];  # (verified in Stage 9b, see PROGRESS.md — nixos-25.11 ships v2.0.0+)
 };
 ```
 
@@ -254,7 +262,7 @@ virtualisation.oci-containers.containers.esphome = {
   image = "ghcr.io/esphome/esphome:2026.3.1";
   extraOptions = [ "--network=host" ];
   environment = {
-    TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    TZ = "Europe/Warsaw";  # (verified in Stage 9b, see PROGRESS.md — uses vars.timeZone)
   };
   volumes = [
     "/var/lib/esphome:/config"
@@ -594,7 +602,7 @@ in {
   services.wyoming.openwakeword = {
     enable = true;
     uri = "tcp://0.0.0.0:10400";
-    preloadModels = [ "okay_nabu" ];  # ⚠️ VERIFY: "ok_nabu" on older package versions
+    preloadModels = [ "okay_nabu" ];  # (verified in Stage 9b, see PROGRESS.md — nixos-25.11 ships v2.0.0+)
   };
 
   # === ESPHome (container — native has compilation bugs) ===
@@ -602,7 +610,7 @@ in {
   virtualisation.oci-containers.containers.esphome = {
     image = "ghcr.io/esphome/esphome:2026.3.1";
     extraOptions = [ "--network=host" ];
-    environment.TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    environment.TZ = "Europe/Warsaw";  # (verified in Stage 9b, see PROGRESS.md — uses vars.timeZone)
     volumes = [
       "/var/lib/esphome:/config"
       "/etc/localtime:/etc/localtime:ro"
@@ -626,7 +634,7 @@ in {
   virtualisation.oci-containers.containers.homeassistant = {
     image = "ghcr.io/home-assistant/home-assistant:stable";
     extraOptions = [ "--network=host" ];
-    environment.TZ = "America/New_York";  # ⚠️ VERIFY: set your timezone
+    environment.TZ = "Europe/Warsaw";  # (verified in Stage 9a, see PROGRESS.md — uses vars.timeZone)
     volumes = [
       "${haConfigDir}:/config"
       "/run/dbus:/run/dbus:ro"
