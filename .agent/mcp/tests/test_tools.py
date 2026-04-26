@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages
+from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages, get_pattern
 
 
 def test_get_repo_root():
@@ -110,3 +110,36 @@ def test_list_stages():
         assert isinstance(stage["description"], str)
         assert isinstance(stage["status"], str)
         assert isinstance(stage["doc_link"], str)
+
+
+def test_get_pattern_by_id():
+    """Test getting pattern by ID."""
+    pattern = get_pattern("17")
+    assert pattern is not None
+    assert pattern["id"] == "17"
+    assert pattern["name"] == "17-podman-volume-uid"
+    assert "title" in pattern
+    assert "Pattern 17" in pattern["title"]
+    assert "tags" in pattern
+    assert "podman" in pattern["tags"]
+    assert "content" in pattern
+    assert "SQLite WAL" in pattern["content"]
+    assert pattern["file"] == "docs/patterns/17-podman-volume-uid.md"
+
+
+def test_get_pattern_by_tag():
+    """Test getting pattern by tag (returns first match)."""
+    pattern = get_pattern("podman")
+    assert pattern is not None
+    # Should return pattern 17 (first podman match in index)
+    assert pattern["id"] == "17"
+    assert "podman" in pattern["tags"]
+
+
+def test_get_pattern_invalid():
+    """Test getting non-existent pattern."""
+    pattern = get_pattern("999")
+    assert pattern is None
+
+    pattern = get_pattern("nonexistent-tag")
+    assert pattern is None

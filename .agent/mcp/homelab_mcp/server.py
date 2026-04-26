@@ -8,7 +8,7 @@ from typing import Any
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
 
-from .repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages
+from .repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages, get_pattern
 
 
 # Create server instance
@@ -78,6 +78,20 @@ async def list_tools() -> list[Tool]:
                 "properties": {},
             },
         ),
+        Tool(
+            name="get_pattern",
+            description="Get a pattern by ID or tag from docs/patterns/",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pattern_id": {
+                        "type": "string",
+                        "description": "Pattern number (e.g., '17') or tag (e.g., 'podman')",
+                    },
+                },
+                "required": ["pattern_id"],
+            },
+        ),
     ]
 
 
@@ -133,6 +147,17 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             return [TextContent(type="text", text=json.dumps(stages, indent=2))]
         else:
             return [TextContent(type="text", text="[]")]
+
+    elif name == "get_pattern":
+        pattern_id = arguments.get("pattern_id")
+        if not pattern_id:
+            return [TextContent(type="text", text="Error: pattern_id parameter required")]
+
+        pattern = get_pattern(pattern_id)
+        if pattern:
+            return [TextContent(type="text", text=json.dumps(pattern, indent=2))]
+        else:
+            return [TextContent(type="text", text=f"Error: Pattern '{pattern_id}' not found")]
 
     else:
         return [TextContent(type="text", text=f"Error: Unknown tool '{name}'")]

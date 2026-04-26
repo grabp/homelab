@@ -194,3 +194,108 @@ def get_stages() -> list[dict]:
                 })
 
     return stages
+
+
+def get_pattern(pattern_id: str) -> Optional[dict]:
+    """Get a pattern by ID or tag.
+
+    Args:
+        pattern_id: Pattern number (e.g., "17") or tag (e.g., "podman")
+
+    Returns:
+        Dict with:
+        - id: pattern number
+        - name: pattern filename (e.g., "17-podman-volume-uid")
+        - title: pattern title
+        - tags: list of tags
+        - file: relative path to pattern file
+        - content: full file content including frontmatter
+        - summary: summary from index table
+    """
+    import re
+
+    repo_root = get_repo_root()
+    index_file = repo_root / "docs" / "patterns" / "index.md"
+
+    if not index_file.exists():
+        return None
+
+    index_content = index_file.read_text()
+
+    # Parse the index table to find pattern
+    # Format: | # | Pattern | Summary | Tags |
+    # Example: | 17 | [17-podman-volume-uid](./17-podman-volume-uid.md) | Podman volume directories — own by container UID, not root | [podman, volumes, permissions, sqlite] |
+
+    pattern_entry = None
+    in_table = False
+
+    for line in index_content.splitlines():
+        line = line.strip()
+
+        # Skip header and separator
+        if line.startswith("| # |") or line.startswith("|---|"):
+            in_table = True
+            continue
+
+        if in_table and (not line or not line.startswith("|")):
+            in_table = False
+            continue
+
+        if in_table and line.startswith("|"):
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) >= 5:
+                num = parts[1].strip()
+                pattern_cell = parts[2].strip()
+                summary = parts[3].strip()
+                tags_cell = parts[4].strip()
+
+                # Extract pattern name and file from markdown link [name](file)
+                link_match = re.search(r'\[([^\]]+)\]\(([^\)]+)\)', pattern_cell)
+                if link_match:
+                    pattern_name = link_match.group(1)
+                    pattern_file = link_match.group(2).lstrip('./')
+
+                    # Extract tags from [tag1, tag2, tag3]
+                    tags = []
+                    tags_match = re.search(r'\[([^\]]+)\]', tags_cell)
+                    if tags_match:
+                        tags = [t.strip() for t in tags_match.group(1).split(',')]
+
+                    # Check if this matches by ID or tag
+                    matches = False
+                    if num == pattern_id:
+                        matches = True
+                    elif pattern_id.lower() in [t.lower() for t in tags]:
+                        matches = True
+
+                    if matches:
+                        pattern_entry = {
+                            "id": num,
+                            "name": pattern_name,
+                            "summary": summary,
+                            "tags": tags,
+                            "file": f"docs/patterns/{pattern_file}",
+                        }
+                        break
+
+    if not pattern_entry:
+        return None
+
+    # Read the pattern file content
+    pattern_path = repo_root / pattern_entry["file"]
+    if not pattern_path.exists():
+        return None
+
+    pattern_content = pattern_path.read_text()
+
+    # Extract title from the pattern file (first # heading)
+    title = ""
+    for line in pattern_content.splitlines():
+        if line.startswith("# "):
+            title = line.lstrip("# ").strip()
+            break
+
+    pattern_entry["title"] = title
+    pattern_entry["content"] = pattern_content
+
+    return pattern_entry
