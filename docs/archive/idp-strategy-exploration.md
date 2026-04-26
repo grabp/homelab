@@ -1,6 +1,6 @@
 ---
-kind: architecture
-title: Identity Provider Strategy
+kind: archive
+status: archived
 superseded_by: docs/architecture/auth.md
 ---
 

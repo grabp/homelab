@@ -1,7 +1,7 @@
 ---
-kind: research
-title: VPS Log Shipping to Loki
-status: implemented
+kind: archive
+status: archived
+superseded_by: docs/roadmap/stage-10-hardening.md
 ---
 
 # VPS Log Shipping to Loki

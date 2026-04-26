@@ -1,9 +1,11 @@
 ---
-kind: research
-title: Second Machine Research
-machine: boulder
-tags: [hardware, boulder]
+kind: roadmap
+status: active
+tags: [boulder, phase-2, immich, jellyfin]
 ---
+
+> Active planning document for Phase 2 (Stages 11–18).
+> See docs/roadmap/stages.md for the stage overview.
 
 # Second Machine Research — HP EliteDesk 705 G4 (boulder)
 
