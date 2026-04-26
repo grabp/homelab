@@ -99,24 +99,25 @@ nav:
       - Stages: roadmap/index.md
       - Stage 01 Base System: roadmap/stage-01-base-system.md
       - Stage 02 Secrets: roadmap/stage-02-secrets.md
-      - Stage 03 Pi-hole: roadmap/stage-03-pihole.md
+      - Stage 03 DNS: roadmap/stage-03-dns.md
       - Stage 04 Caddy: roadmap/stage-04-caddy.md
       - Stage 05 Vaultwarden: roadmap/stage-05-vaultwarden.md
       - Stage 06 Monitoring: roadmap/stage-06-monitoring.md
-      - Stage 07a NetBird VPS: roadmap/stage-07a-netbird-vps.md
+      - Stage 07a VPS NetBird: roadmap/stage-07a-vps-netbird.md
       - Stage 07b NetBird Client: roadmap/stage-07b-netbird-client.md
       - Stage 07c Kanidm: roadmap/stage-07c-kanidm.md
       - Stage 08 Homepage: roadmap/stage-08-homepage.md
       - Stage 09a HA Services: roadmap/stage-09a-ha-services.md
       - Stage 09b Voice & Matter: roadmap/stage-09b-voice-matter.md
       - Stage 10 Hardening & Backups: roadmap/stage-10-hardening-backups.md
-      - Stage 11 Boulder: roadmap/stage-11-boulder.md
-      - Stage 12 Jellyfin: roadmap/stage-12-jellyfin.md
+      - Stage 10b Pocket ID: roadmap/stage-10b-pocket-id.md
+      - Stage 11 Boulder Base: roadmap/stage-11-boulder-base.md
+      - Stage 12 PostgreSQL: roadmap/stage-12-postgresql.md
       - Stage 13 Paperless: roadmap/stage-13-paperless.md
       - Stage 14 Immich: roadmap/stage-14-immich.md
-      - Stage 15 Actual Budget: roadmap/stage-15-actual.md
+      - Stage 15 Jellyfin: roadmap/stage-15-jellyfin.md
       - Stage 16 Productivity: roadmap/stage-16-productivity.md
-      - Stage 17 BOINC: roadmap/stage-17-boinc.md
+      - Stage 17 Windows VM: roadmap/stage-17-windows-vm.md
       - Stage 18 Whisper Migration: roadmap/stage-18-whisper-migration.md
       - Phase 2 Boulder: roadmap/phase-2-boulder.md
   - Archive:

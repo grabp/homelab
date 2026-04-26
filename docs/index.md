@@ -22,7 +22,7 @@ Find answers quickly with the Q→Doc lookup table below.
 | What's been implemented so far? | See PROGRESS.md in repo root |
 | What stage is next? | [roadmap/index.md](roadmap/index.md) |
 | How do I add a new service? | [patterns/01-flake-with-deploy-disko-sops.md](patterns/01-flake-with-deploy-disko-sops.md) |
-| How do I fix container firewall issues? | [patterns/19-netavark-firewall.md](patterns/19-netavark-firewall.md) |
+| How are systemd dependencies managed? | [patterns/16-systemd-dependencies.md](patterns/16-systemd-dependencies.md) |
 
 ## Documentation Sections
 
