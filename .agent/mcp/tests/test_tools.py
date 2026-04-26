@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services, get_service_info
+from homelab_mcp.repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages
 
 
 def test_get_repo_root():
@@ -79,3 +79,34 @@ def test_get_service_info_invalid():
     """Test getting service info for non-existent service."""
     info = get_service_info("nonexistent-service")
     assert info is None
+
+
+def test_list_stages():
+    """Test getting list of stages from PROGRESS.md."""
+    stages = get_stages()
+    assert isinstance(stages, list)
+    assert len(stages) > 0
+
+    # Verify structure of first stage
+    first_stage = stages[0]
+    assert "number" in first_stage
+    assert "description" in first_stage
+    assert "status" in first_stage
+    assert "doc_link" in first_stage
+
+    # Stage 1 should be in the list
+    stage_numbers = [s["number"] for s in stages]
+    assert "1" in stage_numbers
+
+    # Find stage 1 and verify its properties
+    stage_1 = next(s for s in stages if s["number"] == "1")
+    assert stage_1["description"] == "Base System"
+    assert "COMPLETE" in stage_1["status"]
+    assert "docs/roadmap/stage-01-base-system.md" in stage_1["doc_link"]
+
+    # Verify all stages have required fields
+    for stage in stages:
+        assert isinstance(stage["number"], str)
+        assert isinstance(stage["description"], str)
+        assert isinstance(stage["status"], str)
+        assert isinstance(stage["doc_link"], str)

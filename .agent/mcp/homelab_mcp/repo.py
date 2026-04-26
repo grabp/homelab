@@ -129,3 +129,68 @@ def get_service_info(service_name: str) -> Optional[dict]:
         "secrets": sorted(list(secrets)),
         "patterns": sorted(patterns),
     }
+
+
+def get_stages() -> list[dict]:
+    """Get list of stages from PROGRESS.md.
+
+    Returns a list of stage objects with:
+    - number: stage number (e.g., "1", "7a", "10b")
+    - description: stage description
+    - status: status string (e.g., "✅ COMPLETE", "NOT STARTED")
+    - doc_link: path to documentation file
+    """
+    import re
+
+    repo_root = get_repo_root()
+    progress_file = repo_root / "PROGRESS.md"
+
+    if not progress_file.exists():
+        return []
+
+    content = progress_file.read_text()
+    stages = []
+
+    # Parse the markdown table
+    # Look for lines starting with | followed by stage number
+    # Format: | Stage | Description | Status | Details |
+    # Example: | 1 | Base System | ✅ COMPLETE | [docs/roadmap/stage-01-base-system.md](docs/roadmap/stage-01-base-system.md) |
+
+    in_table = False
+    for line in content.splitlines():
+        line = line.strip()
+
+        # Skip header and separator rows
+        if line.startswith("| Stage |") or line.startswith("|----"):
+            in_table = True
+            continue
+
+        # End of table when we hit empty line or new section
+        if in_table and (not line or not line.startswith("|")):
+            in_table = False
+            continue
+
+        if in_table and line.startswith("|"):
+            # Split by | and clean up
+            parts = [p.strip() for p in line.split("|")]
+            # parts[0] is empty (before first |), parts[1] is stage, etc.
+            if len(parts) >= 5 and parts[1]:
+                stage_num = parts[1].strip()
+                description = parts[2].strip()
+                status = parts[3].strip()
+                details = parts[4].strip()
+
+                # Extract doc link from markdown format [text](link)
+                doc_link = ""
+                link_match = re.search(r'\[([^\]]+)\]\(([^\)]+)\)', details)
+                if link_match:
+                    doc_link = link_match.group(2)
+
+                stages.append({
+                    "number": stage_num,
+                    "description": description,
+                    "status": status,
+                    "doc_link": doc_link,
+                })
+
+    return stages

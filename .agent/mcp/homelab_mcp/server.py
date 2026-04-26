@@ -8,7 +8,7 @@ from typing import Any
 from mcp.server import Server
 from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
 
-from .repo import get_repo_root, get_machine_ip, get_services, get_service_info
+from .repo import get_repo_root, get_machine_ip, get_services, get_service_info, get_stages
 
 
 # Create server instance
@@ -70,6 +70,14 @@ async def list_tools() -> list[Tool]:
                 "required": ["service"],
             },
         ),
+        Tool(
+            name="list_stages",
+            description="List all implementation stages from PROGRESS.md with status and documentation links",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -118,6 +126,13 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             return [TextContent(type="text", text=json.dumps(info, indent=2))]
         else:
             return [TextContent(type="text", text=f"Error: Service '{service}' not found")]
+
+    elif name == "list_stages":
+        stages = get_stages()
+        if stages:
+            return [TextContent(type="text", text=json.dumps(stages, indent=2))]
+        else:
+            return [TextContent(type="text", text="[]")]
 
     else:
         return [TextContent(type="text", text=f"Error: Unknown tool '{name}'")]
