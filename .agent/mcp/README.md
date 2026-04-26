@@ -35,6 +35,58 @@ Git repository (machines/nixos/vars.nix, homelab/*/default.nix)
 
 The server runs in the same process space for the entire Claude Code session.
 
+## Quick Reference
+
+### When to Use MCP Tools
+
+Use MCP tools when you need repository metadata that would otherwise require file parsing:
+
+- ✅ **Use MCP**: "What's the IP address of the VPS?" → `get_machine_ip`
+- ❌ **Don't use MCP**: "What's in the pebble README?" → Use `Read` tool directly
+
+- ✅ **Use MCP**: "List all homelab services" → `list_services`
+- ❌ **Don't use MCP**: "Read the caddy module" → Use `Read` tool directly
+
+- ✅ **Use MCP**: "Where is the kanidm service module?" → `get_service_path`
+- ❌ **Don't use MCP**: "What port does kanidm use?" → Read the module directly
+
+**Rule of thumb:** Use MCP for metadata queries. Use Read/Glob/Grep for file contents.
+
+### Performance Characteristics
+
+MCP tools are fast:
+
+- Cached by Claude Code for the session
+- No file I/O overhead (runs once, result reused)
+- No LLM token overhead for parsing
+
+**Example: Getting all service paths**
+
+**Without MCP** (slow):
+1. Glob `homelab/*/default.nix` → file list
+2. For each file, construct path manually
+3. Verify each path exists
+4. Total: 3 tool calls + token overhead
+
+**With MCP** (fast):
+1. Call `list_services` → service list (cached)
+2. For each service, call `get_service_path` → path (cached)
+3. Total: 1 + N tool calls, all cached, minimal tokens
+
+### Best Practices
+
+**DO:**
+- Use `get_machine_ip` when constructing deploy/SSH commands
+- Use `list_services` to enumerate services for batch operations
+- Use `get_service_path` to resolve paths before reading files
+- Cache results mentally in your context (MCP tools return the same data within a session)
+
+**DON'T:**
+- Use MCP tools for file contents (use Read instead)
+- Call MCP tools redundantly (results are cached, but still costs a tool call)
+- Assume service names (use `list_services` to get the canonical list)
+- Hard-code IPs (use `get_machine_ip` so they stay in sync with vars.nix)
+
 ## Available Tools
 
 ### `get_machine_ip`
