@@ -41,4 +41,4 @@ This directory contains the detailed implementation notes for each stage of the 
 
 ---
 
-See [PROGRESS.md](../../PROGRESS.md) for the current status summary.
+See `PROGRESS.md` in the repository root for the current status summary.
