@@ -1,50 +1,69 @@
 ---
 name: implement-plan
-description: Use this skill when the user says "implement plan item P-XX", "work on P-XX", "do the next PLAN item", or "continue the improvement plan". Reads PLAN.md, works through exactly one item end-to-end, verifies, and updates the status. Mirrors the security-fix protocol adapted for the homelab improvement plan.
+description: Use this skill when the user says "implement stage XX", "work on stage XX", "do the next stage", or "continue the roadmap". Reads docs/roadmap/stage-XX-*.md, works through exactly one stage end-to-end, verifies, and updates PROGRESS.md status.
 model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep
-argument-hint: [P-XX item ID]
+argument-hint: [stage number, e.g., "11" or "stage-11"]
 disable-model-invocation: false
 user-invocable: true
 ---
 
-Work through plan item `$ARGUMENTS` from PLAN.md.
+Work through roadmap stage `$ARGUMENTS` from docs/roadmap/.
 
 ## Protocol
 
-1. **Read the item** from PLAN.md — note the status, affected files, exact changes required, and verification steps.
+1. **Parse the stage number** from `$ARGUMENTS` (e.g., "11", "stage-11", "Stage 11" → stage 11).
 
-2. **If status is COMPLETE**, stop immediately and tell the user.
+2. **Find and read the stage file** using Glob pattern `docs/roadmap/stage-{number}-*.md`.
 
-3. **Read every affected file in full** before touching anything.
+3. **Check PROGRESS.md** — if stage is already COMPLETE, stop and tell the user.
 
-4. **State the change** before making it: which file, which section, and why.
+4. **Read the stage file** fully — note:
+   - What Gets Built
+   - Key Files
+   - Dependencies (check these are satisfied)
+   - Verification Steps
 
-5. **Make the change** using Edit/Write as appropriate.
+5. **Read every affected file in full** before making changes.
 
-6. **Run the verification command(s)** specified in the item. Report output verbatim.
+6. **State the change** before making it: which file, which section, and why.
 
-7. **If verification fails**, fix the error and re-verify before proceeding.
+7. **Make the changes** using Edit/Write as appropriate.
 
-8. **Update PLAN.md** — change `Status: NOT STARTED` to `Status: COMPLETE` for the item. Also update the completion summary table at the bottom.
+8. **Run the verification steps** specified in the stage file. Report output verbatim.
 
-9. **Propose a commit** in conventional commit format. Do not commit — the user commits.
+9. **If verification fails**, fix the error and re-verify before proceeding.
+
+10. **Update PROGRESS.md**:
+    - Change stage status from `NOT STARTED` to `✅ COMPLETE` in the table
+    - Update "Current Stage" header to next stage if this was current
+    - Update stage file's frontmatter status from `not-started` to `complete`
+
+11. **Propose a commit** in conventional commit format. Do not commit — the user commits.
 
 ## Constraints
 
-- Never invent NixOS options. If unsure an option exists, say so and stop.
-- Use patterns from docs/patterns/ as templates.
+- Never invent NixOS options. If unsure an option exists, use /nix-verify or say so and stop.
+- Use patterns from docs/patterns/ as templates — reference by pattern ID in comments.
 - For NixOS changes: always run `nix flake check` as part of verification.
-- For Python/MCP changes (P-09): always run `pytest -q` as part of verification.
+- For service additions: follow the scaffold from /new-homelab-service skill pattern.
 - Before any deploy, spell out required manual steps and wait for user confirmation.
-- If a plan item's requirements contradict the current codebase in a way that matters, say so immediately instead of proceeding blindly.
+- If a stage's requirements contradict the current codebase, say so immediately instead of proceeding.
+- Check stage dependencies before starting — if blocked, stop and report.
 
-## Order constraint
+## Stage Dependencies
 
-P-10 (this skill) must be complete before any other item. If the user asks to run a different item first, do P-10 first and then ask them to re-invoke for their intended item.
+Phase 1 (Stages 1-10b) must complete before Phase 2 (Stages 11-18).
 
-Items P-01 through P-07 are independent and can be done in any order.
-P-08 (skills) and P-09 (MCP server) are independent of each other but should come after P-01–P-07.
-P-11 (per-service READMEs) should come after P-01–P-07.
-P-12 depends on P-11.
-P-13 depends on P-11 and P-12.
+Within Phase 2:
+- Stage 11 (boulder base) must come first
+- Stages 12-16 can be done in any order after 11
+- Stage 17 (Windows VM) should come after Stage 11
+- Stage 18 (Whisper migration) depends on Stage 11
+
+## Special Cases
+
+- **Stage 11 (boulder base)**: Similar to Stage 1 for pebble, requires physical hardware provisioning.
+- **Stages with PostgreSQL**: Use shared PostgreSQL instance from Stage 12.
+- **OAuth2 integration**: Use /kanidm-oauth2-client or reference Stage 7c patterns.
+- **Container services**: Follow podman patterns from docs/patterns/.
