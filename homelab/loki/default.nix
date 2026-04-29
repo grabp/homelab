@@ -95,6 +95,10 @@ in
           # VPS pushes over NetBird (wt0); boulder pushes over LAN (eth0).
           # Both interfaces open port 3100 — see pebble/default.nix firewall rules.
           http_listen_address = "0.0.0.0";
+          http_tls_config = {
+            cert_file = "/var/lib/loki/tls.pem";
+            key_file  = "/var/lib/loki/tls.key";
+          };
         };
 
         common = {
@@ -151,6 +155,43 @@ in
       };
     };
 
+    # -------------------------------------------------------------------------
+    # Self-signed TLS cert for Loki's HTTPS listener.
+    # Remote Alloy instances (VPS over NetBird, boulder over LAN) connect with
+    # insecure_skip_verify = true, so the cert contents don't need to match.
+    # Grafana's Loki datasource also skips verification (loopback-only call).
+    # The oneshot generates once and skips if the cert already exists.
+    # -------------------------------------------------------------------------
+    systemd.services.loki-tls-cert = {
+      description = "Generate Loki self-signed TLS certificate";
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      path = [ pkgs.openssl ];
+      script = ''
+        install -d -m 750 -o loki -g loki /var/lib/loki
+        if [ ! -f /var/lib/loki/tls.pem ]; then
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+            -keyout /var/lib/loki/tls.key \
+            -out    /var/lib/loki/tls.pem \
+            -days 3650 -nodes \
+            -subj '/CN=loki' \
+            -addext "basicConstraints=CA:FALSE" \
+            -addext "subjectAltName=IP:127.0.0.1"
+          chown loki:loki /var/lib/loki/tls.key /var/lib/loki/tls.pem
+          chmod 600 /var/lib/loki/tls.key
+          chmod 644 /var/lib/loki/tls.pem
+        fi
+      '';
+    };
+
+    # Hard-order: loki cannot start until the cert is present.
+    systemd.services.loki = {
+      requires = [ "loki-tls-cert.service" ];
+      after    = [ "loki-tls-cert.service" ];
+    };
+
     systemd.tmpfiles.rules = [
       # Loki ruler temp dir — writable scratch space for compiled rule evaluation.
       "d /var/lib/loki/rules-temp 0750 loki  loki  -"
@@ -165,7 +206,8 @@ in
     my.services.alloy = {
       enable = true;
       hostLabel = config.networking.hostName;
-      lokiUrl = "http://localhost:${toString cfg.port}/loki/api/v1/push";
+      lokiUrl = "https://localhost:${toString cfg.port}/loki/api/v1/push";
+      insecureSkipVerify = true;
     };
   };
 }

@@ -67,7 +67,8 @@ in
           {
             name = "Loki";
             type = "loki";
-            url = "http://localhost:${toString config.my.services.loki.port}";
+            url = "https://localhost:${toString config.my.services.loki.port}";
+            jsonData.tlsSkipVerify = true;
           }
         ];
       };

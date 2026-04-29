@@ -17,7 +17,9 @@
       "WebFetch(domain:ghcr.io)",
       "WebSearch",
       "WebFetch(domain:deepwiki.com)",
-      "Bash(hatch run pytest:*)"
+      "Bash(hatch run pytest:*)",
+      "mcp__homelab__list_services",
+      "WebFetch(domain:grafana.com)"
     ]
   },
   "enabledMcpjsonServers": [

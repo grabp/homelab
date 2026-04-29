@@ -59,7 +59,8 @@
   my.services.alloy = {
     enable = true;
     hostLabel = "vps";
-    lokiUrl = "http://100.102.154.38:3100/loki/api/v1/push"; # NetBird overlay — VPS is not on pebble's LAN
+    lokiUrl = "https://100.102.154.38:3100/loki/api/v1/push"; # NetBird overlay — VPS is not on pebble's LAN
+    insecureSkipVerify = true;
   }; # Stage 10
 
   system.stateVersion = "25.11";

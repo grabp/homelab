@@ -17,6 +17,12 @@ in
       description = "Loki push endpoint URL. Use NetBird overlay IP for machines not on pebble's LAN; use pebbleIP directly for LAN-adjacent machines.";
       example = "http://100.102.154.38:3100/loki/api/v1/push";
     };
+
+    insecureSkipVerify = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Skip TLS certificate verification when pushing to Loki. Safe for self-signed certs on private networks.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -51,6 +57,10 @@ in
       loki.write "pebble" {
         endpoint {
           url = "${cfg.lokiUrl}"
+          ${lib.optionalString cfg.insecureSkipVerify ''
+          tls_config {
+            insecure_skip_verify = true
+          }''}
         }
       }
     '';
