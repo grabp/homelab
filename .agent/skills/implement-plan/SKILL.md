@@ -47,6 +47,7 @@ Work through roadmap stage `$ARGUMENTS` from docs/roadmap/.
 - Use patterns from docs/patterns/ as templates — reference by pattern ID in comments.
 - For NixOS changes: always run `nix flake check` as part of verification.
 - For service additions: follow the scaffold from /new-homelab-service skill pattern.
+- Every new `homelab/<name>/` directory **must** include a `README.md`. Required sections: Purpose, Ports, Secrets, Depends on, Known gotchas, Backup/restore. Frontmatter: `service`, `stage`, `machine`, `status`. Do not leave it out even for "simple" native modules.
 - Before any deploy, spell out required manual steps and wait for user confirmation.
 - If a stage's requirements contradict the current codebase, say so immediately instead of proceeding.
 - Check stage dependencies before starting — if blocked, stop and report.

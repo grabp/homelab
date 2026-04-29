@@ -35,7 +35,7 @@ tags: [navigation, structure]
 
 **Archive:** `docs/archive/` contains superseded research documents retained for historical context.
 
-**Per-service docs:** Service-specific documentation lives with the service module at `homelab/<service>/README.md`, not in `docs/`. This keeps configuration and documentation co-located.
+**Per-service docs:** Every `homelab/<service>/` directory **must** contain a `README.md`. Required sections: Purpose, Ports, Secrets, Depends on, Known gotchas, Backup/restore. Frontmatter fields: `service`, `stage`, `machine`, `status`. Documentation lives with the module, not in `docs/`, to keep configuration and docs co-located.
 
 **Per-machine docs:** Machine-specific information (hardware, network, deploy procedure, one-time setup steps) lives at `machines/nixos/<hostname>/README.md`.
 

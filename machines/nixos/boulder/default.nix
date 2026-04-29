@@ -59,6 +59,8 @@
     '';
   };
 
+  my.services.postgresql.enable = true; # Stage 12
+
   my.services.netbird.enable = true; # Stage 11
   my.services.nodeExporter.enable = true; # Stage 11
   my.services.alloy = {

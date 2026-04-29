@@ -14,6 +14,7 @@
 #   Stage 10: backup
 #   Stage 10b: pocket-id
 #   Stage 11: docs-site, alloy, node-exporter
+#   Stage 12: postgresql
 { ... }:
 {
   imports = [
@@ -37,5 +38,6 @@
     ./alloy # Stage 11 — Grafana Alloy log shipper (opt-in per machine)
     ./node-exporter # Stage 11 — Prometheus node_exporter for remote scraping (opt-in per machine)
     ./pocket-id # Stage 10b — Pocket ID passkey OIDC provider
+    ./postgresql # Stage 12 — Shared PostgreSQL instance (outline, vikunja, paperless)
   ];
 }

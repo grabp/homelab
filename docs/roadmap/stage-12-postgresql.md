@@ -2,13 +2,13 @@
 kind: roadmap
 stage: 12
 title: PostgreSQL Shared Instance
-status: not-started
+status: complete
 ---
 
 # Stage 12: PostgreSQL Shared Instance
 
 ## Status
-NOT STARTED
+COMPLETE
 
 ## What Gets Built
 Single PostgreSQL server for Outline, Vikunja, and Paperless-ngx. Each service gets its own database with separate credentials stored in sops.
