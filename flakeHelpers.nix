@@ -5,7 +5,8 @@ let
   # Resolve deploy hostname: always use IPs, never domains (Pattern 18)
   # Domain resolution can hit split-horizon DNS and deploy to wrong machine.
   deployHostname = hostname:
-    if hostname == "pebble" then vars.serverIP
+    if hostname == "pebble" then vars.pebbleIP
+    else if hostname == "boulder" then vars.boulderIP
     else if hostname == "vps" then vars.vpsIP
     else hostname;
 

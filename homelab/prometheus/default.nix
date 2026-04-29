@@ -33,7 +33,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Telegram credentials env file — add to secrets/secrets.yaml as:
+    # Telegram credentials env file — add to secrets/pebble.yaml as:
     #   alertmanager:
     #     telegram_env: |
     #       TELEGRAM_BOT_TOKEN=<bot_token_from_botfather>
@@ -94,6 +94,12 @@ in
       '';
     };
 
+    # node_exporter: local scraping only — no firewall port needed.
+    my.services.nodeExporter = {
+      enable = true;
+      openFirewall = false;
+    };
+
     services.prometheus = {
       enable = true;
       port = cfg.port;
@@ -106,12 +112,6 @@ in
           static_configs = [{ targets = [ "127.0.0.1:${toString alertmanagerPort}" ]; }];
         }
       ];
-
-      exporters.node = {
-        enable = true;
-        enabledCollectors = [ "systemd" ];
-        # Listens on 127.0.0.1:9100 by default
-      };
 
       # Blackbox exporter: probes HTTPS endpoints for cert expiry and HTTP reachability.
       # Binds to loopback only — no firewall change needed.
@@ -178,7 +178,7 @@ in
         {
           job_name = "node";
           static_configs = [{
-            targets = [ "localhost:${toString config.services.prometheus.exporters.node.port}" ];
+            targets = [ "localhost:${toString config.my.services.nodeExporter.port}" ];
           }];
         }
         # Multi-target blackbox pattern: Prometheus rewrites __address__ to __param_target

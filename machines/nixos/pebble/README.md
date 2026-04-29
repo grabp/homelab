@@ -37,7 +37,7 @@ Primary service host for the homelab. Runs all core services (Pi-hole, Caddy, Gr
 - **ARC cap:** 4GB (via `zfs.zfs_arc_max` kernel param)
 
 ## Secrets
-- **Secrets file:** `secrets/secrets.yaml` (sops-encrypted)
+- **Secrets file:** `secrets/pebble.yaml` (sops-encrypted)
 - **Age keys:** admin + pebble host key
 - **Hostkey path:** `/etc/ssh/ssh_host_ed25519_key`
 - **Sops format:** YAML
@@ -48,8 +48,49 @@ just deploy pebble
 ```
 Uses IP-based deploy via deploy-rs (Pattern 18). Target IP read from `vars.nix`.
 
-## One-Time Post-Provision Steps
-After initial provisioning and deploy, run the NetBird login command once to join the mesh VPN:
+## Provisioning (First Time)
+
+### Prerequisites
+1. Physical machine connected to LAN
+2. Verify disk device: `lsblk -d -o NAME,SIZE,MODEL,TRAN` — expected `/dev/nvme0n1`
+3. Static IP `192.168.10.50` reserved on the router
+4. Boot mode: **UEFI** (HP ProDesk supports UEFI — systemd-boot is used)
+
+### Step 1: Generate SSH host key
+```bash
+just gen-pebble-hostkey
+```
+Prints the age public key needed for `.sops.yaml`.
+
+### Step 2: Add pebble to `.sops.yaml`
+```yaml
+keys:
+  - &pebble age1...   # paste age key from step 1
+```
+Add `- *pebble` to the `secrets/pebble.yaml` creation rule.
+
+### Step 3: Create secrets and rekey
+```bash
+just edit-secrets-pebble   # add all pebble secrets
+just rekey
+```
+
+### Step 4: Verify the build
+```bash
+nix build .#nixosConfigurations.pebble.config.system.build.toplevel
+```
+
+### Step 5: Provision via nixos-anywhere
+```bash
+just provision-pebble 192.168.10.50
+```
+nixos-anywhere kexecs a NixOS installer, runs disko (destroys disk, creates ZFS pool), installs NixOS, uploads the pre-generated host key.
+
+> **If kexec causes a power-off** (can happen on HP bare metal): boot a NixOS minimal ISO from USB instead, then re-run `just provision-pebble 192.168.10.50`. nixos-anywhere detects the live environment and skips kexec.
+>
+> **If disko fails with "bogus FAT filesystem"**: re-run — this is a one-time partition table rescan race condition. Second run succeeds.
+
+### Step 6: Join NetBird mesh
 ```bash
 sudo netbird-wt0 up \
   --management-url https://netbird.grab-lab.gg \

@@ -1,12 +1,12 @@
 # AGENTS.md
 
 ## Project
-NixOS homelab. One flake managing **two machines**: homelab server + VPS control plane. Target: nixos-25.11.
+NixOS homelab. One flake managing **three machines**: homelab server + media server + VPS control plane. Target: nixos-25.11.
 
 **Machines:**
 - `pebble` — HP ProDesk (homelab server, deployed, behind CGNAT)
-- `vps` — Hetzner CX22 (NetBird control plane, public IP, Stage 6a)
-- `boulder` — HP EliteDesk (future, different purposes)
+- `boulder` — HP EliteDesk (media/productivity server, deployed, behind CGNAT)
+- `vps` — Hetzner CX22 (NetBird control plane, public IP)
 
 ## Current State
 Read PROGRESS.md first. It tracks what's done and what's next.
@@ -66,10 +66,19 @@ To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter
 - `just build` — build without switching
 - `just switch` — build and switch locally
 - `just deploy pebble` — remote deploy pebble via deploy-rs
+- `just deploy boulder` — remote deploy boulder via deploy-rs
 - `just deploy-vps` — remote deploy VPS via deploy-rs
-- `just provision-vps IP` — initial VPS provisioning via nixos-anywhere
+- `just ssh-pebble` — SSH to pebble
+- `just ssh-boulder` — SSH to boulder
 - `just ssh-vps` — SSH to VPS
+- `just provision-pebble IP` — initial pebble provisioning via nixos-anywhere
+- `just provision-boulder IP` — initial boulder provisioning via nixos-anywhere
+- `just provision-vps IP` — initial VPS provisioning via nixos-anywhere
+- `just gen-pebble-hostkey` — generate pebble SSH host key (for sops age derivation)
+- `just gen-boulder-hostkey` — generate boulder SSH host key
+- `just gen-vps-hostkey` — generate VPS SSH host key
 - `just netbird-status` — show NetBird connection status on pebble
 - `just check` — flake check
-- `just edit-secrets` — edit homelab secrets (secrets/secrets.yaml)
+- `just edit-secrets-pebble` — edit pebble secrets (secrets/pebble.yaml)
+- `just edit-secrets-boulder` — edit boulder secrets (secrets/boulder.yaml)
 - `just edit-secrets-vps` — edit VPS secrets (secrets/vps.yaml)

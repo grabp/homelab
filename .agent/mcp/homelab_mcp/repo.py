@@ -28,7 +28,8 @@ def get_machine_ip(machine: str) -> Optional[str]:
 
     # Map machine names to var names in vars.nix
     var_map = {
-        "pebble": "serverIP",
+        "pebble": "pebbleIP",
+        "boulder": "boulderIP",
         "vps": "vpsIP",
     }
 

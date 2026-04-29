@@ -23,7 +23,7 @@ Co-located in this module: **Alertmanager** (port 9093) and **Blackbox exporter*
 | 9090 | TCP | localhost | Prometheus HTTP API (proxied by Caddy → `prometheus.grab-lab.gg`) |
 | 9093 | TCP | localhost | Alertmanager HTTP API |
 | 9115 | TCP | localhost | Blackbox exporter |
-| 9100 | TCP | localhost | Node exporter (auto-assigned by module) |
+| 9100 | TCP | localhost | Node exporter — managed by `my.services.nodeExporter` (`openFirewall = false`) |
 
 ## Secrets
 

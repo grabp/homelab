@@ -7,7 +7,7 @@
 
   # Secrets management via sops-nix
   sops = {
-    defaultSopsFile = ../../../secrets/secrets.yaml;
+    defaultSopsFile = ../../../secrets/pebble.yaml;
     defaultSopsFormat = "yaml";
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
   };
@@ -37,7 +37,7 @@
   # Static IP networking
   my.networking.staticIPv4 = {
     enable = true;
-    address = vars.serverIP;
+    address = vars.pebbleIP;
     prefixLength = 24;
     gateway = "192.168.10.1";
     # Pi-hole primary; 1.1.1.1 fallback for pebble's own lookups
@@ -50,9 +50,11 @@
 
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
-  # Loki: allow VPS Alloy to push logs over NetBird mesh only.
-  # wt0 is the NetBird WireGuard interface; port 3100 stays closed on eth0 (LAN).
+  # Loki: accept log pushes from two sources.
+  # wt0 (NetBird): VPS Alloy pushes over the mesh (not on LAN).
+  # eth0 (LAN): boulder Alloy pushes directly — no NetBird hop needed.
   networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ];
+  networking.firewall.interfaces."eth0".allowedTCPPorts = [ 3100 ];
 
   # DNS: Pi-hole owns port 53, but systemd-resolved runs for NetBird DNS routing
   # (Pattern 15: DNSStubListener=no frees port 53 while keeping resolved daemon)
@@ -85,6 +87,13 @@
   my.services.matterServer.enable = true; # Stage 9b
   my.services.backup.enable = true; # Stage 10
   my.services.docsSite.enable = true; # Stage 11
+
+  # Prometheus: scrape boulder's node_exporter over LAN (Stage 11)
+  # job_name must differ from "node" (used by pebble's own exporter in homelab/prometheus/default.nix)
+  services.prometheus.scrapeConfigs = [{
+    job_name = "node_boulder";
+    static_configs = [{ targets = [ "${vars.boulderIP}:9100" ]; }];
+  }];
 
   system.stateVersion = "25.11";
 }

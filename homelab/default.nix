@@ -2,16 +2,18 @@
 # Each service uses mkEnableOption — disabled by default, opt-in per machine.
 #
 # Services are imported here as stages progress:
-#   Stage 3: pihole
-#   Stage 4: caddy
-#   Stage 5: vaultwarden
-#   Stage 6: prometheus, grafana, loki
+#   Stage 3:  pihole
+#   Stage 4:  caddy
+#   Stage 5:  vaultwarden
+#   Stage 6:  prometheus, grafana, loki
 #   Stage 7b: netbird
 #   Stage 7c: kanidm
-#   Stage 8: homepage
+#   Stage 8:  homepage
 #   Stage 9a: mosquitto, home-assistant (+ ESPHome), uptime-kuma
 #   Stage 9b: wyoming, matter-server
 #   Stage 10: backup
+#   Stage 10b: pocket-id
+#   Stage 11: docs-site, alloy, node-exporter
 { ... }:
 {
   imports = [
@@ -32,5 +34,8 @@
     ./matter-server # Stage 9b — Matter Server OCI container
     ./backup # Stage 10 — Sanoid + Syncoid + Restic
     ./docs-site # Stage 11 — MkDocs documentation portal
+    ./alloy # Stage 11 — Grafana Alloy log shipper (opt-in per machine)
+    ./node-exporter # Stage 11 — Prometheus node_exporter for remote scraping (opt-in per machine)
+    ./pocket-id # Stage 10b — Pocket ID passkey OIDC provider
   ];
 }

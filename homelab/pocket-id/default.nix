@@ -1,4 +1,4 @@
-# machines/nixos/vps/pocket-id.nix — Pocket ID passkey-only OIDC provider
+# homelab/pocket-id/default.nix — Pocket ID passkey-only OIDC provider
 #
 # Minimal IdP supporting WebAuthn/FIDO2 passkeys. Replaces the embedded Dex
 # IdP that ships with NetBird management. Runs alongside the NetBird stack on

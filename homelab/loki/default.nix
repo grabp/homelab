@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.my.services.loki;
@@ -86,9 +91,9 @@ in
         auth_enabled = false;
         server = {
           http_listen_port = cfg.port;
-          # 0.0.0.0: required so VPS Alloy can push over the NetBird wt0 interface.
-          # Port 3100 is blocked on eth0 (LAN) via the firewall — only wt0 is opened.
-          # See: networking.firewall.interfaces."wt0".allowedTCPPorts in pebble/default.nix
+          # 0.0.0.0: Alloy pushers arrive on two interfaces.
+          # VPS pushes over NetBird (wt0); boulder pushes over LAN (eth0).
+          # Both interfaces open port 3100 — see pebble/default.nix firewall rules.
           http_listen_address = "0.0.0.0";
         };
 
@@ -101,16 +106,18 @@ in
           path_prefix = "/var/lib/loki";
         };
 
-        schema_config.configs = [{
-          from = "2024-01-01";
-          store = "tsdb";          # boltdb-shipper is deprecated; tsdb is the modern default
-          object_store = "filesystem";
-          schema = "v13";
-          index = {
-            prefix = "index_";
-            period = "24h";
-          };
-        }];
+        schema_config.configs = [
+          {
+            from = "2024-01-01";
+            store = "tsdb"; # boltdb-shipper is deprecated; tsdb is the modern default
+            object_store = "filesystem";
+            schema = "v13";
+            index = {
+              prefix = "index_";
+              period = "24h";
+            };
+          }
+        ];
 
         storage_config.filesystem.directory = "/var/lib/loki/chunks";
 
@@ -123,7 +130,7 @@ in
         compactor = {
           working_directory = "/var/lib/loki/compactor";
           retention_enabled = true;
-          delete_request_store = "filesystem";  # required when retention_enabled = true
+          delete_request_store = "filesystem"; # required when retention_enabled = true
         };
 
         # Ruler: evaluates LogQL alert rules and sends to Alertmanager.
@@ -145,47 +152,20 @@ in
     };
 
     systemd.tmpfiles.rules = [
-      # Alloy state directory (WAL, positions).
-      "d /var/lib/alloy      0750 alloy alloy -"
       # Loki ruler temp dir — writable scratch space for compiled rule evaluation.
       "d /var/lib/loki/rules-temp 0750 loki  loki  -"
     ];
 
-    # Alloy ships systemd-journal logs to Loki (replaces EOL Promtail, 2026-03-02).
-    # Uses River/Alloy syntax (.alloy files), not YAML.
-    services.alloy = {
+    networking.firewall.allowedTCPPorts = [
+      # Open port 3100 so boulder is able to push logs
+      3100
+    ];
+
+    # Ship this machine's systemd journal to the local Loki instance via the shared alloy module.
+    my.services.alloy = {
       enable = true;
-      configPath = "/etc/alloy/config.alloy";
+      hostLabel = config.networking.hostName;
+      lokiUrl = "http://localhost:${toString cfg.port}/loki/api/v1/push";
     };
-
-    environment.etc."alloy/config.alloy".text = ''
-      loki.source.journal "journal" {
-        max_age       = "12h"
-        relabel_rules = loki.relabel.labels.rules
-        forward_to    = [loki.write.local.receiver]
-      }
-
-      loki.relabel "labels" {
-        forward_to = []
-        rule {
-          source_labels = ["__journal__systemd_unit"]
-          target_label  = "unit"
-        }
-        rule {
-          replacement  = "pebble"
-          target_label = "host"
-        }
-        rule {
-          replacement  = "systemd-journal"
-          target_label = "job"
-        }
-      }
-
-      loki.write "local" {
-        endpoint {
-          url = "http://localhost:${toString cfg.port}/loki/api/v1/push"
-        }
-      }
-    '';
   };
 }

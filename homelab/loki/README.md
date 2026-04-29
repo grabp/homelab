@@ -14,13 +14,15 @@ exposes them to Grafana via the Loki datasource. Includes a Loki ruler with
 security alert rules (SSH brute-force, root login, sudo failures) forwarded to
 Alertmanager.
 
-Co-located in this module: **Alloy** log shipper (replaces EOL Promtail).
+Enabling this module automatically enables `my.services.alloy` for local log
+shipping (pebble → localhost). Remote machines (vps, boulder) enable
+`my.services.alloy` independently — see `homelab/alloy/`.
 
 ## Ports
 
 | Port | Protocol | Exposed | Purpose |
 |------|----------|---------|---------|
-| 3100 | TCP | 0.0.0.0 | Loki HTTP API (push + query); also reachable over NetBird for VPS log shipping |
+| 3100 | TCP | 0.0.0.0 | Loki HTTP API (push + query); firewall opens on `wt0` (VPS over NetBird) and `eth0` (boulder over LAN) |
 
 ## Secrets
 
@@ -45,15 +47,14 @@ Not applicable.
 - `compactor.delete_request_store = "filesystem"` is **required** when
   `retention_enabled = true` — Loki rejects the config otherwise.
 - `boltdb-shipper` is deprecated; this module uses `tsdb` (schema v13).
-- `http_listen_address = "0.0.0.0"` is intentional — allows VPS log shipping
-  over the NetBird mesh (firewall restricts to `wt0` interface).
-- Alloy uses River/Alloy syntax (`.alloy` files), not YAML. Config written to
-  `/etc/alloy/config.alloy` via `environment.etc`.
-- Promtail is EOL as of 2026-03-02 — do not add new Promtail instances.
+- `http_listen_address = "0.0.0.0"` is intentional — Alloy on both VPS (NetBird
+  `wt0`) and boulder (LAN `eth0`) push to pebble. Firewall opens port 3100 on
+  both interfaces; see `pebble/default.nix`.
 
 ## Backup / restore
 
 State: `/var/lib/loki/` — chunk data, index, compactor working dir.
-Retention: 30 days (configured via `limits_config.retention_period`).
+Retention: 30 days (`limits_config.retention_period`).
 Included in restic via `/var/lib` path. On restore, Loki rebuilds its index
-from retained chunks automatically.
+from retained chunks automatically. Alloy WAL state is in `/var/lib/alloy/`
+(see `homelab/alloy/README.md`).

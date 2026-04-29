@@ -42,12 +42,47 @@ just deploy-vps
 ```
 Uses IP-based deploy via deploy-rs (Pattern 18). Target IP read from `vars.nix`.
 
-## Initial Provisioning
-First-time setup via nixos-anywhere:
+## Provisioning (First Time)
+
+### Prerequisites
+1. Create Hetzner CX22 VM — note the assigned public IP
+2. Create Cloudflare DNS A record: `netbird.grab-lab.gg → <IP>` (DNS only, no proxy)
+3. Create Cloudflare DNS A record: `pocket-id.grab-lab.gg → <IP>` (DNS only, no proxy)
+4. Boot mode: **SeaBIOS (BIOS, not UEFI)** — disko uses EF02 + GRUB, not EFI + systemd-boot
+5. Disk device: `/dev/sda` (Hetzner CX22 virtual disk)
+
+### Step 1: Generate SSH host key
+```bash
+just gen-vps-hostkey
+```
+Prints the age public key needed for `.sops.yaml`.
+
+### Step 2: Add VPS to `.sops.yaml`
+```yaml
+keys:
+  - &vps age1...   # paste age key from step 1
+```
+Add `- *vps` to the `secrets/vps.yaml` creation rule.
+
+### Step 3: Create VPS secrets
+```bash
+just edit-secrets-vps   # add netbird/turn_password and netbird/encryption_key
+```
+
+### Step 4: Verify the build
+```bash
+nix build .#nixosConfigurations.vps.config.system.build.toplevel
+```
+
+### Step 5: Provision via nixos-anywhere
 ```bash
 just provision-vps <IP>
 ```
-Runs once to install NixOS on a fresh Hetzner VM. Subsequent changes use `just deploy-vps`.
+nixos-anywhere kexecs a NixOS installer kernel into the running Hetzner VM, runs disko (formats `/dev/sda`), installs NixOS, and uploads the pre-generated host key.
+
+> **Kexec is reliable on Hetzner VMs** — unlike bare-metal HP hardware, Hetzner's QEMU/KVM environment handles kexec cleanly. No ISO boot needed.
+
+Subsequent changes use `just deploy-vps`.
 
 ## One-Time Post-Provision Steps
 

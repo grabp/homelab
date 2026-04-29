@@ -36,6 +36,49 @@ provision-vps ip:
       --extra-files /tmp/vps-hostkey \
       root@{{ ip }}
 
+# Pre-generate pebble SSH host key (for reprovisioning from scratch).
+# Workflow:
+#   1. just gen-pebble-hostkey     — generates key, prints age key
+#   2. Edit .sops.yaml             — add `- &pebble age1...`, add `- *pebble` to pebble.yaml rule
+#   3. just edit-secrets-pebble    — create secrets/pebble.yaml
+#   4. nix build .#nixosConfigurations.pebble.config.system.build.toplevel
+#   5. just provision-pebble <IP>  — install NixOS with pre-generated host key
+gen-pebble-hostkey:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p /tmp/pebble-hostkey/etc/ssh
+    if [ ! -f /tmp/pebble-hostkey/etc/ssh/ssh_host_ed25519_key ]; then
+      ssh-keygen -t ed25519 -N "" -f /tmp/pebble-hostkey/etc/ssh/ssh_host_ed25519_key -C "pebble-hostkey"
+      echo "SSH host key generated."
+    else
+      echo "SSH host key already exists at /tmp/pebble-hostkey/etc/ssh/ssh_host_ed25519_key"
+    fi
+    echo ""
+    echo "Pebble SSH host public key:"
+    cat /tmp/pebble-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "Pebble age key (add to .sops.yaml under keys):"
+    nix shell nixpkgs#ssh-to-age -c ssh-to-age < /tmp/pebble-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "Next steps:"
+    echo "  1. Add '- &pebble age1...' to .sops.yaml keys section"
+    echo "  2. Add '- *pebble' to the pebble.yaml creation rule"
+    echo "  3. just edit-secrets-pebble"
+    echo "  4. nix build .#nixosConfigurations.pebble.config.system.build.toplevel"
+    echo "  5. just provision-pebble <IP>"
+
+# Initial pebble provisioning via nixos-anywhere (run once on fresh machine).
+# Prereqs: run `just gen-pebble-hostkey` first, update .sops.yaml,
+#          create secrets/pebble.yaml, verify build, then run this.
+# If kexec causes a power-off (HP bare metal), boot a NixOS ISO first and re-run.
+# If disko fails with "bogus FAT filesystem", re-run — it's a partition rescan race.
+# Usage: just provision-pebble 192.168.10.50
+provision-pebble ip:
+    nix run github:nix-community/nixos-anywhere -- \
+      --flake .#pebble \
+      --extra-files /tmp/pebble-hostkey \
+      root@{{ ip }}
+
 # Pre-generate VPS SSH host key to solve the sops chicken-and-egg problem.
 # The VPS age key (derived from SSH host key) must be in .sops.yaml before
 # secrets/vps.yaml can be encrypted for the VPS.
@@ -71,8 +114,58 @@ gen-vps-hostkey:
     echo "  4. just build"
     echo "  5. just provision-vps <VPS_IP>"
 
+ssh-pebble:
+    ssh admin@192.168.10.50
+
 ssh-vps:
     ssh admin@204.168.181.110
+
+ssh-boulder:
+    ssh admin@192.168.10.51
+
+# Pre-generate boulder SSH host key to solve the sops chicken-and-egg problem.
+# The boulder age key (derived from SSH host key) must be in .sops.yaml before
+# secrets/boulder.yaml can be created for boulder.
+#
+# Workflow:
+#   1. just gen-boulder-hostkey    — generates key, prints age key
+#   2. Edit .sops.yaml             — add `- &boulder age1...` and the boulder.yaml creation rule
+#   3. just edit-secrets-boulder   — create secrets/boulder.yaml with netbird/setup_key
+#   4. nix build .#nixosConfigurations.boulder.config.system.build.toplevel
+#   5. just provision-boulder <IP> — install NixOS with pre-generated host key
+gen-boulder-hostkey:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p /tmp/boulder-hostkey/etc/ssh
+    if [ ! -f /tmp/boulder-hostkey/etc/ssh/ssh_host_ed25519_key ]; then
+      ssh-keygen -t ed25519 -N "" -f /tmp/boulder-hostkey/etc/ssh/ssh_host_ed25519_key -C "boulder-hostkey"
+      echo "SSH host key generated."
+    else
+      echo "SSH host key already exists at /tmp/boulder-hostkey/etc/ssh/ssh_host_ed25519_key"
+    fi
+    echo ""
+    echo "Boulder SSH host public key:"
+    cat /tmp/boulder-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "Boulder age key (add to .sops.yaml under keys):"
+    nix shell nixpkgs#ssh-to-age -c ssh-to-age < /tmp/boulder-hostkey/etc/ssh/ssh_host_ed25519_key.pub
+    echo ""
+    echo "Next steps:"
+    echo "  1. Add '- &boulder age1...' to .sops.yaml keys section"
+    echo "  2. Add boulder.yaml creation rule in .sops.yaml (see vps.yaml rule as template)"
+    echo "  3. just edit-secrets-boulder  # create secrets/boulder.yaml with netbird/setup_key"
+    echo "  4. nix build .#nixosConfigurations.boulder.config.system.build.toplevel"
+    echo "  5. just provision-boulder <IP>"
+
+# Initial boulder provisioning via nixos-anywhere (run once on fresh machine)
+# Prereqs: run `just gen-boulder-hostkey` first, add age key to .sops.yaml,
+#          run `just rekey`, verify build, then run this.
+# Usage: just provision-boulder 192.168.10.51
+provision-boulder ip:
+    nix run github:nix-community/nixos-anywhere -- \
+      --flake .#boulder \
+      --extra-files /tmp/boulder-hostkey \
+      root@{{ ip }}
 
 # ── Flake Management ──────────────────────────
 update:
@@ -88,11 +181,14 @@ show:
     nix flake show
 
 # ── Secrets ───────────────────────────────────
-edit-secrets:
-    sops secrets/secrets.yaml
+edit-secrets-pebble:
+    sops secrets/pebble.yaml
 
 edit-secrets-vps:
     sops secrets/vps.yaml
+
+edit-secrets-boulder:
+    sops secrets/boulder.yaml
 
 rekey:
     find secrets -name '*.yaml' -exec sops updatekeys {} \;
@@ -124,17 +220,19 @@ repl:
     nix repl -f flake:nixpkgs
 
 # ── Installation helpers ───────────────────────
-# Run on target machine during installation
-# 1. Boot NixOS ISO
-# 2. Identify disk: lsblk -d -o NAME,SIZE,MODEL
-# 3. Update disko.nix device path
-
-# 4. Run: just disko-install /dev/sdX
-disko-install disk:
+# Manual disko run — use when bootstrapping from a NixOS ISO directly on the target.
+# nixos-anywhere (provision-*) handles this automatically; only use this for manual installs.
+#
+# Workflow on target machine:
+#   1. Boot NixOS minimal ISO
+#   2. git clone the repo (or scp disko.nix)
+#   3. Verify disk device: lsblk -d -o NAME,SIZE,MODEL,TRAN
+#   4. Update machines/nixos/<host>/disko.nix device path if needed
+#   5. Run: just disko-format <host>
+disko-format host:
     sudo nix run github:nix-community/disko/latest -- \
       --mode destroy,format,mount \
-      ./machines/nixos/pebble/disko.nix \
-      --arg diskoFile ./machines/nixos/pebble/disko.nix
+      ./machines/nixos/{{ host }}/disko.nix
 
 # Generate hostId for networking.hostId in pebble/default.nix
 gen-hostid:

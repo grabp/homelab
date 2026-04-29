@@ -13,10 +13,10 @@ tags: [monitoring, grafana, loki, prometheus, alertmanager]
 - **Prometheus** (`:9090`) — Metrics collection, 30d retention. Exporters: node (systemd, system metrics), blackbox (TLS cert probing)
 - **Grafana** (`:3000`) — Dashboards: `https://grafana.grab-lab.gg`. Datasources: Prometheus (default), Loki
 - **Loki** (`:3100`) — Log aggregation, 30d retention, wt0 interface only (NetBird mesh). Ruler evaluates LogQL alerts
-- **Alloy** — Journald shipper (replaced EOL Promtail). pebble → localhost, VPS → pebble over NetBird
+- **Alloy** — Journald shipper (replaced EOL Promtail). pebble → localhost, VPS → pebble over NetBird (wt0), boulder → pebble over LAN (eth0)
 - **Alertmanager** (`:9093`) — Routes alerts to Telegram (grouped by alertname, severity)
 
-All services bind to loopback except Loki (`0.0.0.0`, firewalled to wt0).
+All services bind to loopback except Loki (`0.0.0.0`, firewalled to `wt0` and `eth0`).
 
 **Setup details:** See [docs/roadmap/stage-06-monitoring.md](../roadmap/stage-06-monitoring.md)
 
@@ -54,6 +54,9 @@ Via Grafana → Explore → Loki datasource.
 # All logs from VPS
 {host="vps"}
 
+# All logs from boulder
+{host="boulder"}
+
 # SSH auth failures
 {unit="sshd.service"} |= "Failed"
 
@@ -86,7 +89,7 @@ Prometheus and Loki → Alertmanager → Telegram bot.
 
 **Setup credentials:**
 ```bash
-just edit-secrets
+just edit-secrets-pebble
 # Add:
 # alertmanager/telegram_env: |
 #   TELEGRAM_BOT_TOKEN=<from @BotFather>
@@ -175,6 +178,8 @@ Monitor TLS cert expiry for new endpoints.
 
 **VPS logs not reaching Loki:** On VPS: `systemctl status alloy`, `ping 100.102.154.38`, `curl http://100.102.154.38:3100/ready`. On pebble: `sudo iptables -L -n -v | grep 3100` (should show ACCEPT on wt0).
 
+**Boulder logs not reaching Loki:** On boulder: `systemctl status alloy`, `curl http://192.168.10.50:3100/ready`. On pebble: check ACCEPT on eth0 (`sudo iptables -L -n -v | grep 3100`). If `/etc/alloy/config.alloy` is a regular file instead of a symlink, delete it and redeploy.
+
 **Alertmanager not sending:** `systemctl show prometheus-alertmanager | grep Environment`. Test Telegram: `curl -X POST "https://api.telegram.org/bot<token>/sendMessage" -d "chat_id=<id>" -d "text=Test"`.
 
 **Alerts not firing:** `curl localhost:9090/api/v1/rules | jq` (Prometheus), `curl localhost:3100/loki/api/v1/rules | jq` (Loki ruler).
@@ -188,5 +193,7 @@ Monitor TLS cert expiry for new endpoints.
 - homelab/prometheus/default.nix — Prometheus config, alert rules, Telegram routing
 - homelab/grafana/default.nix — Grafana OIDC config
 - homelab/loki/default.nix — Loki config, LogQL alert rules
+- homelab/alloy/README.md — Alloy log shipper, per-machine transport, gotchas
+- homelab/node-exporter/README.md — node_exporter for remote scraping (boulder)
 - Prometheus docs — https://prometheus.io/docs/prometheus/latest/querying/basics/
 - LogQL docs — https://grafana.com/docs/loki/latest/query/

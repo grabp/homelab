@@ -21,7 +21,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # FTLCONF_webserver_api_password=<password> — add to secrets/secrets.yaml
+    # FTLCONF_webserver_api_password=<password> — add to secrets/pebble.yaml
     sops.secrets."pihole/env" = { };
 
     # Persistent ZFS-backed directories for Pi-hole state and dnsmasq extras
@@ -47,7 +47,7 @@ in
         echo "address=/pocket-id.${vars.domain}/${vars.vpsIP}"
 
         # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
-        echo "address=/${vars.domain}/${vars.serverIP}"
+        echo "address=/${vars.domain}/${vars.pebbleIP}"
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
       # Reload Pi-hole's DNS engine to pick up the new config.
       # Silently ignored if the container isn't running yet (e.g. first boot).

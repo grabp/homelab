@@ -17,7 +17,8 @@ tags: [navigation, structure]
 
 **Secret files:** `secrets/*.yaml` encrypted with sops-nix. Each file is encrypted to specific age keys (derived from SSH host keys + admin workstation key).
 
-- `secrets/secrets.yaml` — homelab secrets (pebble + boulder age keys can decrypt)
+- `secrets/pebble.yaml` — pebble secrets (pebble age key can decrypt)
+- `secrets/boulder.yaml` — boulder secrets (boulder age key can decrypt)
 - `secrets/vps.yaml` — VPS secrets (vps age key can decrypt)
 
 **Key management:** `.sops.yaml` defines which hosts can decrypt which files. After adding a new host: run `ssh-keyscan <IP> | ssh-to-age` to get its age key, add it to `.sops.yaml` under `&<hostname>`, add `*<hostname>` to the relevant `creation_rules`, then run `just rekey`.

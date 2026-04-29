@@ -1,11 +1,12 @@
 keys:
   - &admin age1pvhdtd73kzap707an0g8fqpr3jqjjfh6x6dez4gw4hza7helffcsym6sgm
   - &pebble age1967s7ux5z32ak6yn2gzs0pghs7gm7qe4smrgyhge0xa3l2xgzuhsszwrfn
+  - &boulder age16dpukz85f8uqeyyyyqzff42wqghjgrpyumy3d0j5anqj05qq6ess8gvsya
   - &vps age1vkupqmrupls5qam4fwxcfa955zzmec3ft9klrcmuyyj4tzj48ddqssh75u
   - &admin-gpg 6C4D33083EDEF83D043C897BD4ADECA93F52036C
 
 creation_rules:
-  - path_regex: secrets/secrets\.yaml$
+  - path_regex: secrets/pebble\.yaml$
     key_groups:
       - age:
           - *admin
@@ -13,9 +14,14 @@ creation_rules:
         pgp:
           - *admin-gpg
 
-  # VPS host key is active (see &vps above and *vps in creation rules below).
-  # To add a new host: just gen-<host>-hostkey, add &<host> to keys,
-  # add *<host> to relevant creation_rules, then run: just rekey
+  - path_regex: secrets/boulder\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *boulder
+        pgp:
+          - *admin-gpg
+
   - path_regex: secrets/vps\.yaml$
     key_groups:
       - age:

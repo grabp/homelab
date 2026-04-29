@@ -26,11 +26,11 @@ This directory contains the detailed implementation notes for each stage of the 
 | 10 | Hardening, Backups, VPS Log Shipping | ✅ COMPLETE | [stage-10-hardening-backups.md](stage-10-hardening-backups.md) |
 | 10b | Pocket ID — NetBird Passkey IdP | ✅ COMPLETE | [stage-10b-pocket-id.md](stage-10b-pocket-id.md) |
 
-## Phase 2: Boulder (Second Machine) — NOT STARTED
+## Phase 2: Boulder (Second Machine) — IN PROGRESS
 
 | Stage | Name | Status | Link |
 |-------|------|--------|------|
-| 11 | Base System — Boulder Hardware | NOT STARTED | [stage-11-boulder-base.md](stage-11-boulder-base.md) |
+| 11 | Base System — Boulder Hardware | ✅ COMPLETE | [stage-11-boulder-base.md](stage-11-boulder-base.md) |
 | 12 | PostgreSQL Shared Instance | NOT STARTED | [stage-12-postgresql.md](stage-12-postgresql.md) |
 | 13 | Paperless-ngx + Stirling-PDF | NOT STARTED | [stage-13-paperless.md](stage-13-paperless.md) |
 | 14 | Immich Photo Management | NOT STARTED | [stage-14-immich.md](stage-14-immich.md) |

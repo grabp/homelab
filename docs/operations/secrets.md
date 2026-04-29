@@ -11,7 +11,8 @@ Secrets encrypted with sops-nix using age. Each host decrypts at boot via SSH ho
 
 **Files:**
 - `.sops.yaml` — age keys + creation rules
-- `secrets/secrets.yaml` — pebble secrets (encrypted)
+- `secrets/pebble.yaml` — pebble secrets (encrypted)
+- `secrets/boulder.yaml` — boulder secrets (encrypted)
 - `secrets/vps.yaml` — VPS secrets (encrypted)
 - `/run/secrets/<name>` — decrypted on target (tmpfs, ephemeral)
 
@@ -23,7 +24,7 @@ Secrets encrypted with sops-nix using age. Each host decrypts at boot via SSH ho
 
 ```bash
 # 1. Edit secrets file
-just edit-secrets        # pebble
+just edit-secrets-pebble # pebble
 just edit-secrets-vps    # VPS
 
 # 2. Add in YAML format (plaintext password or key=value env file)
@@ -49,7 +50,7 @@ Decrypted to `/run/secrets/<name>` on target. Reference via `config.sops.secrets
 ## Rotating a Secret
 
 ```bash
-just edit-secrets
+just edit-secrets-pebble
 # Update value, save, exit
 
 just deploy pebble
@@ -75,9 +76,9 @@ nix shell nixpkgs#ssh-to-age -c sh -c \
 # keys:
 #   - &boulder age1xxxxx...
 # creation_rules:
-#   - path_regex: secrets/secrets\.yaml$
+#   - path_regex: secrets/pebble\.yaml$
 #     key_groups:
-#       - age: [*admin, *pebble, *boulder]
+#       - age: [*admin, *pebble]
 
 # 4. Rekey all secrets
 just rekey
@@ -110,7 +111,7 @@ nix shell nixpkgs#ssh-to-age -c sh -c \
 # 3. Save to ~/.config/sops/age/keys.txt
 
 # 4. Verify
-sops secrets/secrets.yaml
+sops secrets/pebble.yaml
 ```
 
 ---
@@ -145,7 +146,7 @@ sops.secrets."kanidm/grafana_client_secret" = {
 For systemd `EnvironmentFile` (KEY=VALUE format):
 
 ```yaml
-# secrets/secrets.yaml
+# secrets/pebble.yaml
 pihole/env: |
   WEBPASSWORD=admin123
   FTLCONF_REPLY_ADDR4=192.168.10.50

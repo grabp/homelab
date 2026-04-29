@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: Phase 2 — Stage 11 (boulder base system)
+## Current Stage: Phase 2 — Stage 12 (PostgreSQL shared instance)
 ## Status: NOT STARTED
 
 ---
@@ -28,7 +28,16 @@
 
 ## Phase 2: Machine 2 (boulder)
 
-See [docs/roadmap/](docs/roadmap/) for Stages 11-18.
+| Stage | Description | Status | Details |
+|-------|-------------|--------|---------|
+| 11 | Boulder Base System | ✅ COMPLETE | [docs/roadmap/stage-11-boulder-base.md](docs/roadmap/stage-11-boulder-base.md) |
+| 12 | PostgreSQL Shared Instance | ⬜ NOT STARTED | [docs/roadmap/stage-12-postgresql.md](docs/roadmap/stage-12-postgresql.md) |
+| 13 | Paperless-ngx + Stirling-PDF | ⬜ NOT STARTED | [docs/roadmap/stage-13-paperless.md](docs/roadmap/stage-13-paperless.md) |
+| 14 | Immich | ⬜ NOT STARTED | [docs/roadmap/stage-14-immich.md](docs/roadmap/stage-14-immich.md) |
+| 15 | Jellyfin | ⬜ NOT STARTED | [docs/roadmap/stage-15-jellyfin.md](docs/roadmap/stage-15-jellyfin.md) |
+| 16 | Productivity (Outline, Vikunja, Karakeep, Actual) | ⬜ NOT STARTED | [docs/roadmap/stage-16-productivity.md](docs/roadmap/stage-16-productivity.md) |
+| 17 | Windows VM | ⬜ NOT STARTED | [docs/roadmap/stage-17-windows-vm.md](docs/roadmap/stage-17-windows-vm.md) |
+| 18 | Whisper Migration | ⬜ NOT STARTED | [docs/roadmap/stage-18-whisper-migration.md](docs/roadmap/stage-18-whisper-migration.md) |
 
 ---
 
@@ -38,15 +47,25 @@ See [docs/roadmap/](docs/roadmap/) for Stages 11-18.
 # Deploy pebble (homelab server)
 just deploy pebble
 
+# Deploy boulder (media/productivity server)
+just deploy boulder
+
 # Deploy VPS
 just deploy-vps
+
+# Provision boulder (first time only)
+just gen-boulder-hostkey   # generate host key, print age key
+# → edit .sops.yaml, then:
+just rekey
+just provision-boulder 192.168.10.51
 
 # Check NetBird status
 just netbird-status
 
 # Edit secrets
-just edit-secrets        # homelab secrets
-just edit-secrets-vps    # VPS secrets
+just edit-secrets-pebble  # pebble secrets
+just edit-secrets-boulder # boulder secrets
+just edit-secrets-vps     # VPS secrets
 ```
 
 ---
