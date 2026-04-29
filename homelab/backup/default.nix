@@ -6,7 +6,15 @@ let
   mountPoint = "/mnt/nas/backup";
 in
 {
-  options.my.services.backup.enable = lib.mkEnableOption "Sanoid snapshots + Restic NFS backup";
+  options.my.services.backup = {
+    enable = lib.mkEnableOption "Sanoid snapshots + Restic NFS backup";
+
+    paths = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "/var/lib" "/var/backup" ];
+      description = "Paths for restic to include in the daily backup.";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
 
@@ -52,7 +60,7 @@ in
     };
 
     # ── Restic: homelab daily backups → NAS (NFS) ────────────────────────────
-    # Backs up all service state (/var/lib) and Vaultwarden SQLite dumps (/var/backup/vaultwarden).
+    # Backs up paths declared per-machine via my.services.backup.paths.
     # Repository: local path on the NFS mount — simplest restic backend, no auth needed.
     # Pre-deploy: just edit-secrets → add: restic/password: "your-strong-password"
     sops.secrets."restic/password" = { };
@@ -60,11 +68,8 @@ in
     services.restic.backups.homelab = {
       initialize = true; # create repo on first run if it doesn't exist
       passwordFile = config.sops.secrets."restic/password".path;
-      repository = "${mountPoint}/restic/homelab";
-      paths = [
-        "/var/lib"
-        "/var/backup/vaultwarden"
-      ];
+      repository = "${mountPoint}/restic/${config.networking.hostName}";
+      paths = cfg.paths;
       timerConfig = {
         OnCalendar = "daily";
         Persistent = true; # run immediately if last scheduled run was missed

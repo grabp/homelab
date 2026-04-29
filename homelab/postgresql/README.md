@@ -56,11 +56,25 @@ declare a sops secret and set it via a post-start script or `initialScript`.
 
 ## Backup / restore
 
-Data lives in `/var/lib/postgresql/`. Include this path in the boulder restic
-job (Stage 10 backup module) once it is enabled on boulder.
+`services.postgresqlBackup` runs `pg_dump` per-database via a daily systemd
+timer. Compressed dumps are written to `/var/backup/postgresql/`:
 
-For a consistent dump-based backup, add a pre-backup script:
+| File | Contents |
+|------|----------|
+| `outline.sql.zst` | Outline database dump |
+| `vikunja.sql.zst` | Vikunja database dump |
+| `paperless.sql.zst` | Paperless-ngx database dump |
+
+Files are owned by `postgres`, mode `0600` (umask 0077).
+
+**Future:** The `homelab/backup` module backs up `/var/backup` (covers all
+service dumps). When boulder enables that module (future backup stage), postgresql
+dumps will be included automatically — no path change needed.
+
+### Restore a database
 
 ```bash
-sudo -u postgres pg_dumpall > /var/backup/postgresql/dump.sql
+# Decompress and restore a single database
+zstd -d /var/backup/postgresql/outline.sql.zst -o /tmp/outline.sql
+sudo -u postgres psql outline < /tmp/outline.sql
 ```

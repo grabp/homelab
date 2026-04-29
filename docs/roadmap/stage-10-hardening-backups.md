@@ -29,7 +29,8 @@ COMPLETE (implemented 2026-04-19)
 - **Sanoid**: hourly 24, daily 7, weekly 4, monthly 3 snapshots for `zroot/var` and `zroot/home`.
 - **NAS**: Synology at `192.168.10.100`, shared folder `zfs-backups` on volume1, NFSv4. NFS squash: "No mapping" (admin account disabled on Synology; root on pebble writes as root on NAS — safe on trusted LAN). Mount point on pebble: `/mnt/nas/backup`.
 - **Syncoid dropped**: Synology has no ZFS — syncoid (ZFS-to-ZFS) replaced by NFS mount + restic local path.
-- **Restic secret**: add `restic/password: <password>` to `secrets/secrets.yaml` via `just edit-secrets`.
+- **Restic secret**: add `restic/password: <password>` to each machine's secrets file via `just edit-secrets-pebble` / `just edit-secrets-boulder`.
+- **Restic repo path**: derived from `networking.hostName` — `/mnt/nas/backup/restic/<hostname>`. Each machine gets its own isolated repo. NAS NFS permissions must allow each machine's IP separately.
 - **Fail2ban**: `services.fail2ban` in `_common/security.nix` applies to all machines (pebble + VPS). maxretry=5 global, maxretry=3 for sshd jail, bantime=10m.
 - **deploy-rs**: was already complete from earlier stages. `just deploy pebble` and `just deploy-vps` both functional.
 - **NetBird ACLs**: manual step in NetBird Dashboard — delete default "All→All" policy, add group-scoped policies. Not declaratively codified (dashboard-only).

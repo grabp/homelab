@@ -38,5 +38,18 @@ in
         }
       ];
     };
+
+    # Daily logical dumps — boulder restic job will pick up this path
+    services.postgresqlBackup = {
+      enable = true;
+      databases = [
+        "outline"
+        "vikunja"
+        "paperless"
+      ];
+      compression = "zstd";
+      location = "/var/backup/postgresql";
+      startAt = "daily";
+    };
   };
 }

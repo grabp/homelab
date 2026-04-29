@@ -1,7 +1,7 @@
 ---
 service: backup
 stage: 10a
-machine: pebble
+machine: pebble, boulder
 status: deployed
 ---
 
@@ -14,7 +14,7 @@ Two-layer backup strategy:
 1. **Sanoid** — ZFS snapshot management (hourly/daily/monthly snapshots of
    `zroot/var` and `zroot/home`)
 2. **Restic** — encrypted off-machine backup to a Synology NAS over NFS
-   (`/mnt/nas/backup/restic/homelab`)
+   (`/mnt/nas/backup/restic/<hostname>` — one repo per machine)
 
 ## Ports
 
@@ -53,8 +53,11 @@ Datasets: `zroot/var`, `zroot/home`.
 ## Restic backup schedule
 
 - **Frequency:** daily (systemd timer, persistent)
-- **Paths:** `/var/lib`, `/var/backup/vaultwarden`
+- **Paths:** configurable via `my.services.backup.paths` (default: `/var/lib`, `/var/backup`)
 - **Pruning:** keep 7 daily, 5 weekly, 12 monthly
+
+The `/var/backup` default covers all service dumps (Vaultwarden SQLite, PostgreSQL
+logical dumps) without per-service path configuration.
 
 ## Known gotchas
 
@@ -69,12 +72,20 @@ Datasets: `zroot/var`, `zroot/home`.
 
 ## Backup / restore
 
-To restore from restic:
-```bash
-restic -r /mnt/nas/backup/restic/homelab restore latest --target /
-```
+Repository path is `/mnt/nas/backup/restic/<hostname>` (e.g. `restic/pebble`,
+`restic/boulder`). The `restic-homelab` wrapper on each machine pre-sets the
+password file.
+
 To list snapshots:
 ```bash
-restic -r /mnt/nas/backup/restic/homelab snapshots
+sudo restic-homelab -r /mnt/nas/backup/restic/pebble snapshots
+```
+To restore from restic:
+```bash
+sudo restic-homelab -r /mnt/nas/backup/restic/pebble restore latest --target /
 ```
 Password file is at `/run/secrets/restic/password` on a running system.
+
+### NAS NFS permissions
+Each machine's IP must be allowed in Synology DSM → Shared Folder →
+`zfs-backups` → NFS Permissions. Add a rule per machine (squash: No mapping).

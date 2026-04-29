@@ -90,10 +90,12 @@
 
   # Prometheus: scrape boulder's node_exporter over LAN (Stage 11)
   # job_name must differ from "node" (used by pebble's own exporter in homelab/prometheus/default.nix)
-  services.prometheus.scrapeConfigs = [{
-    job_name = "node_boulder";
-    static_configs = [{ targets = [ "${vars.boulderIP}:9100" ]; }];
-  }];
+  services.prometheus.scrapeConfigs = [
+    {
+      job_name = "node_boulder";
+      static_configs = [ { targets = [ "${vars.boulderIP}:9100" ]; } ];
+    }
+  ];
 
   system.stateVersion = "25.11";
 }

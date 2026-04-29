@@ -69,6 +69,7 @@
     lokiUrl = "https://${vars.pebbleIP}:3100/loki/api/v1/push"; # LAN — no NetBird hop needed
     insecureSkipVerify = true;
   }; # Stage 11
+  my.services.backup.enable = true;
 
   system.stateVersion = "25.11";
 }
