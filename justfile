@@ -248,6 +248,12 @@ docs-serve:
 docs-build:
     nix build .#docs-site && echo "BUILD OK"
 
+# ── Agent Setup ────────────────────────────────
+
+# Create .claude/skills symlink so Claude Code discovers project skills
+link-skills:
+    ln -sfn ../.agent/skills .claude/skills
+
 # ── MCP Server ─────────────────────────────────
 
 # Setup MCP server venv, install dependencies, and create configs for Claude Code and OpenCode

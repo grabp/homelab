@@ -47,7 +47,7 @@ An MCP (Model Context Protocol) server provides tools for efficient repository i
 
 ## Skills
 
-Agent skills live in `.agent/skills/<name>/SKILL.md`. The `.claude/skills` directory symlinks to `.agent/skills` so Claude Code discovers them automatically.
+Agent skills live in `.agent/skills/<name>/SKILL.md`. The `.claude/skills` directory symlinks to `../.agent/skills` (relative to `.claude/`) so Claude Code discovers them automatically.
 
 Available skills (invoke with `/<name>`):
 - `implement-plan` — work through one PLAN.md item end-to-end
