@@ -20,7 +20,8 @@
       "Bash(hatch run pytest:*)",
       "mcp__homelab__list_services",
       "WebFetch(domain:grafana.com)",
-      "WebFetch(domain:docs.paperless-ngx.com)"
+      "WebFetch(domain:docs.paperless-ngx.com)",
+      "Skill(oci-digest)"
     ]
   },
   "enabledMcpjsonServers": [

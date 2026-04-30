@@ -16,6 +16,13 @@ in
     services.postgresql = {
       enable = true;
 
+      # paperless OCI container connects via mounted Unix socket.
+      # trust auth bypasses peer UID check — paperless-ngx container runs as UID 1000,
+      # not the host 'paperless' user (UID 315). Placed before the default peer catch-all.
+      authentication = lib.mkAfter ''
+        local paperless paperless trust
+      '';
+
       # Databases for boulder services (Stages 13, 14, 16)
       ensureDatabases = [
         "outline"
