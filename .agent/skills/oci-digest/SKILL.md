@@ -2,7 +2,6 @@
 name: oci-digest
 description: Get the sha256 digest for an OCI container image tag (linux/amd64). Use when pinning a container image to a digest in a NixOS module, or when verifying an image reference before deploying.
 argument-hint: <registry/image:tag>
-disable-model-invocation: true
 allowed-tools: Bash(nix run nixpkgs#skopeo *)
 user-invocable: true
 ---

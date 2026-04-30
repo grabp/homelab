@@ -60,6 +60,8 @@
   };
 
   my.services.postgresql.enable = true; # Stage 12
+  my.services.paperless.enable = true; # Stage 13
+  my.services.stirlingPdf.enable = true; # Stage 13
 
   my.services.netbird.enable = true; # Stage 11
   my.services.nodeExporter.enable = true; # Stage 11

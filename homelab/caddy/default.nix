@@ -121,6 +121,16 @@ in
             reverse_proxy localhost:${toString config.my.services.docsSite.port}
           }
 
+          @paperless host paperless.${vars.domain}
+          handle @paperless {
+            reverse_proxy ${vars.boulderIP}:${toString config.my.services.paperless.port}
+          }
+
+          @pdf host pdf.${vars.domain}
+          handle @pdf {
+            reverse_proxy ${vars.boulderIP}:${toString config.my.services.stirlingPdf.port}
+          }
+
           handle {
             respond "Service not found" 404
           }

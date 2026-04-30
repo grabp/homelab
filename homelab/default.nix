@@ -15,6 +15,7 @@
 #   Stage 10b: pocket-id
 #   Stage 11: docs-site, alloy, node-exporter
 #   Stage 12: postgresql
+#   Stage 13: paperless, stirling-pdf
 { ... }:
 {
   imports = [
@@ -39,5 +40,7 @@
     ./node-exporter # Stage 11 — Prometheus node_exporter for remote scraping (opt-in per machine)
     ./pocket-id # Stage 10b — Pocket ID passkey OIDC provider
     ./postgresql # Stage 12 — Shared PostgreSQL instance (outline, vikunja, paperless)
+    ./paperless # Stage 13 — Paperless-ngx document management
+    ./stirling-pdf # Stage 13 — Stirling-PDF PDF toolkit
   ];
 }

@@ -3,7 +3,7 @@ name: implement-plan
 description: Use this skill when the user says "implement stage XX", "work on stage XX", "do the next stage", or "continue the roadmap". Reads docs/roadmap/stage-XX-*.md, works through exactly one stage end-to-end, verifies, and updates PROGRESS.md status.
 model: inherit
 tools: Read, Write, Edit, Bash, Glob, Grep
-argument-hint: [stage number, e.g., "11" or "stage-11"]
+argument-hint: <stage-number> ["11", "stage-11"]
 disable-model-invocation: false
 user-invocable: true
 ---
