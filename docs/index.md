@@ -48,4 +48,5 @@ Each service has its own README co-located with its module in `homelab/<service>
 - caddy, pihole, grafana, loki, prometheus
 - vaultwarden, kanidm, homepage, uptime-kuma
 - home-assistant, mosquitto, wyoming, matter-server, netbird
+- paperless, stirling-pdf, pocket-id
 - backup

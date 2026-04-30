@@ -19,7 +19,8 @@
       "WebFetch(domain:deepwiki.com)",
       "Bash(hatch run pytest:*)",
       "mcp__homelab__list_services",
-      "WebFetch(domain:grafana.com)"
+      "WebFetch(domain:grafana.com)",
+      "WebFetch(domain:docs.paperless-ngx.com)"
     ]
   },
   "enabledMcpjsonServers": [

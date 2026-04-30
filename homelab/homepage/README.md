@@ -16,6 +16,18 @@ authenticated requests to Homepage.
 
 Architecture: Caddy → oauth2-proxy (4180) → Homepage (3010).
 
+## Service Groups
+
+| Group | Services |
+|-------|----------|
+| Infrastructure | Pi-hole, Caddy |
+| Security | Vaultwarden, Kanidm |
+| Monitoring | Grafana, Prometheus, Uptime Kuma |
+| Home Automation | Home Assistant, ESPHome |
+| Documents | Paperless, Stirling-PDF |
+| Networking | NetBird |
+| Identity | Pocket ID |
+
 ## Ports
 
 | Port | Protocol | Exposed | Purpose |

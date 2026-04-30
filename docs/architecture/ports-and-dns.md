@@ -48,7 +48,7 @@ tags: [ports, dns, reference]
 | 3478 | UDP | Coturn STUN | NAT traversal |
 | 49152-65535 | UDP | Coturn TURN | Relay media range |
 
-### Future: boulder (media server) — 192.168.10.51
+### boulder (media/productivity server) — 192.168.10.51
 
 | Port | Protocol | Service | Notes |
 |------|----------|---------|-------|
@@ -95,6 +95,8 @@ address=/pocket-id.grab-lab.gg/204.168.181.110
 | `esphome.grab-lab.gg` | pebble:6052 | ESPHome | `reverse_proxy localhost:6052` |
 | `netbird.grab-lab.gg` | vps:443 | NetBird Dashboard | Direct (not proxied through pebble) |
 | `pocket-id.grab-lab.gg` | vps:443 | Pocket ID | Caddy on VPS |
+| `paperless.grab-lab.gg` | boulder:8010 | Paperless-ngx | `reverse_proxy ${vars.boulderIP}:8010` |
+| `pdf.grab-lab.gg` | boulder:8080 | Stirling-PDF | `reverse_proxy ${vars.boulderIP}:8080` |
 
 ### Public DNS (Cloudflare)
 

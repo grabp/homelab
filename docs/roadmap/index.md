@@ -31,8 +31,8 @@ This directory contains the detailed implementation notes for each stage of the 
 | Stage | Name | Status | Link |
 |-------|------|--------|------|
 | 11 | Base System — Boulder Hardware | ✅ COMPLETE | [stage-11-boulder-base.md](stage-11-boulder-base.md) |
-| 12 | PostgreSQL Shared Instance | NOT STARTED | [stage-12-postgresql.md](stage-12-postgresql.md) |
-| 13 | Paperless-ngx + Stirling-PDF | NOT STARTED | [stage-13-paperless.md](stage-13-paperless.md) |
+| 12 | PostgreSQL Shared Instance | ✅ COMPLETE | [stage-12-postgresql.md](stage-12-postgresql.md) |
+| 13 | Paperless-ngx + Stirling-PDF | ✅ COMPLETE | [stage-13-paperless.md](stage-13-paperless.md) |
 | 14 | Immich Photo Management | NOT STARTED | [stage-14-immich.md](stage-14-immich.md) |
 | 15 | Jellyfin Media Server | NOT STARTED | [stage-15-jellyfin.md](stage-15-jellyfin.md) |
 | 16 | Productivity Apps | NOT STARTED | [stage-16-productivity.md](stage-16-productivity.md) |

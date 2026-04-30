@@ -122,12 +122,41 @@ in
           ];
         }
         {
+          "Documents" = [
+            {
+              "Paperless" = {
+                href        = "https://paperless.${vars.domain}";
+                description = "Document management (OCR)";
+                icon        = "paperless.svg";
+              };
+            }
+            {
+              "Stirling-PDF" = {
+                href        = "https://pdf.${vars.domain}";
+                description = "PDF toolkit";
+                icon        = "stirling-pdf.svg";
+              };
+            }
+          ];
+        }
+        {
           "Networking" = [
             {
               "NetBird" = {
                 href        = "https://netbird.${vars.domain}";
                 description = "VPN control plane (VPS)";
                 icon        = "netbird.svg";
+              };
+            }
+          ];
+        }
+        {
+          "Identity" = [
+            {
+              "Pocket ID" = {
+                href        = "https://pocket-id.${vars.domain}";
+                description = "Passkey IdP (VPS)";
+                icon        = "pocket-id.svg";
               };
             }
           ];

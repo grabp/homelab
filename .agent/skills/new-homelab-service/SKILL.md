@@ -57,6 +57,17 @@ Add `./<name>` to the `imports` list, preserving alphabetical order.
 ### 6. Enable on the host
 In `machines/nixos/pebble/default.nix` (or vps/), set `homelab.<name>.enable = true;` and set `domain` and `port` if overriding defaults.
 
+## Post-deployment: Update Homepage
+If the new service has a web UI, add it to the Homepage dashboard:
+
+1. Read `homelab/homepage/default.nix` — identify the appropriate service group
+   (e.g., "Infrastructure", "Security", "Monitoring", "Documents", etc.)
+2. Add a service entry to the `services.homepage-dashboard.services` list with:
+   - `href`: the public URL (e.g., `https://<name>.${vars.domain}`)
+   - `description`: brief purpose (1-3 words)
+   - `icon`: `<name>.svg` (or appropriate icon name)
+3. Update `homelab/homepage/README.md` to reflect the new service group membership
+
 ## OIDC client path (when --oidc is set)
 Additionally:
 - Add a Kanidm OAuth2 RP block (see patterns/12 or homelab/kanidm/default.nix): `kanidm.provision.systems.oauth2.<name> = { displayName; originUrl; scopeMaps; basicSecretFile = config.sops.secrets."kanidm-oauth2-<name>".path; };`

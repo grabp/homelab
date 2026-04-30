@@ -1,6 +1,6 @@
 # Implementation Progress
 
-## Current Stage: Phase 2 — Stage 13 (Paperless-ngx + Stirling-PDF)
+## Current Stage: Phase 2 — Stage 14 (Immich)
 ## Status: NOT STARTED
 
 ---
@@ -32,7 +32,7 @@
 |-------|-------------|--------|---------|
 | 11 | Boulder Base System | ✅ COMPLETE | [docs/roadmap/stage-11-boulder-base.md](docs/roadmap/stage-11-boulder-base.md) |
 | 12 | PostgreSQL Shared Instance | ✅ COMPLETE | [docs/roadmap/stage-12-postgresql.md](docs/roadmap/stage-12-postgresql.md) |
-| 13 | Paperless-ngx + Stirling-PDF | ⬜ NOT STARTED | [docs/roadmap/stage-13-paperless.md](docs/roadmap/stage-13-paperless.md) |
+| 13 | Paperless-ngx + Stirling-PDF | ✅ COMPLETE | [docs/roadmap/stage-13-paperless.md](docs/roadmap/stage-13-paperless.md) |
 | 14 | Immich | ⬜ NOT STARTED | [docs/roadmap/stage-14-immich.md](docs/roadmap/stage-14-immich.md) |
 | 15 | Jellyfin | ⬜ NOT STARTED | [docs/roadmap/stage-15-jellyfin.md](docs/roadmap/stage-15-jellyfin.md) |
 | 16 | Productivity (Outline, Vikunja, Karakeep, Actual) | ⬜ NOT STARTED | [docs/roadmap/stage-16-productivity.md](docs/roadmap/stage-16-productivity.md) |
