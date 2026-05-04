@@ -12,9 +12,9 @@ MCP_DIR="$REPO_ROOT/.agent/mcp"
 
 cd "$MCP_DIR"
 
-# Use venv if it exists, otherwise fall back to system Python
-if [ -f "$MCP_DIR/venv/bin/python" ]; then
-    PYTHON="$MCP_DIR/venv/bin/python"
+# Use .venv if it exists, otherwise fall back to system Python
+if [ -f "$MCP_DIR/.venv/bin/python" ]; then
+    PYTHON="$MCP_DIR/.venv/bin/python"
 else
     PYTHON="python3"
 fi

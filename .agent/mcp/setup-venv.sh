@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Setup local venv for MCP server runtime
-# MCP requires a stable Python path, but hatch uses centralized venvs with hash-based paths
-# This script creates a local venv that .mcp.json can reference reliably
+# MCP requires a stable Python path; this script creates a local .venv that .mcp.json can reference reliably
 # Also configures opencode.json with the MCP server settings
 
 set -e
@@ -11,14 +10,13 @@ MCP_DIR="$(pwd)"
 REPO_ROOT="$(cd "$MCP_DIR/../.." && pwd)"
 
 echo "Creating local venv for MCP server..."
-python3 -m venv venv
+uv venv .venv
 
 echo "Installing package in development mode..."
-venv/bin/pip install -q --upgrade pip
-venv/bin/pip install -q -e ".[dev]"
+uv pip install --python .venv/bin/python -q -e ".[dev]"
 
 echo "Running tests to verify installation..."
-venv/bin/pytest -q
+.venv/bin/pytest -q
 
 echo ""
 echo "Configuring MCP integration..."
@@ -48,7 +46,7 @@ if [ -f "$OPENCONFIG_JSON" ]; then
         echo "✓ opencode.json already has MCP config (OpenCode)"
     else
         echo "  Adding MCP config to opencode.json..."
-        venv/bin/python3 << PYEOF
+        .venv/bin/python3 << PYEOF
 import json
 
 with open('$OPENCONFIG_JSON', 'r') as f:
@@ -102,6 +100,6 @@ echo "  - OpenCode: opencode.json configured"
 echo ""
 echo "Restart your editor/IDE to connect."
 echo ""
-echo "For development, use hatch commands:"
-echo "  - hatch run pytest       # Run tests"
-echo "  - hatch run pytest --cov # Run tests with coverage"
+echo "For development, use uv commands:"
+echo "  - uv run pytest       # Run tests"
+echo "  - uv run pytest --cov # Run tests with coverage"

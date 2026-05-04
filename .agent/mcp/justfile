@@ -1,32 +1,31 @@
 # MCP server development tasks
 
-# Install package in development mode (creates venv automatically)
+# Install package in development mode
 install:
-    hatch env create
+    uv sync --dev
 
 # Run tests
 test:
-    hatch run pytest -v
+    uv run pytest -v
 
 # Run tests quietly
 test-q:
-    hatch run pytest -q
+    uv run pytest -q
 
 # Run tests with coverage
 test-cov:
-    hatch run pytest --cov=homelab_mcp --cov-report=term-missing
+    uv run pytest --cov=homelab_mcp --cov-report=term-missing
 
 # Run the MCP server (for manual testing)
 run:
-    hatch run python -m homelab_mcp.server
+    uv run python -m homelab_mcp.server
 
 # Clean build artifacts and venv
 clean:
-    hatch clean
-    rm -rf build/ dist/ *.egg-info venv/
+    rm -rf build/ dist/ *.egg-info .venv/
     find . -type d -name __pycache__ -exec rm -rf {} +
     find . -type f -name "*.pyc" -delete
 
-# Show environment info
+# Show dependency tree
 env:
-    hatch env show
+    uv tree

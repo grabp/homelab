@@ -1,9 +1,11 @@
-{ ... }:
+{ pkgs, ... }:
 {
   # Kernel hardening — applies to all machines (pebble + VPS + future boulder).
   # Note: net.ipv4.ip_forward is intentionally NOT set here — pebble's NetBird
   # routing peer requires it enabled, and the netbird module sets it via
   # services.netbird.useRoutingFeatures = "both".
+  boot.kernelPackages = pkgs.linuxPackages_6_18;
+
   security.protectKernelImage = true;
 
   boot.kernel.sysctl = {
