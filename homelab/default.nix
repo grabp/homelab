@@ -42,5 +42,6 @@
     ./postgresql # Stage 12 — Shared PostgreSQL instance (outline, vikunja, paperless)
     ./paperless # Stage 13 — Paperless-ngx document management
     ./stirling-pdf # Stage 13 — Stirling-PDF PDF toolkit
+    ./code-server # Extra — VS Code in the browser (HA config editor)
   ];
 }

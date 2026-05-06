@@ -119,6 +119,13 @@ in
                 icon        = "esphome.svg";
               };
             }
+            {
+              "code-server" = {
+                href        = "https://code.${vars.domain}";
+                description = "VS Code (HA config editor)";
+                icon        = "code-server.svg";
+              };
+            }
           ];
         }
         {

@@ -116,6 +116,11 @@ in
             reverse_proxy localhost:${toString config.my.services.homeAssistant.esphome.port}
           }
 
+          @code host code.${vars.domain}
+          handle @code {
+            reverse_proxy localhost:${toString config.my.services.codeServer.port}
+          }
+
           @docs host docs.${vars.domain}
           handle @docs {
             reverse_proxy localhost:${toString config.my.services.docsSite.port}

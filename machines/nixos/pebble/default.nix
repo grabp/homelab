@@ -87,6 +87,10 @@
   my.services.matterServer.enable = true; # Stage 9b
   my.services.backup.enable = true; # Stage 10
   my.services.docsSite.enable = true; # Stage 11
+  my.services.codeServer = {
+    enable = true;
+    workspacePath = "/var/lib/homeassistant"; # default, but explicit
+  };
 
   # Prometheus: scrape boulder's node_exporter over LAN (Stage 11)
   # job_name must differ from "node" (used by pebble's own exporter in homelab/prometheus/default.nix)
