@@ -27,7 +27,10 @@
           };
           zfs = {
             size = "100%";
-            content = { type = "zfs"; pool = "zroot"; };
+            content = {
+              type = "zfs";
+              pool = "zroot";
+            };
           };
         };
       };
@@ -35,12 +38,12 @@
 
     zpool.zroot = {
       type = "zpool";
-      options.ashift = "12";  # 4K sector alignment for SSDs
+      options.ashift = "12"; # 4K sector alignment for SSDs
       rootFsOptions = {
         compression = "lz4";
         mountpoint = "none";
         xattr = "sa";
-        acltype = "posixacl";  # Required for Podman rootless
+        acltype = "posixacl"; # Required for Podman rootless
         "com.sun:auto-snapshot" = "false";
       };
       # Create blank snapshot for ephemeral root rollback

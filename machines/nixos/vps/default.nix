@@ -1,8 +1,9 @@
-{ lib, vars, ... }: {
+{ lib, vars, ... }:
+{
   imports = [
     ./disko.nix
     ./netbird-server.nix
-    ./netbird-client.nix   # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
+    ./netbird-client.nix # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
     ./caddy.nix
     ../../../modules/podman
   ];
@@ -42,9 +43,22 @@
   # Caddy: ACME HTTP-01 challenge + NetBird dashboard/API
   # coturn: STUN/TURN (3478/5349) + relay range (49152-65535)
   # NOTE: services.coturn does NOT open firewall ports automatically.
-  networking.firewall.allowedTCPPorts = [ 80 443 3478 5349 ];
-  networking.firewall.allowedUDPPorts = [ 3478 5349 ];
-  networking.firewall.allowedUDPPortRanges = [{ from = 49152; to = 65535; }];
+  networking.firewall.allowedTCPPorts = [
+    80
+    443
+    3478
+    5349
+  ];
+  networking.firewall.allowedUDPPorts = [
+    3478
+    5349
+  ];
+  networking.firewall.allowedUDPPortRanges = [
+    {
+      from = 49152;
+      to = 65535;
+    }
+  ];
 
   # ACME: Caddy obtains TLS certs via Let's Encrypt HTTP-01 challenge.
   # No Cloudflare DNS plugin needed — VPS has a public IP.

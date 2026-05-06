@@ -102,10 +102,14 @@ in
         # Redirect URI matches oauth2-proxy's default /oauth2/callback path.
         systems.oauth2."homepage" = {
           displayName = "Homepage";
-          originUrl    = "https://home.${vars.domain}/oauth2/callback";
+          originUrl = "https://home.${vars.domain}/oauth2/callback";
           originLanding = "https://home.${vars.domain}";
           basicSecretFile = config.sops.secrets."kanidm/homepage_client_secret".path;
-          scopeMaps."homelab_users" = [ "openid" "profile" "email" ];
+          scopeMaps."homelab_users" = [
+            "openid"
+            "profile"
+            "email"
+          ];
         };
 
         # --- Grafana OAuth2 client -------------------------------------------
@@ -146,7 +150,7 @@ in
     sops.secrets."kanidm/grafana_client_secret" = {
       owner = "kanidm";
       group = "grafana";
-      mode  = "0440";
+      mode = "0440";
     };
 
     # Homepage client secret — kanidm provisioning reads it to set the OAuth2

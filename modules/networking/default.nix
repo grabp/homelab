@@ -33,7 +33,10 @@ in
 
     nameservers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [ "1.1.1.1" "8.8.8.8" ];
+      default = [
+        "1.1.1.1"
+        "8.8.8.8"
+      ];
       description = "DNS nameservers. After Stage 3 (Pi-hole), set to [ \"127.0.0.1\" ]";
     };
   };

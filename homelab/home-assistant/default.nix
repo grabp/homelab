@@ -28,7 +28,13 @@
 #   5. (Stage 9b) ESPHome: Settings → Devices & Services → ESPHome
 #      → Add Integration → host 127.0.0.1, port 6052
 #   6. (Stage 9b) Voice assistants: create pipeline using Wyoming endpoints.
-{ config, lib, pkgs, vars, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.homeAssistant;
@@ -38,19 +44,19 @@ in
     enable = lib.mkEnableOption "Home Assistant (Podman OCI container)";
 
     port = lib.mkOption {
-      type    = lib.types.port;
+      type = lib.types.port;
       default = 8123;
       description = "Home Assistant web UI port (host network)";
     };
 
     image = lib.mkOption {
-      type    = lib.types.str;
+      type = lib.types.str;
       default = "ghcr.io/home-assistant/home-assistant:2026.4.3@sha256:ae0800c81fea16bc1241ce03bddb9c6260566e90f58b09d3e5a629e4f68bdc0b";
       description = "OCI image tag — pin to a specific release for reproducibility, e.g. 2026.4.3";
     };
 
     configDir = lib.mkOption {
-      type    = lib.types.str;
+      type = lib.types.str;
       default = "/var/lib/homeassistant";
       description = "Host path for persistent HA configuration";
     };
@@ -59,8 +65,8 @@ in
     # Must match the port assigned in HA Settings → Devices & Services → HomeKit Bridge.
     # Open one port per bridge instance; second bridge gets 21065, etc.
     homekitPorts = lib.mkOption {
-      type    = lib.types.listOf lib.types.port;
-      default = [];
+      type = lib.types.listOf lib.types.port;
+      default = [ ];
       description = "TCP ports for HomeKit bridge(s) to open in the firewall";
     };
 
@@ -70,19 +76,19 @@ in
       enable = lib.mkEnableOption "ESPHome dashboard (Podman OCI container, co-located with HA)";
 
       port = lib.mkOption {
-        type    = lib.types.port;
+        type = lib.types.port;
         default = 6052;
         description = "ESPHome dashboard port (host network)";
       };
 
       image = lib.mkOption {
-        type    = lib.types.str;
+        type = lib.types.str;
         default = "ghcr.io/esphome/esphome:2026.3.1@sha256:cb9875ef7b63ecefea0e599c97981bea22e4d8ee5c822b03fbf22ccebcbbb49c";
         description = "OCI image tag — pin to a specific release for reproducibility";
       };
 
       configDir = lib.mkOption {
-        type    = lib.types.str;
+        type = lib.types.str;
         default = "/var/lib/esphome";
         description = "Host path for persistent ESPHome device configurations";
       };
@@ -104,34 +110,34 @@ in
       # Note: after a backup restore, restart the container for HA to pick up the change:
       #   podman restart homeassistant
       system.activationScripts.ha-init-config = lib.stringAfter [ "var" ] ''
-        mkdir -p ${cfg.configDir}/custom_components
+                mkdir -p ${cfg.configDir}/custom_components
 
-        if [ ! -f ${cfg.configDir}/configuration.yaml ]; then
-          cat > ${cfg.configDir}/configuration.yaml <<'EOF'
-# Home Assistant Configuration
-# https://www.home-assistant.io/docs/configuration/
+                if [ ! -f ${cfg.configDir}/configuration.yaml ]; then
+                  cat > ${cfg.configDir}/configuration.yaml <<'EOF'
+        # Home Assistant Configuration
+        # https://www.home-assistant.io/docs/configuration/
 
-# Trust the Caddy reverse proxy so client IPs are forwarded correctly.
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - ::1
+        # Trust the Caddy reverse proxy so client IPs are forwarded correctly.
+        http:
+          use_x_forwarded_for: true
+          trusted_proxies:
+            - 127.0.0.1
+            - ::1
 
-default_config:
-EOF
-        elif ! grep -q "^http:" ${cfg.configDir}/configuration.yaml; then
-          cat >> ${cfg.configDir}/configuration.yaml <<'EOF'
+        default_config:
+        EOF
+                elif ! grep -q "^http:" ${cfg.configDir}/configuration.yaml; then
+                  cat >> ${cfg.configDir}/configuration.yaml <<'EOF'
 
-# Trust the Caddy reverse proxy so client IPs are forwarded correctly.
-# (injected by NixOS activation script — safe to move/edit)
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - ::1
-EOF
-        fi
+        # Trust the Caddy reverse proxy so client IPs are forwarded correctly.
+        # (injected by NixOS activation script — safe to move/edit)
+        http:
+          use_x_forwarded_for: true
+          trusted_proxies:
+            - 127.0.0.1
+            - ::1
+        EOF
+                fi
       '';
 
       # HACS installation — runs once before the HA container starts.
@@ -139,12 +145,16 @@ EOF
       # Pattern 11: docs/patterns/11-hacs-install.md (Approach A — download latest on first boot)
       systemd.services.hacs-install = {
         description = "Install HACS custom component for Home Assistant";
-        wantedBy    = [ "multi-user.target" ];
-        before      = [ "podman-homeassistant.service" ];
-        requiredBy  = [ "podman-homeassistant.service" ];
-        path        = with pkgs; [ wget unzip coreutils ];
+        wantedBy = [ "multi-user.target" ];
+        before = [ "podman-homeassistant.service" ];
+        requiredBy = [ "podman-homeassistant.service" ];
+        path = with pkgs; [
+          wget
+          unzip
+          coreutils
+        ];
         serviceConfig = {
-          Type            = "oneshot";
+          Type = "oneshot";
           RemainAfterExit = true;
         };
         script = ''
@@ -165,7 +175,7 @@ EOF
       };
 
       virtualisation.oci-containers.containers.homeassistant = {
-        image     = cfg.image;
+        image = cfg.image;
         autoStart = true;
 
         volumes = [
@@ -206,11 +216,11 @@ EOF
       # Use nssmdns4 (not nssmdns) to avoid slow lookups for non-.local domains.
       # ESPHome and Matter Server containers (--network=host) rely on this.
       services.avahi = {
-        enable      = true;
-        nssmdns4    = true;
-        openFirewall = true;   # Opens UDP 5353 for mDNS multicast
+        enable = true;
+        nssmdns4 = true;
+        openFirewall = true; # Opens UDP 5353 for mDNS multicast
         publish = {
-          enable    = true;
+          enable = true;
           addresses = true;
         };
       };
@@ -220,7 +230,7 @@ EOF
     (lib.mkIf (cfg.enable && cfg.esphome.enable) {
 
       virtualisation.oci-containers.containers.esphome = {
-        image     = cfg.esphome.image;
+        image = cfg.esphome.image;
         autoStart = true;
 
         # --network=host: required for mDNS device discovery

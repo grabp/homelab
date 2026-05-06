@@ -1,9 +1,16 @@
-{ ... }: {
+{ ... }:
+{
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
     auto-optimise-store = true;
     # Required for deploy-rs: allow admin to push unsigned store paths
-    trusted-users = [ "root" "admin" ];
+    trusted-users = [
+      "root"
+      "admin"
+    ];
   };
 
   nix.gc = {

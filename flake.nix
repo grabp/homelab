@@ -24,7 +24,15 @@
     };
   };
 
-  outputs = { self, nixpkgs, deploy-rs, disko, sops-nix, ... }@inputs:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      deploy-rs,
+      disko,
+      sops-nix,
+      ...
+    }@inputs:
     let
       helpers = import ./flakeHelpers.nix inputs;
       inherit (helpers) mkMerge mkNixos;
@@ -57,9 +65,7 @@
       ])
 
       {
-        checks = builtins.mapAttrs
-          (system: deployLib: deployLib.deployChecks self.deploy)
-          deploy-rs.lib;
+        checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
       }
 
       {
@@ -86,28 +92,29 @@
           '';
         };
 
-        devShells.x86_64-linux.default =
-          nixpkgs.legacyPackages.x86_64-linux.mkShell {
-            packages = with nixpkgs.legacyPackages.x86_64-linux; [
-              pre-commit
-              gitleaks
-            ];
-            shellHook = "pre-commit install";
-          };
+        formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt-rfc-style;
 
-        devShells.x86_64-linux.mcp =
-          nixpkgs.legacyPackages.x86_64-linux.mkShell {
-            packages = with nixpkgs.legacyPackages.x86_64-linux; [
-              python311
-              python311Packages.pip
-              python311Packages.pytest
-              python311Packages.pytest-asyncio
-            ];
-            shellHook = ''
-              cd .agent/mcp
-              pip install -e ".[dev]" --quiet
-            '';
-          };
+        devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+          packages = with nixpkgs.legacyPackages.x86_64-linux; [
+            pre-commit
+            gitleaks
+            nixfmt-rfc-style
+          ];
+          shellHook = "pre-commit install";
+        };
+
+        devShells.x86_64-linux.mcp = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+          packages = with nixpkgs.legacyPackages.x86_64-linux; [
+            python311
+            python311Packages.pip
+            python311Packages.pytest
+            python311Packages.pytest-asyncio
+          ];
+          shellHook = ''
+            cd .agent/mcp
+            pip install -e ".[dev]" --quiet
+          '';
+        };
       }
     ];
 }

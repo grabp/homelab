@@ -1,4 +1,9 @@
-{ config, lib, vars, ... }:
+{
+  config,
+  lib,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.grafana;
@@ -33,26 +38,26 @@ in
         # Kanidm OIDC — per-client issuer URL pattern (not a global issuer).
         # auto_login = false until OIDC is verified working; flip to true after.
         "auth.generic_oauth" = {
-          enabled             = true;
-          name                = "Kanidm";
-          client_id           = "grafana";
-          client_secret       = "$__file{${config.sops.secrets."kanidm/grafana_client_secret".path}}";
+          enabled = true;
+          name = "Kanidm";
+          client_id = "grafana";
+          client_secret = "$__file{${config.sops.secrets."kanidm/grafana_client_secret".path}}";
           # auth_url is browser-facing — must use the public hostname.
-          auth_url            = "https://id.${vars.domain}/ui/oauth2";
+          auth_url = "https://id.${vars.domain}/ui/oauth2";
           # token_url and api_url are server-side calls from Grafana → Kanidm.
           # Use 127.0.0.1 to bypass DNS (Pi-hole resolves *.grab-lab.gg but the
           # Grafana service may run before Pi-hole or use a different resolver).
           # tls_skip_verify_insecure required because Kanidm uses a self-signed cert.
-          token_url                = "https://127.0.0.1:8443/oauth2/token";
-          api_url                  = "https://127.0.0.1:8443/oauth2/openid/grafana/userinfo";
+          token_url = "https://127.0.0.1:8443/oauth2/token";
+          api_url = "https://127.0.0.1:8443/oauth2/openid/grafana/userinfo";
           tls_skip_verify_insecure = true;
-          scopes              = "openid profile email groups";
+          scopes = "openid profile email groups";
           # Kanidm returns groups as SPNs: "groupname@kanidm-domain"
           # e.g. homelab_admins@id.grab-lab.gg — not bare group names.
           role_attribute_path = "contains(groups[*], 'homelab_admins@id.${vars.domain}') && 'Admin' || 'Viewer'";
-          use_pkce            = true;  # required: Kanidm 1.9 enforces PKCE by default
-          allow_sign_up       = true;
-          auto_login          = false;
+          use_pkce = true; # required: Kanidm 1.9 enforces PKCE by default
+          allow_sign_up = true;
+          auto_login = false;
         };
       };
       provision = {
@@ -85,9 +90,9 @@ in
     # with mode = "0444". sops-nix merges declarations — restartUnits here ensures
     # Grafana restarts when the secret is rotated.
     sops.secrets."kanidm/grafana_client_secret" = {
-      owner        = "kanidm";
-      group        = "grafana";
-      mode         = "0440";
+      owner = "kanidm";
+      group = "grafana";
+      mode = "0440";
       restartUnits = [ "grafana.service" ];
     };
   };

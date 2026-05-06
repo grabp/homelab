@@ -24,7 +24,7 @@ let
   # mkdocs.yml lives at the repo root, docs/ lives at repo root
   docsSite = pkgs.stdenv.mkDerivation {
     name = "homelab-docs-site";
-    src = ../..;  # repo root
+    src = ../..; # repo root
 
     nativeBuildInputs = with pkgs; [
       python311

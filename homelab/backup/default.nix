@@ -1,4 +1,9 @@
-{ config, lib, vars, ... }:
+{
+  config,
+  lib,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.backup;
@@ -11,7 +16,10 @@ in
 
     paths = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = [ "/var/lib" "/var/backup" ];
+      default = [
+        "/var/lib"
+        "/var/backup"
+      ];
       description = "Paths for restic to include in the daily backup.";
     };
   };

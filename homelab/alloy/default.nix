@@ -58,9 +58,9 @@ in
         endpoint {
           url = "${cfg.lokiUrl}"
           ${lib.optionalString cfg.insecureSkipVerify ''
-          tls_config {
-            insecure_skip_verify = true
-          }''}
+            tls_config {
+              insecure_skip_verify = true
+            }''}
         }
       }
     '';

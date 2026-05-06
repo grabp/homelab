@@ -1,4 +1,10 @@
-{ config, lib, pkgs, vars, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.prometheus;
@@ -109,7 +115,7 @@ in
       # Tell Prometheus where Alertmanager lives.
       alertmanagers = [
         {
-          static_configs = [{ targets = [ "127.0.0.1:${toString alertmanagerPort}" ]; }];
+          static_configs = [ { targets = [ "127.0.0.1:${toString alertmanagerPort}" ]; } ];
         }
       ];
 
@@ -177,9 +183,11 @@ in
       scrapeConfigs = [
         {
           job_name = "node";
-          static_configs = [{
-            targets = [ "localhost:${toString config.my.services.nodeExporter.port}" ];
-          }];
+          static_configs = [
+            {
+              targets = [ "localhost:${toString config.my.services.nodeExporter.port}" ];
+            }
+          ];
         }
         # Multi-target blackbox pattern: Prometheus rewrites __address__ to __param_target
         # so each target URL is passed to the exporter as a probe request.
@@ -187,7 +195,7 @@ in
           job_name = "tls_probe";
           metrics_path = "/probe";
           params.module = [ "http_2xx" ];
-          static_configs = [{ targets = httpsTargets; }];
+          static_configs = [ { targets = httpsTargets; } ];
           relabel_configs = [
             {
               source_labels = [ "__address__" ];

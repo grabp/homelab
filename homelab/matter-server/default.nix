@@ -17,7 +17,12 @@
 # HA integration (after deploy):
 #   Settings → Devices & Services → Add Integration → Matter
 #   WebSocket URL: ws://127.0.0.1:5580/ws
-{ config, lib, vars, ... }:
+{
+  config,
+  lib,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.matterServer;
@@ -27,7 +32,7 @@ in
     enable = lib.mkEnableOption "Matter Server (Podman OCI container)";
 
     image = lib.mkOption {
-      type    = lib.types.str;
+      type = lib.types.str;
       default = "ghcr.io/home-assistant-libs/python-matter-server:stable@sha256:170aa093ce91c76cde4cc390918307590f0f5558fcec93f913af3cb019e6562a";
       description = "OCI image tag — pin to a specific version for reproducibility";
     };
@@ -35,7 +40,7 @@ in
 
   config = lib.mkIf cfg.enable {
     virtualisation.oci-containers.containers.matter-server = {
-      image     = cfg.image;
+      image = cfg.image;
       autoStart = true;
 
       # --network=host: Matter IPv6 link-local multicast needs the host network stack.

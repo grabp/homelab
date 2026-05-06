@@ -16,7 +16,7 @@ in
     enable = lib.mkEnableOption "Uptime Kuma service monitor";
 
     port = lib.mkOption {
-      type    = lib.types.port;
+      type = lib.types.port;
       default = 3001;
       description = "Uptime Kuma listen port (localhost only)";
     };
@@ -24,7 +24,7 @@ in
 
   config = lib.mkIf cfg.enable {
     services.uptime-kuma = {
-      enable   = true;
+      enable = true;
       settings = {
         PORT = toString cfg.port;
         HOST = "127.0.0.1";

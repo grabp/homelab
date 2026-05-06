@@ -4,8 +4,8 @@
 { vars, ... }:
 
 let
-  domain    = "netbird.${vars.domain}";
-  pocketId  = "pocket-id.${vars.domain}";
+  domain = "netbird.${vars.domain}";
+  pocketId = "pocket-id.${vars.domain}";
 in
 {
   services.caddy = {

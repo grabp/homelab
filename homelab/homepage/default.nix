@@ -5,7 +5,12 @@
 # URL: https://home.grab-lab.gg
 # Auth: oauth2-proxy (port 4180) in front of Homepage, Kanidm as OIDC backend.
 #       Caddy → oauth2-proxy:4180 → Homepage:3010
-{ config, lib, vars, ... }:
+{
+  config,
+  lib,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.homepage;
@@ -15,13 +20,13 @@ in
     enable = lib.mkEnableOption "Homepage dashboard";
 
     port = lib.mkOption {
-      type    = lib.types.port;
+      type = lib.types.port;
       default = 3010;
       description = "Listen port — remapped from 3000 to avoid Grafana conflict";
     };
 
     oauth2ProxyPort = lib.mkOption {
-      type    = lib.types.port;
+      type = lib.types.port;
       default = 4180;
       description = "oauth2-proxy listen port — Caddy proxies here, oauth2-proxy proxies to Homepage";
     };
@@ -29,17 +34,17 @@ in
 
   config = lib.mkIf cfg.enable {
     services.homepage-dashboard = {
-      enable     = true;
+      enable = true;
       listenPort = cfg.port;
 
       # allowedHosts: required when accessed via a reverse proxy hostname
       allowedHosts = "home.${vars.domain}";
 
       settings = {
-        title       = "Homelab";
+        title = "Homelab";
         headerStyle = "clean";
-        target      = "_blank";
-        color       = "slate";
+        target = "_blank";
+        color = "slate";
       };
 
       services = [
@@ -47,15 +52,15 @@ in
           "Infrastructure" = [
             {
               "Pi-hole" = {
-                href        = "https://pihole.${vars.domain}/admin";
+                href = "https://pihole.${vars.domain}/admin";
                 description = "DNS sinkhole";
-                icon        = "pi-hole.svg";
+                icon = "pi-hole.svg";
               };
             }
             {
               "Caddy" = {
                 description = "Reverse proxy + TLS";
-                icon        = "caddy.svg";
+                icon = "caddy.svg";
               };
             }
           ];
@@ -64,16 +69,16 @@ in
           "Security" = [
             {
               "Vaultwarden" = {
-                href        = "https://vault.${vars.domain}";
+                href = "https://vault.${vars.domain}";
                 description = "Password manager";
-                icon        = "vaultwarden.svg";
+                icon = "vaultwarden.svg";
               };
             }
             {
               "Kanidm" = {
-                href        = "https://id.${vars.domain}";
+                href = "https://id.${vars.domain}";
                 description = "Identity provider (OIDC + LDAP)";
-                icon        = "kanidm.svg";
+                icon = "kanidm.svg";
               };
             }
           ];
@@ -82,23 +87,23 @@ in
           "Monitoring" = [
             {
               "Grafana" = {
-                href        = "https://grafana.${vars.domain}";
+                href = "https://grafana.${vars.domain}";
                 description = "Dashboards";
-                icon        = "grafana.svg";
+                icon = "grafana.svg";
               };
             }
             {
               "Prometheus" = {
-                href        = "https://prometheus.${vars.domain}";
+                href = "https://prometheus.${vars.domain}";
                 description = "Metrics";
-                icon        = "prometheus.svg";
+                icon = "prometheus.svg";
               };
             }
             {
               "Uptime Kuma" = {
-                href        = "https://uptime.${vars.domain}";
+                href = "https://uptime.${vars.domain}";
                 description = "Service monitor";
-                icon        = "uptime-kuma.svg";
+                icon = "uptime-kuma.svg";
               };
             }
           ];
@@ -107,23 +112,23 @@ in
           "Home Automation" = [
             {
               "Home Assistant" = {
-                href        = "https://ha.${vars.domain}";
+                href = "https://ha.${vars.domain}";
                 description = "Home automation";
-                icon        = "home-assistant.svg";
+                icon = "home-assistant.svg";
               };
             }
             {
               "ESPHome" = {
-                href        = "https://esphome.${vars.domain}";
+                href = "https://esphome.${vars.domain}";
                 description = "ESP device dashboard";
-                icon        = "esphome.svg";
+                icon = "esphome.svg";
               };
             }
             {
               "code-server" = {
-                href        = "https://code.${vars.domain}";
+                href = "https://code.${vars.domain}";
                 description = "VS Code (HA config editor)";
-                icon        = "vscode.svg";
+                icon = "vscode.svg";
               };
             }
           ];
@@ -132,16 +137,16 @@ in
           "Documents" = [
             {
               "Paperless" = {
-                href        = "https://paperless.${vars.domain}";
+                href = "https://paperless.${vars.domain}";
                 description = "Document management (OCR)";
-                icon        = "paperless.svg";
+                icon = "paperless.svg";
               };
             }
             {
               "Stirling-PDF" = {
-                href        = "https://pdf.${vars.domain}";
+                href = "https://pdf.${vars.domain}";
                 description = "PDF toolkit";
-                icon        = "stirling-pdf.svg";
+                icon = "stirling-pdf.svg";
               };
             }
           ];
@@ -150,9 +155,9 @@ in
           "Networking" = [
             {
               "NetBird" = {
-                href        = "https://netbird.${vars.domain}";
+                href = "https://netbird.${vars.domain}";
                 description = "VPN control plane (VPS)";
-                icon        = "netbird.svg";
+                icon = "netbird.svg";
               };
             }
           ];
@@ -161,9 +166,9 @@ in
           "Identity" = [
             {
               "Pocket ID" = {
-                href        = "https://pocket-id.${vars.domain}";
+                href = "https://pocket-id.${vars.domain}";
                 description = "Passkey IdP (VPS)";
-                icon        = "pocket-id.svg";
+                icon = "pocket-id.svg";
               };
             }
           ];
@@ -173,9 +178,9 @@ in
       bookmarks = [
         {
           "Admin" = [
-            { "Flake repo"    = [{ href = "https://github.com/grabp/homelab"; }]; }
-            { "Cloudflare"    = [{ href = "https://dash.cloudflare.com"; }]; }
-            { "Hetzner Cloud" = [{ href = "https://console.hetzner.cloud"; }]; }
+            { "Flake repo" = [ { href = "https://github.com/grabp/homelab"; } ]; }
+            { "Cloudflare" = [ { href = "https://dash.cloudflare.com"; } ]; }
+            { "Hetzner Cloud" = [ { href = "https://console.hetzner.cloud"; } ]; }
           ];
         }
       ];
@@ -200,17 +205,17 @@ in
       environment = {
         # Kanidm per-client OIDC discovery:
         # https://id.DOMAIN/oauth2/openid/homepage/.well-known/openid-configuration
-        OAUTH2_PROXY_PROVIDER              = "oidc";
-        OAUTH2_PROXY_OIDC_ISSUER_URL       = "https://id.${vars.domain}/oauth2/openid/homepage";
-        OAUTH2_PROXY_CLIENT_ID             = "homepage";
-        OAUTH2_PROXY_REDIRECT_URL          = "https://home.${vars.domain}/oauth2/callback";
-        OAUTH2_PROXY_HTTP_ADDRESS          = "127.0.0.1:${toString cfg.oauth2ProxyPort}";
-        OAUTH2_PROXY_EMAIL_DOMAINS         = "*";  # Kanidm email is optional; allow any domain
-        OAUTH2_PROXY_SCOPE                 = "openid profile email";
-        OAUTH2_PROXY_CODE_CHALLENGE_METHOD = "S256";  # PKCE — required by Kanidm 1.9
-        OAUTH2_PROXY_SKIP_PROVIDER_BUTTON  = "true";  # auto-redirect to Kanidm, no button page
-        OAUTH2_PROXY_COOKIE_SECURE         = "true";
-        OAUTH2_PROXY_COOKIE_SAMESITE       = "lax";
+        OAUTH2_PROXY_PROVIDER = "oidc";
+        OAUTH2_PROXY_OIDC_ISSUER_URL = "https://id.${vars.domain}/oauth2/openid/homepage";
+        OAUTH2_PROXY_CLIENT_ID = "homepage";
+        OAUTH2_PROXY_REDIRECT_URL = "https://home.${vars.domain}/oauth2/callback";
+        OAUTH2_PROXY_HTTP_ADDRESS = "127.0.0.1:${toString cfg.oauth2ProxyPort}";
+        OAUTH2_PROXY_EMAIL_DOMAINS = "*"; # Kanidm email is optional; allow any domain
+        OAUTH2_PROXY_SCOPE = "openid profile email";
+        OAUTH2_PROXY_CODE_CHALLENGE_METHOD = "S256"; # PKCE — required by Kanidm 1.9
+        OAUTH2_PROXY_SKIP_PROVIDER_BUTTON = "true"; # auto-redirect to Kanidm, no button page
+        OAUTH2_PROXY_COOKIE_SECURE = "true";
+        OAUTH2_PROXY_COOKIE_SAMESITE = "lax";
       };
       # OAUTH2_PROXY_CLIENT_SECRET and OAUTH2_PROXY_COOKIE_SECRET injected here.
       environmentFiles = [ config.sops.secrets."oauth2-proxy/homepage_env".path ];

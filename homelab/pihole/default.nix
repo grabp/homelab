@@ -1,4 +1,10 @@
-{ config, lib, pkgs, vars, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  vars,
+  ...
+}:
 
 let
   cfg = config.my.services.pihole;
@@ -155,7 +161,7 @@ in
       partOf = [ "firewall.service" ];
     };
 
-    networking.firewall.allowedTCPPorts = [ 53 ];  # webPort (8089) intentionally omitted — Caddy proxies internally
+    networking.firewall.allowedTCPPorts = [ 53 ]; # webPort (8089) intentionally omitted — Caddy proxies internally
     networking.firewall.allowedUDPPorts = [ 53 ];
   };
 }

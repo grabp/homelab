@@ -97,7 +97,7 @@ in
           http_listen_address = "0.0.0.0";
           http_tls_config = {
             cert_file = "/var/lib/loki/tls.pem";
-            key_file  = "/var/lib/loki/tls.key";
+            key_file = "/var/lib/loki/tls.key";
           };
         };
 
@@ -189,7 +189,7 @@ in
     # Hard-order: loki cannot start until the cert is present.
     systemd.services.loki = {
       requires = [ "loki-tls-cert.service" ];
-      after    = [ "loki-tls-cert.service" ];
+      after = [ "loki-tls-cert.service" ];
     };
 
     systemd.tmpfiles.rules = [
