@@ -123,7 +123,7 @@ in
               "code-server" = {
                 href        = "https://code.${vars.domain}";
                 description = "VS Code (HA config editor)";
-                icon        = "code-server.svg";
+                icon        = "vscode.svg";
               };
             }
           ];
