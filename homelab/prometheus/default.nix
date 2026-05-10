@@ -141,6 +141,55 @@ in
       };
 
       ruleFiles = [
+        (pkgs.writeText "host-alerts.yml" ''
+          groups:
+            - name: availability
+              rules:
+                - alert: HostMetricsDown
+                  expr: up{job=~"node|node_boulder"} == 0
+                  for: 5m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "Node exporter unreachable: {{ $labels.instance }}"
+                    description: "Prometheus cannot scrape {{ $labels.instance }} — host may be down or node_exporter crashed"
+
+            - name: resources
+              rules:
+                - alert: HostDiskSpaceLow
+                  expr: |
+                    (
+                      node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|fuse\\..*"}
+                      / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|fuse\\..*"}
+                    ) < 0.10
+                  for: 15m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Low disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+                    description: "{{ $value | humanizePercentage }} free — under 10% threshold"
+
+                - alert: HostHighMemory
+                  expr: |
+                    1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
+                  for: 15m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "High memory usage on {{ $labels.instance }}"
+                    description: "{{ $value | humanizePercentage }} of RAM in use for 15+ minutes"
+
+            - name: zfs
+              rules:
+                - alert: ZFSPoolDegraded
+                  expr: node_zfs_pool_state{state!="online"} == 1
+                  for: 5m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "ZFS pool {{ $labels.pool }} is {{ $labels.state }} on {{ $labels.instance }}"
+                    description: "ZFS pool {{ $labels.pool }} has left the online state — check zpool status"
+        '')
         (pkgs.writeText "tls-alerts.yml" ''
           groups:
             - name: tls

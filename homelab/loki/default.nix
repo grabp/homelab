@@ -11,7 +11,7 @@ let
   # LogQL alert rules stored in the Nix store (read-only is fine — Loki only
   # reads from storage.local.directory). Tenant "fake" is the default when
   # auth_enabled = false.
-  lokiRules = pkgs.writeTextDir "fake/security-alerts.yaml" ''
+  lokiSecurityRules = pkgs.writeTextDir "fake/security-alerts.yaml" ''
     groups:
       - name: security
         rules:
@@ -73,6 +73,51 @@ let
             annotations:
               summary: "Sudo auth failure on {{ $labels.host }}"
   '';
+
+  # absent_over_time drops all labels when it fires, so each host gets its own
+  # rule with a static host label so Alertmanager/Telegram can identify the host.
+  lokiAvailabilityRules = pkgs.writeTextDir "fake/availability-alerts.yaml" ''
+    groups:
+      - name: availability
+        rules:
+          - alert: HostNoLogs
+            expr: absent_over_time({host="pebble", job="systemd-journal"}[15m])
+            for: 0m
+            labels:
+              severity: critical
+              host: pebble
+            annotations:
+              summary: "pebble stopped sending logs (Alloy may be down)"
+              description: "No logs received from pebble in the last 15 minutes"
+
+          - alert: HostNoLogs
+            expr: absent_over_time({host="boulder", job="systemd-journal"}[15m])
+            for: 0m
+            labels:
+              severity: critical
+              host: boulder
+            annotations:
+              summary: "boulder stopped sending logs (Alloy may be down)"
+              description: "No logs received from boulder in the last 15 minutes"
+
+          - alert: HostNoLogs
+            expr: absent_over_time({host="vps", job="systemd-journal"}[15m])
+            for: 0m
+            labels:
+              severity: critical
+              host: vps
+            annotations:
+              summary: "vps stopped sending logs (Alloy may be down)"
+              description: "No logs received from vps in the last 15 minutes"
+  '';
+
+  lokiRules = pkgs.symlinkJoin {
+    name = "loki-rules";
+    paths = [
+      lokiSecurityRules
+      lokiAvailabilityRules
+    ];
+  };
 in
 {
   options.my.services.loki = {
