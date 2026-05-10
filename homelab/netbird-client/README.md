@@ -15,7 +15,7 @@ enabling remote access to all homelab services over the mesh without port
 forwarding (CGNAT).
 
 This module covers the **pebble client only**. The NetBird server (management,
-signal, dashboard, Pocket ID) lives in `machines/nixos/vps/netbird-containers.nix`.
+signal, dashboard, Pocket ID) lives in `homelab/netbird-server/`.
 
 ## Ports
 

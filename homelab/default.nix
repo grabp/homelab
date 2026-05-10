@@ -26,7 +26,7 @@
     ./prometheus # Stage 6
     ./grafana # Stage 6
     ./loki # Stage 6
-    ./netbird # Stage 7b
+    ./netbird-client # Stage 7b
     ./kanidm # Stage 7c — Kanidm OIDC + LDAP IdP
     ./homepage # Stage 8
     ./mosquitto # Stage 9a

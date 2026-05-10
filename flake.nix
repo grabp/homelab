@@ -60,8 +60,9 @@
       (mkNixos "vps" inputs.nixpkgs [
         disko.nixosModules.disko
         sops-nix.nixosModules.sops
-        ./homelab/alloy # log shipping to pebble Loki
-        ./homelab/pocket-id
+        ./homelab/netbird-server # Stage 7a — management + signal + dashboard + coturn
+        ./homelab/alloy # Stage 10 — log shipping to pebble Loki
+        ./homelab/pocket-id # Stage 10b — passkey OIDC provider
       ])
 
       {

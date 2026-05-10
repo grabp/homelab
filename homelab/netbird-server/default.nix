@@ -1,3 +1,17 @@
+# homelab/netbird-server/default.nix — NetBird VPN control plane
+#
+# Runs the NetBird management API, signal server, and dashboard as OCI
+# containers on the VPS alongside a native coturn STUN/TURN server.
+# Pocket ID (pocket-id module) is the OIDC provider — embedded Dex is
+# disabled.
+#
+# Served at https://netbird.grab-lab.gg via Caddy (machines/nixos/vps/caddy.nix).
+#
+# SECRETS (add to secrets/vps.yaml via `just edit-secrets-vps`):
+#   netbird/turn_password:   <openssl rand -base64 32>
+#   netbird/encryption_key:  <openssl rand -base64 32>
+#   pocket-id/netbird-env: |
+#       NETBIRD_IDP_MGMT_EXTRA_API_TOKEN=<pocket-id-api-token>
 {
   config,
   lib,

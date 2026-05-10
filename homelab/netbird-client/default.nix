@@ -9,8 +9,15 @@ let
   cfg = config.my.services.netbird;
 in
 {
+  imports = [ ./restart-timer.nix ];
+
   options.my.services.netbird = {
     enable = lib.mkEnableOption "NetBird VPN client";
+    routing = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable IP forwarding and route advertisement. Set false on hosts that only need point-to-point overlay access (e.g. VPS).";
+    };
   };
 
   config = lib.mkMerge [
@@ -44,17 +51,16 @@ in
         # first login; netbird persists it in /var/lib/netbird-wt0/config.json.
       };
 
-      # Enable IP forwarding for route advertisement
-      services.netbird.useRoutingFeatures = "both";
+      # Allow UDP 51820 for WireGuard
+      networking.firewall.allowedUDPPorts = [ 51820 ];
 
-      # Forward VPN traffic between VPN interface and LAN
-      networking.firewall.extraCommands = ''
+      # IP forwarding + FORWARD rules — only needed on routing peers (pebble, boulder).
+      # VPS sets routing = false: it only needs point-to-point overlay access to pebble.
+      services.netbird.useRoutingFeatures = lib.mkIf cfg.routing "both";
+      networking.firewall.extraCommands = lib.mkIf cfg.routing ''
         iptables -A FORWARD -i wt0 -j ACCEPT
         iptables -A FORWARD -o wt0 -j ACCEPT
       '';
-
-      # Allow UDP 51820 for WireGuard
-      networking.firewall.allowedUDPPorts = [ 51820 ];
     })
   ];
 }

@@ -2,8 +2,7 @@
 {
   imports = [
     ./disko.nix
-    ./netbird-server.nix
-    ./netbird-client.nix # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
+    ../../../homelab/netbird-client # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
     ./caddy.nix
     ../../../modules/podman
   ];
@@ -69,6 +68,10 @@
   };
 
   my.services.netbird.server.enable = true;
+  my.services.netbird = {
+    enable = true;
+    routing = false; # VPS only needs point-to-point overlay access to pebble, not LAN routing
+  };
   my.services.pocketId.enable = true;
   my.services.alloy = {
     enable = true;
