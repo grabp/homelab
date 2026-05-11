@@ -59,6 +59,7 @@ tags: [ports, dns, reference]
 | 5432 | TCP | PostgreSQL | Shared database (localhost only) |
 | 8010 | TCP | Paperless-ngx | Document management |
 | 8080 | TCP | Stirling-PDF | PDF toolkit |
+| 8083 | TCP | Calibre-Web Automated | E-book library |
 | 8096 | TCP | Jellyfin | Media server |
 | 8265 | TCP | Actual Budget | Personal finance |
 | 9443 | TCP | Karakeep | Bookmarks (remapped from 3000) |
@@ -97,6 +98,7 @@ address=/pocket-id.grab-lab.gg/204.168.181.110
 | `pocket-id.grab-lab.gg` | vps:443 | Pocket ID | Caddy on VPS |
 | `paperless.grab-lab.gg` | boulder:8010 | Paperless-ngx | `reverse_proxy ${vars.boulderIP}:8010` |
 | `pdf.grab-lab.gg` | boulder:8080 | Stirling-PDF | `reverse_proxy ${vars.boulderIP}:8080` |
+| `books.grab-lab.gg` | boulder:8083 | Calibre-Web Automated | `reverse_proxy ${vars.boulderIP}:8083` |
 
 ### Public DNS (Cloudflare)
 

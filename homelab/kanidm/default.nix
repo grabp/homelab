@@ -129,6 +129,25 @@ in
             "groups"
           ];
         };
+
+        # --- Calibre-Web Automated OAuth2 client ----------------------------
+        # OIDC is configured through the CWA admin UI (not env vars).
+        # This provisions the client + secret in Kanidm; the CWA-side setup is
+        # a post-deploy manual step (see homelab/calibre-web-automated/README.md).
+        systems.oauth2."calibre-web" = {
+          displayName = "Calibre-Web";
+          originUrl = "https://books.${vars.domain}/login/generic/authorized";
+          originLanding = "https://books.${vars.domain}";
+          basicSecretFile = config.sops.secrets."kanidm/calibre_web_client_secret".path;
+          scopeMaps."homelab_users" = [
+            "openid"
+            "profile"
+            "email"
+          ];
+          # CWA's OAuth2 library (Flask-Dance) does not send PKCE parameters.
+          # Kanidm 1.9 enforces PKCE by default — disable for this client only.
+          allowInsecureClientDisablePkce = true;
+        };
       };
     };
 
@@ -157,6 +176,12 @@ in
     # client credential. oauth2-proxy reads its copy from oauth2-proxy/homepage_env
     # (a separate sops secret) so this stays owner=kanidm, 0400.
     sops.secrets."kanidm/homepage_client_secret" = {
+      owner = "kanidm";
+    };
+
+    # Calibre-Web client secret — kanidm provisioning only (CWA reads it from
+    # the admin UI, not at container runtime). owner=kanidm, 0400.
+    sops.secrets."kanidm/calibre_web_client_secret" = {
       owner = "kanidm";
     };
 

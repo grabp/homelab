@@ -136,6 +136,11 @@ in
             reverse_proxy ${vars.boulderIP}:${toString config.my.services.stirlingPdf.port}
           }
 
+          @calibre-web host books.${vars.domain}
+          handle @calibre-web {
+            reverse_proxy ${vars.boulderIP}:${toString config.my.services.calibreWebAutomated.port}
+          }
+
           handle {
             respond "Service not found" 404
           }

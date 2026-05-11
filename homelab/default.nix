@@ -16,6 +16,7 @@
 #   Stage 11: docs-site, alloy, node-exporter
 #   Stage 12: postgresql
 #   Stage 13: paperless, stirling-pdf
+#   Stage 16b: calibre-web-automated
 { ... }:
 {
   imports = [
@@ -42,6 +43,7 @@
     ./postgresql # Stage 12 — Shared PostgreSQL instance (outline, vikunja, paperless)
     ./paperless # Stage 13 — Paperless-ngx document management
     ./stirling-pdf # Stage 13 — Stirling-PDF PDF toolkit
+    ./calibre-web-automated # Stage 16b — Calibre-Web Automated e-book library
     ./code-server # Extra — VS Code in the browser (HA config editor)
   ];
 }
