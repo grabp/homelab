@@ -23,7 +23,7 @@ tags: [ports, dns, reference]
 | 3010 | TCP | Homepage | Dashboard (remapped from 3000) |
 | 3100 | TCP | Loki | Log aggregation |
 | 4180 | TCP | oauth2-proxy | Auth proxy for Homepage |
-| 51820 | UDP | NetBird | WireGuard VPN |
+| 51820 | UDP | WireGuard | VPN (connects outbound to VPS hub) |
 | 5580 | TCP | Matter Server | Matter WebSocket API |
 | 6052 | TCP | ESPHome | Device dashboard |
 | 8222 | TCP | Vaultwarden | Password manager |
@@ -37,16 +37,12 @@ tags: [ports, dns, reference]
 | 10400 | TCP | OpenWakeWord | Wake word (localhost only) |
 | 8123 | TCP | Home Assistant | HA web interface (host network) |
 
-### vps (NetBird control plane) — 204.168.181.110
+### vps (WireGuard hub) — 204.168.181.110
 
 | Port | Protocol | Service | Notes |
 |------|----------|---------|-------|
-| 22 | TCP | SSH | Restricted to admin IP |
-| 80 | TCP | HTTP/ACME | Let's Encrypt challenges |
-| 443 | TCP | NetBird | Management + Signal + Dashboard + Relay |
-| 443 | TCP | Pocket ID | OIDC provider (Caddy virtual host) |
-| 3478 | UDP | Coturn STUN | NAT traversal |
-| 49152-65535 | UDP | Coturn TURN | Relay media range |
+| 22 | TCP | SSH | Key auth only |
+| 51820 | UDP | WireGuard | Hub for all homelab + mobile peers |
 
 ### boulder (media/productivity server) — 192.168.10.51
 
@@ -74,12 +70,7 @@ Pi-hole uses dnsmasq with a wildcard entry that resolves `*.grab-lab.gg` to pebb
 address=/grab-lab.gg/192.168.10.50
 ```
 
-Specific VPS-hosted entries override the wildcard:
-
-```
-address=/netbird.grab-lab.gg/204.168.181.110
-address=/pocket-id.grab-lab.gg/204.168.181.110
-```
+No specific overrides — all `*.grab-lab.gg` resolves to pebble via the wildcard.
 
 ### Subdomain Registry
 
@@ -94,21 +85,15 @@ address=/pocket-id.grab-lab.gg/204.168.181.110
 | `ha.grab-lab.gg` | pebble:8123 | Home Assistant | `reverse_proxy 127.0.0.1:8123` |
 | `uptime.grab-lab.gg` | pebble:3001 | Uptime Kuma | `reverse_proxy localhost:3001` |
 | `esphome.grab-lab.gg` | pebble:6052 | ESPHome | `reverse_proxy localhost:6052` |
-| `netbird.grab-lab.gg` | vps:443 | NetBird Dashboard | Direct (not proxied through pebble) |
-| `pocket-id.grab-lab.gg` | vps:443 | Pocket ID | Caddy on VPS |
 | `paperless.grab-lab.gg` | boulder:8010 | Paperless-ngx | `reverse_proxy ${vars.boulderIP}:8010` |
 | `pdf.grab-lab.gg` | boulder:8080 | Stirling-PDF | `reverse_proxy ${vars.boulderIP}:8080` |
 | `books.grab-lab.gg` | boulder:8083 | Calibre-Web Automated | `reverse_proxy ${vars.boulderIP}:8083` |
 
 ### Public DNS (Cloudflare)
 
-Only `netbird.grab-lab.gg` has a public A record. All other subdomains return NXDOMAIN publicly — they only resolve inside the homelab via Pi-hole.
+No public A records remain — all subdomains resolve only inside the homelab via Pi-hole.
 
-| Record | Type | Value | Cloudflare Proxy |
-|--------|------|-------|------------------|
-| `netbird.grab-lab.gg` | A | 204.168.181.110 | **Disabled** (gray cloud) |
-
-⚠️ **Important:** Cloudflare's HTTP proxy breaks gRPC (used by NetBird Signal). Must use DNS-only mode.
+The previous `netbird.grab-lab.gg` and `pocket-id.grab-lab.gg` A records should be removed from Cloudflare.
 
 ## Port Conflict Resolution
 

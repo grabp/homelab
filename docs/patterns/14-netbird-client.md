@@ -2,7 +2,11 @@
 kind: pattern
 number: 14
 tags: [netbird, client, vpn, overlay]
+archived: true
+superseded_by: docs/patterns/24-wireguard-hub-spoke.md
 ---
+
+> ⚠️ **Archived** — NetBird was replaced by raw WireGuard hub-and-spoke in May 2026. See [Pattern 24](./24-wireguard-hub-spoke.md). This file is kept for historical reference.
 
 # Pattern 14: NetBird client with sops-nix setup key and self-hosted management URL
 

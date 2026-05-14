@@ -50,21 +50,16 @@
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
 
-  # systemd-resolved for NetBird DNS routing
-  # DNSStubListener=no frees port 53 (Pattern 15)
-  services.resolved = {
-    enable = true;
-    extraConfig = ''
-      DNSStubListener=no
-    '';
-  };
-
   my.services.postgresql.enable = true; # Stage 12
   my.services.paperless.enable = true; # Stage 13
   my.services.stirlingPdf.enable = true; # Stage 13
   my.services.calibreWebAutomated.enable = true; # Stage 16
 
-  my.services.netbird.enable = true; # Stage 11
+  my.services.wireguard = {
+    enable = true;
+    address = "10.10.0.3/32";
+    # routing = false (default) — point-to-point overlay only, no subnet advertising
+  }; # Stage 11
   my.services.nodeExporter.enable = true; # Stage 11
   my.services.alloy = {
     enable = true;

@@ -24,23 +24,20 @@ Internet → (blocked to homelab — no port forwards, CGNAT)
 LAN clients → Pi-hole (DNS :53) → resolves *.grab-lab.gg → 192.168.10.50
                                  → Caddy (:443) → localhost:<service-port>
 
-VPN peers (phone/laptop)
-  → TCP 443 / UDP 3478 → VPS (netbird.grab-lab.gg, public IP)
-      ↕ relay or P2P WireGuard (encrypted end-to-end)
-  ← pebble (behind CGNAT, outbound-only to VPS)
-  → NetBird DNS: *.grab-lab.gg match-domain → Pi-hole overlay IP → Caddy → service
+Mobile clients (phone/laptop)
+  → UDP 51820 → VPS WireGuard hub (10.10.0.1, public IP 204.168.181.110)
+      ↕ WireGuard (end-to-end encrypted)
+  ← pebble (10.10.0.2, behind CGNAT, outbound-only to VPS)
+  → DNS: 192.168.10.50 (Pi-hole via tunnel) → *.grab-lab.gg → Caddy → service
 
-pebble ← ISP CGNAT (symmetric NAT, no inbound) ← VPS relay ← VPN peer
-         (P2P hole-punch if CGNAT maps consistently; relay otherwise ~7 Mbps / ~85ms)
+pebble ← ISP CGNAT (symmetric NAT, no inbound)
+  pebble initiates outbound WireGuard to VPS; PersistentKeepalive=25s keeps CGNAT
+  mapping alive. VPS routes mobile → pebble → LAN services.
 ```
 
-### CGNAT Implications
+### CGNAT — hub-and-spoke eliminates TURN relay
 
-The homelab's ISP uses symmetric NAT (Endpoint-Dependent Mapping). STUN hole-punching fails virtually 100% of the time, so VPN peers almost always relay through the VPS via WireGuard.
-
-**Relay performance:** ~7 Mbps throughput, ~85ms latency — adequate for dashboards and media at moderate quality.
-
-**Known issue (stale relay, GitHub #3936):** Behind CGNAT, NetBird can show "Connected" but stop passing traffic. Workaround: `netbird-wt0 down && netbird-wt0 up` or restart the systemd service.
+pebble is behind symmetric NAT. Rather than attempting STUN hole-punching (which fails ~100% of the time on symmetric NAT) or maintaining a TURN relay, all mobile traffic routes through the VPS hub. pebble connects outbound to VPS once; the VPS routes packets between mobile clients and pebble without any additional relay infrastructure.
 
 ## Wildcard DNS / Caddy Entry-Point Pattern
 
@@ -68,19 +65,18 @@ Caddy on 192.168.10.50:443 receives request with Host: pihole.grab-lab.gg
 Caddy @pihole host matcher → reverse_proxy localhost:8089
 ```
 
-NetBird VPN clients use a split DNS nameserver: queries for `*.grab-lab.gg` go to Pi-hole via the VPN tunnel; all other queries go to public resolvers.
+WireGuard clients configure `DNS = 192.168.10.50` in their client config. All DNS queries go to Pi-hole via the tunnel while connected; Pi-hole forwards public domains upstream.
 
-## VPS as Public Entry Point
+## VPS as WireGuard Hub
 
 The VPS is the only externally reachable endpoint. It runs:
 
 | Service | Purpose |
 |---------|---------|
-| NetBird control plane | Management API, Signal, Dashboard, Relay |
-| Pocket ID | Passkey-only OIDC provider for NetBird auth |
-| Caddy | TLS termination for Pocket ID |
+| WireGuard (UDP 51820) | Hub routing all peer traffic |
+| Alloy | Log shipping to pebble Loki |
 
-The VPS never sees decrypted VPN traffic — WireGuard provides end-to-end encryption between peers.
+The VPS never sees decrypted application traffic — WireGuard provides end-to-end encryption between peers.
 
 ## Service Isolation Strategy
 

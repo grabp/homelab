@@ -15,14 +15,14 @@
 | 4 | Reverse Proxy (Caddy) | ✅ COMPLETE | [docs/roadmap/stage-04-caddy.md](docs/roadmap/stage-04-caddy.md) |
 | 5 | Password Management (Vaultwarden) | ✅ COMPLETE | [docs/roadmap/stage-05-vaultwarden.md](docs/roadmap/stage-05-vaultwarden.md) |
 | 6 | Monitoring (Prometheus + Grafana + Loki) | ✅ COMPLETE | [docs/roadmap/stage-06-monitoring.md](docs/roadmap/stage-06-monitoring.md) |
-| 7a | VPS Provisioning + NetBird Control Plane | ✅ COMPLETE | [docs/roadmap/stage-07a-vps-netbird.md](docs/roadmap/stage-07a-vps-netbird.md) |
-| 7b | NetBird Homelab Client + Routes | ✅ COMPLETE | [docs/roadmap/stage-07b-netbird-client.md](docs/roadmap/stage-07b-netbird-client.md) |
+| 7a | VPS Provisioning + NetBird Control Plane → **migrated to WireGuard** | ✅ COMPLETE | [docs/roadmap/stage-07a-vps-netbird.md](docs/roadmap/stage-07a-vps-netbird.md) |
+| 7b | NetBird Homelab Client → **migrated to WireGuard hub-and-spoke** | ✅ COMPLETE | [docs/roadmap/stage-07b-netbird-client.md](docs/roadmap/stage-07b-netbird-client.md) |
 | 7c | Identity Provider (Kanidm) | ✅ COMPLETE | [docs/roadmap/stage-07c-kanidm.md](docs/roadmap/stage-07c-kanidm.md) |
 | 8 | Homepage Dashboard | ✅ COMPLETE | [docs/roadmap/stage-08-homepage.md](docs/roadmap/stage-08-homepage.md) |
 | 9a | HA Services (Mosquitto + HACS + HA + Uptime Kuma) | ✅ COMPLETE | [docs/roadmap/stage-09a-ha-services.md](docs/roadmap/stage-09a-ha-services.md) |
 | 9b | Voice Pipeline + ESPHome + Matter Server | ✅ COMPLETE | [docs/roadmap/stage-09b-voice-matter.md](docs/roadmap/stage-09b-voice-matter.md) |
 | 10 | Hardening, Backups, VPS Log Shipping | ✅ COMPLETE | [docs/roadmap/stage-10-hardening-backups.md](docs/roadmap/stage-10-hardening-backups.md) |
-| 10b | Pocket ID — NetBird Passkey IdP | ✅ COMPLETE | [docs/roadmap/stage-10b-pocket-id.md](docs/roadmap/stage-10b-pocket-id.md) |
+| 10b | Pocket ID — NetBird Passkey IdP → **removed with NetBird** | ✅ COMPLETE | [docs/roadmap/stage-10b-pocket-id.md](docs/roadmap/stage-10b-pocket-id.md) |
 
 ---
 

@@ -51,19 +51,10 @@
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
   # Loki: accept log pushes from two sources.
-  # wt0 (NetBird): VPS Alloy pushes over the mesh (not on LAN).
-  # eth0 (LAN): boulder Alloy pushes directly — no NetBird hop needed.
-  networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ];
+  # wg0 (WireGuard): VPS Alloy pushes over the mesh (not on LAN).
+  # eth0 (LAN): boulder Alloy pushes directly.
+  # wg0 rule is in homelab/wireguard/default.nix (routing = true).
   networking.firewall.interfaces."eth0".allowedTCPPorts = [ 3100 ];
-
-  # DNS: Pi-hole owns port 53, but systemd-resolved runs for NetBird DNS routing
-  # (Pattern 15: DNSStubListener=no frees port 53 while keeping resolved daemon)
-  services.resolved = {
-    enable = true;
-    extraConfig = ''
-      DNSStubListener=no
-    '';
-  };
 
   my.services.pihole.enable = true;
   my.services.caddy.enable = true;
@@ -72,7 +63,11 @@
   my.services.prometheus.enable = true; # Stage 6
   my.services.grafana.enable = true;
   my.services.loki.enable = true;
-  my.services.netbird.enable = true; # Stage 7b
+  my.services.wireguard = {
+    enable = true;
+    address = "10.10.0.2/32";
+    routing = true; # advertises 192.168.10.0/24 to the WireGuard mesh
+  }; # Stage 7b
   my.services.kanidm.enable = true; # Stage 7c
   my.services.homepage.enable = true; # Stage 8
   my.services.mosquitto.enable = true; # Stage 9a

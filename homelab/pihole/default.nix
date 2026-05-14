@@ -48,10 +48,6 @@ in
     system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
       mkdir -p /var/lib/pihole-dnsmasq
       {
-        # VPS-hosted services — specific entries override the wildcard below.
-        echo "address=/netbird.${vars.domain}/${vars.vpsIP}"
-        echo "address=/pocket-id.${vars.domain}/${vars.vpsIP}"
-
         # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
         echo "address=/${vars.domain}/${vars.pebbleIP}"
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
@@ -149,17 +145,23 @@ in
     #     https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
     # -------------------------------------------------------------------------
 
-    # When nixos-rebuild switch reloads the firewall (e.g. a new port was opened),
-    # NixOS flushes and rewrites ALL iptables chains — including the NETAVARK_*
-    # chains that Podman/Netavark wrote for port 53 DNAT. If podman-pihole is not
-    # restarted afterward, the DNAT rules are gone and external DNS queries time out
-    # even though the container is running.
-    # partOf: restart this service whenever firewall.service restarts.
-    # after:  ensure we start after the firewall so rules are added last.
+    # On nixos-rebuild switch the firewall flushes ALL iptables chains, including
+    # the NETAVARK_* chains that Podman/Netavark wrote for port 53 DNAT and the
+    # POSTROUTING masquerade rule the container needs to reach upstream DNS.
+    # The firewall also resets net.ipv4.ip_forward=0 which breaks container outbound
+    # connectivity regardless of netavark rules.
+    #
+    # The fix: use firewall's ExecStartPost hook to set ip_forward=1 and restart
+    # the container AFTER the firewall finishes its activation (no race condition).
     systemd.services.podman-pihole = {
       after = [ "firewall.service" ];
-      partOf = [ "firewall.service" ];
     };
+
+    systemd.services.firewall.serviceConfig.ExecStartPost = pkgs.writeScript "fix-pihole-ip-forward" ''
+      #!${pkgs.bash}/bin/bash
+      echo 1 > /proc/sys/net/ipv4/ip_forward
+      ${pkgs.podman}/bin/podman restart pihole 2>/dev/null || true
+    '';
 
     networking.firewall.allowedTCPPorts = [ 53 ]; # webPort (8089) intentionally omitted — Caddy proxies internally
     networking.firewall.allowedUDPPorts = [ 53 ];

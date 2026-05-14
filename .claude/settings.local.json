@@ -21,7 +21,8 @@
       "mcp__homelab__list_services",
       "WebFetch(domain:grafana.com)",
       "WebFetch(domain:docs.paperless-ngx.com)",
-      "Skill(oci-digest)"
+      "Skill(oci-digest)",
+      "Bash(grep -E \"\\\\.nix$\")"
     ]
   },
   "enabledMcpjsonServers": [

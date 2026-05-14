@@ -22,13 +22,14 @@ This directory contains verified NixOS patterns extracted from the original `doc
 | 11 | [11-hacs-install](./11-hacs-install.md) | HACS auto-installation via systemd oneshot | [home-assistant, hacs, systemd] |
 | 12 | [12-multi-machine-flake](./12-multi-machine-flake.md) | Multi-machine flake with deploy-rs (homelab + VPS) | [flake, deploy-rs, multi-machine] |
 | 13 | [13-nixos-anywhere-vps](./13-nixos-anywhere-vps.md) | nixos-anywhere VPS provisioning with minimal ext4 disko | [vps, nixos-anywhere, provisioning, ext4] |
-| 14 | [14-netbird-client](./14-netbird-client.md) | NetBird client with sops-nix setup key and self-hosted management URL | [netbird, client, vpn, overlay] |
-| 15 | [15-systemd-resolved-netbird](./15-systemd-resolved-netbird.md) | systemd-resolved with DNSStubListener=no (NetBird + Pi-hole coexistence) | [systemd-resolved, netbird, pihole, DNS] |
+| 14 | [14-netbird-client](./14-netbird-client.md) ⚠️ archived | NetBird client — superseded by Pattern 24 | [netbird, client, vpn] |
+| 15 | [15-systemd-resolved-netbird](./15-systemd-resolved-netbird.md) ⚠️ archived | systemd-resolved DNSStubListener=no — no longer needed (WireGuard doesn't use resolvectl) | [systemd-resolved, netbird] |
 | 16 | [16-systemd-dependencies](./16-systemd-dependencies.md) | systemd restart and ordering dependencies for homelab services | [systemd, dependencies, firewall, sops, ordering] |
 | 17 | [17-podman-volume-uid](./17-podman-volume-uid.md) | Podman volume directories — own by container UID, not root | [podman, volumes, permissions, sqlite] |
 | 18 | [18-ssh-ip-addresses](./18-ssh-ip-addresses.md) | Always use IP addresses for SSH, never domain names | [ssh, deployment, DNS, safety] |
-| 19 | [19-netbird-server-oci](./19-netbird-server-oci.md) | NetBird server via OCI containers on NixOS VPS (Pocket ID OIDC) | [netbird, server, OCI-containers, pocket-id, VPS] |
-| 20 | [20-vps-native-caddy](./20-vps-native-caddy.md) | Hybrid VPS — NixOS-managed Caddy + OCI NetBird containers | [vps, caddy, TLS, native] |
+| 19 | [19-netbird-server-oci](./19-netbird-server-oci.md) ⚠️ archived | NetBird server OCI containers — superseded by Pattern 24 | [netbird, server, OCI-containers] |
+| 20 | [20-vps-native-caddy](./20-vps-native-caddy.md) | Hybrid VPS — NixOS-managed Caddy + OCI containers | [vps, caddy, TLS, native] |
 | 21 | [21-kanidm-oauth2](./21-kanidm-oauth2.md) | Kanidm with declarative OAuth2 client provisioning | [kanidm, OAuth2, OIDC, provisioning] |
 | 22 | [22-caddy-forward-auth](./22-caddy-forward-auth.md) | Caddy forward_auth with Kanidm | [caddy, kanidm, forward-auth, oauth2-proxy] |
 | 23 | [23-grafana-kanidm-oidc](./23-grafana-kanidm-oidc.md) | Grafana OIDC with Kanidm | [grafana, kanidm, OIDC, SSO] |
+| 24 | [24-wireguard-hub-spoke](./24-wireguard-hub-spoke.md) | WireGuard hub-and-spoke on NixOS — VPS hub, routing peer, CGNAT clients | [wireguard, vpn, hub-spoke, cgnat] |

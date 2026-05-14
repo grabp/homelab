@@ -2,9 +2,7 @@
 {
   imports = [
     ./disko.nix
-    ../../../homelab/netbird-client # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
-    ./caddy.nix
-    ../../../modules/podman
+    ./wireguard.nix
   ];
 
   networking.hostName = "vps";
@@ -39,44 +37,15 @@
   };
 
   networking.firewall.enable = true;
-  # Caddy: ACME HTTP-01 challenge + NetBird dashboard/API
-  # coturn: STUN/TURN (3478/5349) + relay range (49152-65535)
-  # NOTE: services.coturn does NOT open firewall ports automatically.
-  networking.firewall.allowedTCPPorts = [
-    80
-    443
-    3478
-    5349
-  ];
-  networking.firewall.allowedUDPPorts = [
-    3478
-    5349
-  ];
-  networking.firewall.allowedUDPPortRanges = [
-    {
-      from = 49152;
-      to = 65535;
-    }
-  ];
+  # WireGuard UDP 51820 opened by machines/nixos/vps/wireguard.nix.
+  # SSH (22) opened by machines/nixos/_common/ssh.nix.
+  # No other inbound ports needed.
 
-  # ACME: Caddy obtains TLS certs via Let's Encrypt HTTP-01 challenge.
-  # No Cloudflare DNS plugin needed — VPS has a public IP.
-  # acceptTerms + email are read by the Caddy module as ACME defaults.
-  security.acme = {
-    acceptTerms = true;
-    defaults.email = vars.adminEmail;
-  };
-
-  my.services.netbird.server.enable = true;
-  my.services.netbird = {
-    enable = true;
-    routing = false; # VPS only needs point-to-point overlay access to pebble, not LAN routing
-  };
-  my.services.pocketId.enable = true;
   my.services.alloy = {
     enable = true;
     hostLabel = "vps";
-    lokiUrl = "https://100.102.154.38:3100/loki/api/v1/push"; # NetBird overlay — VPS is not on pebble's LAN
+    # Reach pebble Loki over the WireGuard tunnel (pebble advertises 192.168.10.0/24 via wg0)
+    lokiUrl = "https://${vars.pebbleIP}:3100/loki/api/v1/push";
     insecureSkipVerify = true;
   }; # Stage 10
 
