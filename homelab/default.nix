@@ -6,7 +6,7 @@
 #   Stage 4:  caddy
 #   Stage 5:  vaultwarden
 #   Stage 6:  prometheus, grafana, loki
-#   Stage 7b: wireguard (replaced netbird-client)
+#   Stage 7b: wireguard-client (client, replaced netbird-client), wireguard-server (hub, VPS only)
 #   Stage 7c: kanidm
 #   Stage 8:  homepage
 #   Stage 9a: mosquitto, home-assistant (+ ESPHome), uptime-kuma
@@ -26,7 +26,8 @@
     ./prometheus # Stage 6
     ./grafana # Stage 6
     ./loki # Stage 6
-    ./wireguard # Stage 7b — WireGuard VPN client (replaces NetBird)
+    ./wireguard-client # Stage 7b — WireGuard VPN client (replaces NetBird)
+    ./wireguard-server # Stage 7b — WireGuard VPN hub server (VPS only)
     ./kanidm # Stage 7c — Kanidm OIDC + LDAP IdP
     ./homepage # Stage 8
     ./mosquitto # Stage 9a

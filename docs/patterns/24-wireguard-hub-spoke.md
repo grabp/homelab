@@ -19,7 +19,7 @@ Raw WireGuard hub-and-spoke via a public VPS. All peers connect outbound to the 
 10.10.0.4+ mobile clients
 ```
 
-## VPS server (machines/nixos/vps/wireguard.nix)
+## VPS server (homelab/wireguard-server/default.nix — `my.services.wireguardServer`)
 
 ```nix
 { config, pkgs, ... }:
@@ -67,7 +67,7 @@ Raw WireGuard hub-and-spoke via a public VPS. All peers connect outbound to the 
 }
 ```
 
-## Client module (homelab/wireguard/default.nix)
+## Client module (homelab/wireguard-client/default.nix — `my.services.wireguardClient`)
 
 Used by pebble (`routing = true`) and boulder (`routing = false`, default).
 
@@ -130,5 +130,6 @@ PersistentKeepalive = 25
 - **No VPS peer endpoint for pebble/boulder** — the VPS learns the peer's source address from the first handshake packet. Since pebble/boulder always initiate, no static endpoint is needed on the VPS side.
 - **Private key timing** — sops-nix decrypts secrets via activation scripts (before any systemd services start). The `wireguard-wg0.service` always finds the private key file at `/run/secrets/wireguard/private_key`. No explicit `after = [ "sops-install-secrets.service" ]` needed (that unit doesn't exist; sops uses activation scripts).
 - **FORWARD rules survive firewall reloads** — `nixos-rebuild switch` flushes all iptables chains. On VPS, use `postSetup`/`postShutdown` in the wireguard interface config. On pebble, use `networking.firewall.extraCommands` which runs on every reload.
+- **`ip_forward` on pebble (alphabetical sysctl trick)** — `nixos-rebuild switch` restarts `systemd-sysctl`, which re-applies all sysctl.d files in lexicographic order. `nixpkgs/nixos/modules/tasks/network-interfaces.nix` sets `net.ipv4.conf.all.forwarding = mkDefault false` → written to `/etc/sysctl.d/60-nixos.conf`. Netavark writes its `ip_forward=1` to `/run/sysctl.d/10-netavark-<id>.conf` (prefix "10" < "60"), so nixos wins and ip_forward ends up 0. Fix: set `boot.kernel.sysctl."net.ipv4.ip_forward" = 1` in the WireGuard client module. `mapAttrsToList` outputs keys alphabetically, so within `60-nixos.conf` the keys appear as: `net.ipv4.conf.all.forwarding=0` first (alphabetically), then `net.ipv4.ip_forward=1` later. Since they're kernel aliases, the last write wins. ip_forward stays 1 through the entire `systemd-sysctl` restart — no race condition, no ExecStartPost hook needed. Empirically verified on pebble (nixos-25.11).
 
 **Source:** Verified in production (VPS + pebble + boulder, nixos-25.11) ✅

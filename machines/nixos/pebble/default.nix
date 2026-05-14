@@ -53,7 +53,7 @@
   # Loki: accept log pushes from two sources.
   # wg0 (WireGuard): VPS Alloy pushes over the mesh (not on LAN).
   # eth0 (LAN): boulder Alloy pushes directly.
-  # wg0 rule is in homelab/wireguard/default.nix (routing = true).
+  # wg0 rule is in homelab/wireguard-client/default.nix (routing = true).
   networking.firewall.interfaces."eth0".allowedTCPPorts = [ 3100 ];
 
   my.services.pihole.enable = true;
@@ -63,7 +63,7 @@
   my.services.prometheus.enable = true; # Stage 6
   my.services.grafana.enable = true;
   my.services.loki.enable = true;
-  my.services.wireguard = {
+  my.services.wireguardClient = {
     enable = true;
     address = "10.10.0.2/32";
     routing = true; # advertises 192.168.10.0/24 to the WireGuard mesh

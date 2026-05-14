@@ -145,23 +145,13 @@ in
     #     https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
     # -------------------------------------------------------------------------
 
-    # On nixos-rebuild switch the firewall flushes ALL iptables chains, including
-    # the NETAVARK_* chains that Podman/Netavark wrote for port 53 DNAT and the
-    # POSTROUTING masquerade rule the container needs to reach upstream DNS.
-    # The firewall also resets net.ipv4.ip_forward=0 which breaks container outbound
-    # connectivity regardless of netavark rules.
-    #
-    # The fix: use firewall's ExecStartPost hook to set ip_forward=1 and restart
-    # the container AFTER the firewall finishes its activation (no race condition).
+    # Ensure the container starts after the firewall so Netavark's iptables rules
+    # (DNAT for port 53, POSTROUTING masquerade) are written after the firewall
+    # chain flush. ip_forward is kept =1 by homelab/wireguard-client/default.nix
+    # via boot.kernel.sysctl — no ExecStartPost hook needed here.
     systemd.services.podman-pihole = {
       after = [ "firewall.service" ];
     };
-
-    systemd.services.firewall.serviceConfig.ExecStartPost = pkgs.writeScript "fix-pihole-ip-forward" ''
-      #!${pkgs.bash}/bin/bash
-      echo 1 > /proc/sys/net/ipv4/ip_forward
-      ${pkgs.podman}/bin/podman restart pihole 2>/dev/null || true
-    '';
 
     networking.firewall.allowedTCPPorts = [ 53 ]; # webPort (8089) intentionally omitted — Caddy proxies internally
     networking.firewall.allowedUDPPorts = [ 53 ];

@@ -2,7 +2,6 @@
 {
   imports = [
     ./disko.nix
-    ./wireguard.nix
   ];
 
   networking.hostName = "vps";
@@ -36,8 +35,10 @@
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
   };
 
+  my.services.wireguardServer.enable = true; # Stage 7b — WireGuard VPN hub
+
   networking.firewall.enable = true;
-  # WireGuard UDP 51820 opened by machines/nixos/vps/wireguard.nix.
+  # WireGuard UDP 51820 opened by homelab/wireguard-server/default.nix.
   # SSH (22) opened by machines/nixos/_common/ssh.nix.
   # No other inbound ports needed.
 

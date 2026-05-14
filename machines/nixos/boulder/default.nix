@@ -55,7 +55,7 @@
   my.services.stirlingPdf.enable = true; # Stage 13
   my.services.calibreWebAutomated.enable = true; # Stage 16
 
-  my.services.wireguard = {
+  my.services.wireguardClient = {
     enable = true;
     address = "10.10.0.3/32";
     # routing = false (default) — point-to-point overlay only, no subnet advertising

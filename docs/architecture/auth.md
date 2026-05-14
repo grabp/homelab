@@ -13,7 +13,7 @@ Kanidm on pebble is the sole IdP for all service SSO. WireGuard VPN access is au
 
 | Service | Machine | Auth Method | IdP | Notes |
 |---------|---------|-------------|-----|-------|
-| WireGuard VPN | VPS | Keypair | N/A | Static peers in `machines/nixos/vps/wireguard.nix` |
+| WireGuard VPN | VPS | Keypair | N/A | Static peers in `homelab/wireguard-server/default.nix` |
 | Grafana | pebble | Native OIDC | Kanidm | `auth.generic_oauth` settings |
 | Vaultwarden | pebble | Native OIDC | Kanidm | Master password still required |
 | Homepage | pebble | Caddy forward_auth | Kanidm | oauth2-proxy in front |

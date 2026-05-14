@@ -31,6 +31,18 @@ in
         mode = "0400";
       };
 
+      # Prometheus wireguard exporter — exposes wireguard_latest_handshake_seconds
+      # so Prometheus can alert when peers go stale. CAP_NET_ADMIN is granted by the
+      # NixOS module; no additional privileges are needed.
+      services.prometheus.exporters.wireguard = {
+        enable = true;
+        listenAddress = "0.0.0.0";
+        interfaces = [ "wg0" ];
+      };
+      # Allow Prometheus on pebble to scrape this from the LAN.
+      # On pebble itself prometheus is local (no firewall needed, but harmless).
+      networking.firewall.allowedTCPPorts = [ 9586 ];
+
       networking.wireguard.interfaces.wg0 = {
         ips = [ cfg.address ];
         privateKeyFile = config.sops.secrets."wireguard/private_key".path;

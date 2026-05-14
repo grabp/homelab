@@ -7,7 +7,7 @@ tags: [wireguard, vpn, peers, mobile]
 
 ## Overview
 
-WireGuard peers are statically configured in `machines/nixos/vps/wireguard.nix`. Adding a device requires three steps: generate a keypair, add the public key to the VPS config, and generate a client config for the device.
+WireGuard peers are statically configured in `homelab/wireguard-server/default.nix`. Adding a device requires three steps: generate a keypair, add the public key to the VPS config, and generate a client config for the device.
 
 ## WireGuard Subnet
 
@@ -37,7 +37,7 @@ cat /tmp/new-device.key   # private key → goes into client config only, never 
 
 ## Step 2 — Add the peer to VPS config
 
-Edit `machines/nixos/vps/wireguard.nix`. Add a new peer block inside `peers = [ ... ]`:
+Edit `homelab/wireguard-server/default.nix`. Add a new peer block inside `peers = [ ... ]`:
 
 ```nix
 {
@@ -119,7 +119,7 @@ curl -sk https://grafana.grab-lab.gg | head -5
 
 ## Removing a Peer
 
-Remove the peer block from `machines/nixos/vps/wireguard.nix` and redeploy:
+Remove the peer block from `homelab/wireguard-server/default.nix` and redeploy:
 
 ```bash
 just deploy-vps

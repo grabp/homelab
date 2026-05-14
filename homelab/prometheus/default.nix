@@ -24,8 +24,6 @@ let
     "https://ha.${vars.domain}"
     "https://uptime.${vars.domain}"
     "https://esphome.${vars.domain}"
-    "https://netbird.${vars.domain}"
-    "https://pocket-id.${vars.domain}"
   ];
 in
 {
@@ -227,6 +225,26 @@ in
                     summary: "Systemd unit failed: {{ $labels.name }}"
                     description: "{{ $labels.name }} has been in a failed state for more than 5 minutes"
         '')
+        (pkgs.writeText "wireguard-alerts.yml" ''
+          groups:
+            - name: wireguard
+              rules:
+                # Fires when a WireGuard peer has not completed a handshake in >3 minutes.
+                # Metric: wireguard_latest_handshake_seconds from prometheus-wireguard-exporter
+                # (prometheus-wireguard-exporter 3.6.6, port 9586, enabled in wireguard-client).
+                # With persistentKeepalive=25s, a stale handshake means the tunnel is down.
+                # Covers pebble↔VPS (job="wireguard") and boulder↔VPS (job="wireguard_boulder").
+                # Mobile peers (10.10.0.4+) connect to VPS only — VPS has no exporter —
+                # so they are naturally excluded from this alert.
+                - alert: WireGuardPeerDisconnected
+                  expr: time() - wireguard_latest_handshake_seconds > 180
+                  for: 5m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "WireGuard peer disconnected on {{ $labels.instance }}"
+                    description: "No handshake for >3 min (keepalive=25s). public_key={{ $labels.public_key }}"
+        '')
       ];
 
       scrapeConfigs = [
@@ -236,6 +254,20 @@ in
             {
               targets = [ "localhost:${toString config.my.services.nodeExporter.port}" ];
             }
+          ];
+        }
+        # WireGuard peer handshake metrics — prometheus-wireguard-exporter on each spoke.
+        # Port 9586 opened by homelab/wireguard-client/default.nix.
+        {
+          job_name = "wireguard";
+          static_configs = [
+            { targets = [ "localhost:9586" ]; }
+          ];
+        }
+        {
+          job_name = "wireguard_boulder";
+          static_configs = [
+            { targets = [ "${vars.boulderIP}:9586" ]; }
           ];
         }
         # Multi-target blackbox pattern: Prometheus rewrites __address__ to __param_target

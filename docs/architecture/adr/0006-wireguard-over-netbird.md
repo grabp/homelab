@@ -38,6 +38,6 @@ Dynamic peer discovery (NetBird's main value) is unnecessary for a handful of kn
 ## Consequences
 
 - **Removed:** `homelab/netbird-client/`, `homelab/netbird-server/`, `homelab/pocket-id/`, `nixpkgs-unstable` flake input, systemd-resolved on pebble/boulder, coturn firewall ports, NetBird/Pocket ID DNS overrides in Pi-hole.
-- **Added:** `homelab/wireguard/default.nix` (client module), `machines/nixos/vps/wireguard.nix` (server), `docs/playbooks/wireguard-add-peer.md`.
-- Adding a new device requires editing `machines/nixos/vps/wireguard.nix` and running `just deploy-vps` — no dashboard, no OIDC flow.
+- **Added:** `homelab/wireguard-client/default.nix` (`my.services.wireguardClient`), `homelab/wireguard-server/default.nix` (`my.services.wireguardServer`, VPS only), `docs/playbooks/wireguard-add-peer.md`.
+- Adding a new device requires editing `homelab/wireguard-server/default.nix` and running `just deploy-vps` — no dashboard, no OIDC flow.
 - Kanidm remains the sole IdP for all service SSO (no more two-tier architecture — Pocket ID's tier is removed).
