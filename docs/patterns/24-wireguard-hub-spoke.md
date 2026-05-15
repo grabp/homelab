@@ -89,15 +89,21 @@ config = lib.mkMerge [
     };
   })
 
-  (lib.mkIf (cfg.enable && cfg.routing) {
-    # IP forwarding — required for pebble to route mobile → 192.168.10.0/24 LAN.
+  (lib.mkIf cfg.enable {
+    # ip_forward is needed on ALL clients (not just routing peers) because Podman
+    # bridge DNAT (eth0 → podman bridge) requires the FORWARD chain, which needs
+    # ip_forward=1. See gotcha below for sysctl ordering detail.
     boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
-
-    # Ensure ip_forward stays enabled after firewall reloads.
-    # The NixOS firewall can reset ip_forward=0 during activation, so we
-    # set it via extraCommands which runs after every firewall reload.
+    # Re-apply after every firewall reload — the firewall service can reset ip_forward
+    # to 0 during nixos-rebuild switch activation.
     networking.firewall.extraCommands = ''
       echo 1 > /proc/sys/net/ipv4/ip_forward
+    '';
+  })
+
+  (lib.mkIf (cfg.enable && cfg.routing) {
+    # Allow forwarded packets in and out of the WireGuard interface.
+    networking.firewall.extraCommands = ''
       iptables -A FORWARD -i wg0 -j ACCEPT
       iptables -A FORWARD -o wg0 -j ACCEPT
     '';
@@ -130,6 +136,6 @@ PersistentKeepalive = 25
 - **No VPS peer endpoint for pebble/boulder** — the VPS learns the peer's source address from the first handshake packet. Since pebble/boulder always initiate, no static endpoint is needed on the VPS side.
 - **Private key timing** — sops-nix decrypts secrets via activation scripts (before any systemd services start). The `wireguard-wg0.service` always finds the private key file at `/run/secrets/wireguard/private_key`. No explicit `after = [ "sops-install-secrets.service" ]` needed (that unit doesn't exist; sops uses activation scripts).
 - **FORWARD rules survive firewall reloads** — `nixos-rebuild switch` flushes all iptables chains. On VPS, use `postSetup`/`postShutdown` in the wireguard interface config. On pebble, use `networking.firewall.extraCommands` which runs on every reload.
-- **`ip_forward` on pebble (alphabetical sysctl trick)** — `nixos-rebuild switch` restarts `systemd-sysctl`, which re-applies all sysctl.d files in lexicographic order. `nixpkgs/nixos/modules/tasks/network-interfaces.nix` sets `net.ipv4.conf.all.forwarding = mkDefault false` → written to `/etc/sysctl.d/60-nixos.conf`. Netavark writes its `ip_forward=1` to `/run/sysctl.d/10-netavark-<id>.conf` (prefix "10" < "60"), so nixos wins and ip_forward ends up 0. Fix: set `boot.kernel.sysctl."net.ipv4.ip_forward" = 1` in the WireGuard client module. `mapAttrsToList` outputs keys alphabetically, so within `60-nixos.conf` the keys appear as: `net.ipv4.conf.all.forwarding=0` first (alphabetically), then `net.ipv4.ip_forward=1` later. Since they're kernel aliases, the last write wins. ip_forward stays 1 through the entire `systemd-sysctl` restart — no race condition, no ExecStartPost hook needed. Empirically verified on pebble (nixos-25.11).
+- **`ip_forward` required on ALL clients** — Podman bridge DNAT (eth0 → container bridge) traverses the FORWARD chain, which the kernel skips when `ip_forward=0`. This affects every wireguard-client host that runs containers, not just routing peers. Both the sysctl and `extraCommands` are needed: the sysctl sets the value via `systemd-sysctl`, but the firewall service (which restarts during `nixos-rebuild switch`) resets it. The `extraCommands` echo re-applies it after every firewall reload. Sysctl ordering detail: `nixpkgs/nixos/modules/tasks/network-interfaces.nix` writes `net.ipv4.conf.all.forwarding=0` to `/etc/sysctl.d/60-nixos.conf`; our `net.ipv4.ip_forward=1` lands later in the same file (alphabetically `conf` < `ip`), so the last write wins — but the firewall can still reset it at runtime, hence the extraCommands. Empirically verified on pebble and boulder (nixos-25.11).
 
 **Source:** Verified in production (VPS + pebble + boulder, nixos-25.11) ✅

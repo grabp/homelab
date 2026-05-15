@@ -61,15 +61,22 @@ in
       };
     })
 
-    (lib.mkIf (cfg.enable && cfg.routing) {
-      # IP forwarding — required for pebble to route mobile → 192.168.10.0/24 LAN.
+    (lib.mkIf cfg.enable {
+      # Required for Podman bridge DNAT forwarding (eth0 → podman bridge) on all
+      # WireGuard clients, not just routing peers. See docs/patterns/24-wireguard-hub-spoke.md
+      # for the sysctl ordering detail (ip_forward must beat nixos's conf.all.forwarding=0).
       boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
-
-      # Allow forwarded packets in and out of the WireGuard interface.
-      # Re-applied on every firewall reload (firewall flushes all chains on rebuild).
-      # Also ensure ip_forward stays enabled after firewall resets it.
+      # Re-apply after every firewall reload — the firewall service can reset ip_forward
+      # to 0 during nixos-rebuild switch activation.
       networking.firewall.extraCommands = ''
         echo 1 > /proc/sys/net/ipv4/ip_forward
+      '';
+    })
+
+    (lib.mkIf (cfg.enable && cfg.routing) {
+      # Allow forwarded packets in and out of the WireGuard interface.
+      # Re-applied on every firewall reload (firewall flushes all chains on rebuild).
+      networking.firewall.extraCommands = ''
         iptables -A FORWARD -i wg0 -j ACCEPT
         iptables -A FORWARD -o wg0 -j ACCEPT
       '';
