@@ -1,0 +1,89 @@
+{
+  config,
+  lib,
+  pkgs,
+  vars,
+  ...
+}:
+
+let
+  cfg = config.my.services.wireguardClient;
+in
+{
+  options.my.services.wireguardClient = {
+    enable = lib.mkEnableOption "WireGuard VPN client";
+
+    address = lib.mkOption {
+      type = lib.types.str;
+      description = "WireGuard IP for this host, e.g. \"10.10.0.2/32\".";
+    };
+
+    routing = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable IP forwarding and iptables FORWARD rules. True on pebble (advertises 192.168.10.0/24 to the mesh); false on boulder (point-to-point overlay only).";
+    };
+  };
+
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      sops.secrets."wireguard/private_key" = {
+        mode = "0400";
+      };
+
+      # Prometheus wireguard exporter — exposes wireguard_latest_handshake_seconds
+      # so Prometheus can alert when peers go stale. CAP_NET_ADMIN is granted by the
+      # NixOS module; no additional privileges are needed.
+      services.prometheus.exporters.wireguard = {
+        enable = true;
+        listenAddress = "0.0.0.0";
+        interfaces = [ "wg0" ];
+      };
+      # Allow Prometheus on pebble to scrape this from the LAN.
+      # On pebble itself prometheus is local (no firewall needed, but harmless).
+      networking.firewall.allowedTCPPorts = [ 9586 ];
+
+      networking.wireguard.interfaces.wg0 = {
+        ips = [ cfg.address ];
+        privateKeyFile = config.sops.secrets."wireguard/private_key".path;
+
+        peers = [
+          {
+            # VPS hub — all overlay traffic routes through here.
+            # pebble and boulder initiate outbound; PersistentKeepalive keeps the
+            # CGNAT mapping open so the VPS can always reach back.
+            publicKey = "Va6gsgUqcxtgW8wLNCiBGVv+dr3xe9J27pbniMRHExU="; # gitleaks:allow
+            endpoint = "${vars.vpsIP}:51820";
+            allowedIPs = [ "10.10.0.0/24" ];
+            persistentKeepalive = 25;
+          }
+        ];
+      };
+    })
+
+    (lib.mkIf cfg.enable {
+      # Required for Podman bridge DNAT forwarding (eth0 → podman bridge) on all
+      # WireGuard clients, not just routing peers. See docs/patterns/24-wireguard-hub-spoke.md
+      # for the sysctl ordering detail (ip_forward must beat nixos's conf.all.forwarding=0).
+      boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
+      # Re-apply after every firewall reload — the firewall service can reset ip_forward
+      # to 0 during nixos-rebuild switch activation.
+      networking.firewall.extraCommands = ''
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+      '';
+    })
+
+    (lib.mkIf (cfg.enable && cfg.routing) {
+      # Allow forwarded packets in and out of the WireGuard interface.
+      # Re-applied on every firewall reload (firewall flushes all chains on rebuild).
+      networking.firewall.extraCommands = ''
+        iptables -A FORWARD -i wg0 -j ACCEPT
+        iptables -A FORWARD -o wg0 -j ACCEPT
+      '';
+
+      # Loki ingestion port — VPS Alloy pushes logs over wg0 to pebble's Loki.
+      # Only pebble (routing = true) runs Loki; boulder does not.
+      networking.firewall.interfaces."wg0".allowedTCPPorts = [ 3100 ];
+    })
+  ];
+}

@@ -2,7 +2,10 @@
 kind: pattern
 number: 15
 tags: [systemd-resolved, netbird, pihole, DNS]
+archived: true
 ---
+
+> ⚠️ **Archived** — `systemd-resolved` with `DNSStubListener=no` was required for NetBird's `resolvectl` DNS routing. With raw WireGuard (Pattern 24), DNS is configured statically in the client config file. `services.resolved` is no longer enabled on pebble or boulder.
 
 # Pattern 15: systemd-resolved with DNSStubListener=no (NetBird + Pi-hole coexistence)
 

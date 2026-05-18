@@ -51,19 +51,10 @@
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
   # Loki: accept log pushes from two sources.
-  # wt0 (NetBird): VPS Alloy pushes over the mesh (not on LAN).
-  # eth0 (LAN): boulder Alloy pushes directly — no NetBird hop needed.
-  networking.firewall.interfaces."wt0".allowedTCPPorts = [ 3100 ];
+  # wg0 (WireGuard): VPS Alloy pushes over the mesh (not on LAN).
+  # eth0 (LAN): boulder Alloy pushes directly.
+  # wg0 rule is in homelab/wireguard-client/default.nix (routing = true).
   networking.firewall.interfaces."eth0".allowedTCPPorts = [ 3100 ];
-
-  # DNS: Pi-hole owns port 53, but systemd-resolved runs for NetBird DNS routing
-  # (Pattern 15: DNSStubListener=no frees port 53 while keeping resolved daemon)
-  services.resolved = {
-    enable = true;
-    extraConfig = ''
-      DNSStubListener=no
-    '';
-  };
 
   my.services.pihole.enable = true;
   my.services.caddy.enable = true;
@@ -72,7 +63,11 @@
   my.services.prometheus.enable = true; # Stage 6
   my.services.grafana.enable = true;
   my.services.loki.enable = true;
-  my.services.netbird.enable = true; # Stage 7b
+  my.services.wireguardClient = {
+    enable = true;
+    address = "10.10.0.2/32";
+    routing = true; # advertises 192.168.10.0/24 to the WireGuard mesh
+  }; # Stage 7b
   my.services.kanidm.enable = true; # Stage 7c
   my.services.homepage.enable = true; # Stage 8
   my.services.mosquitto.enable = true; # Stage 9a
@@ -92,12 +87,20 @@
     workspacePath = "/var/lib/homeassistant"; # default, but explicit
   };
 
-  # Prometheus: scrape boulder's node_exporter over LAN (Stage 11)
-  # job_name must differ from "node" (used by pebble's own exporter in homelab/prometheus/default.nix)
+  # Prometheus: scrape boulder and VPS exporters.
+  # job_name "node" is used by pebble's own exporter in homelab/prometheus/default.nix.
   services.prometheus.scrapeConfigs = [
     {
       job_name = "node_boulder";
       static_configs = [ { targets = [ "${vars.boulderIP}:9100" ]; } ];
+    }
+    {
+      job_name = "node_vps";
+      static_configs = [ { targets = [ "10.10.0.1:9100" ]; } ];
+    }
+    {
+      job_name = "wireguard_vps";
+      static_configs = [ { targets = [ "10.10.0.1:9586" ]; } ];
     }
   ];
 

@@ -52,7 +52,7 @@ just edit-secrets
 - [x] `just deploy pebble` — Loki, Alloy, backup, firewall changes applied
 - [x] `just deploy-vps` — monitoring.nix and netbird-client.nix applied
 - [x] `systemctl status alloy` on pebble — Alloy active, shipping pebble journald
-- [x] `ssh admin@204.168.181.110 systemctl status alloy` — Alloy active on VPS, push succeeds
+- [x] `ssh admin@<VPS_IP> systemctl status alloy` — Alloy active on VPS, push succeeds
 - [x] Grafana → Explore → Loki → `{host="vps"}` returns VPS journald logs
 - [x] `zfs list -t snapshot` shows `auto_` snapshots from Sanoid
 - [x] `systemctl status fail2ban` on pebble and VPS — both active

@@ -16,7 +16,7 @@ just deploy pebble
 
 # VPS
 just deploy-vps
-# Target: 204.168.181.110
+# Target: vars.vpsIP (from machines/nixos/vars.nix)
 ```
 
 **How it works:** deploy-rs builds locally, copies closure via SSH, activates. Auto-rollback on failure.
@@ -36,10 +36,14 @@ For bare-metal or fresh VPS. Requires ≥1 GB RAM.
 ### VPS provisioning workflow
 
 ```bash
-# 1. Create VPS, get public IP (e.g., 204.168.181.110)
+# 0. Prerequisites: machines/nixos/local.nix must exist with the new VPS IP.
+#    Run: just edit-secrets-admin  (update vpsIP)
+#    Then: just setup-local        (regenerates local.nix)
+
+# 1. Create VPS, note the assigned public IP
 
 # 2. DNS record (Cloudflare, no proxy)
-# A netbird.grab-lab.gg → 204.168.181.110
+# A netbird.grab-lab.gg → <VPS_IP>
 
 # 3. Generate + derive age key
 just gen-vps-hostkey
@@ -58,10 +62,10 @@ nix shell nixpkgs#ssh-to-age -c sh -c \
 just edit-secrets-vps
 
 # 6. Provision
-just provision-vps 204.168.181.110
+just provision-vps <VPS_IP>
 
 # 7. Verify
-ssh admin@204.168.181.110
+ssh admin@<VPS_IP>
 # Check: systemctl status, lsblk, ip addr
 
 # 8. Subsequent updates: deploy-rs
@@ -170,7 +174,7 @@ just netbird-status
 
 ### VPS
 ```bash
-ssh admin@204.168.181.110
+ssh admin@<VPS_IP>   # IP from machines/nixos/vars.nix vpsIP
 podman ps
 systemctl status caddy coturn
 curl -I https://netbird.grab-lab.gg

@@ -2,7 +2,11 @@
 kind: pattern
 number: 19
 tags: [netbird, server, OCI-containers, pocket-id, VPS]
+archived: true
+superseded_by: docs/patterns/24-wireguard-hub-spoke.md
 ---
+
+> ⚠️ **Archived** — NetBird server + Pocket ID were replaced by raw WireGuard hub-and-spoke in May 2026. See [Pattern 24](./24-wireguard-hub-spoke.md). This file is kept for historical reference.
 
 # Pattern 19: NetBird server via OCI containers on NixOS VPS (Pocket ID OIDC)
 

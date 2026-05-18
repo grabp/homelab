@@ -27,7 +27,7 @@ Status: Deployed, setup wizard completed, setup key encrypted into secrets.
 - `.sops.yaml` — added VPS age key and `vps.yaml` creation rule
 - `justfile` — added `gen-vps-hostkey`, `provision-vps`, `deploy-vps`, `ssh-vps`
 - `homelab/pihole/default.nix` — added `address=/netbird.grab-lab.gg/${vars.vpsIP}` for split-DNS exception
-- `machines/nixos/vars.nix` — added `vpsIP = "204.168.181.110"`
+- `machines/nixos/vars.nix` — added `vpsIP = "<VPS_IP>"`
 
 ## Configuration (current — embedded Dex + Caddy)
 - OCI containers via `virtualisation.oci-containers` (Podman):
@@ -58,12 +58,12 @@ Status: Deployed, setup wizard completed, setup key encrypted into secrets.
 13. **setup_required: false blocked the setup wizard**: old `store.db` from Zitadel-era deployment caused the management server to report setup as already complete. The `/setup` page redirected straight to Dex login, but `idp.db` had no users. Fix: stop management container, delete `store.db` and `idp.db`, restart — instance reverts to `setup_required: true`.
 
 ## Pre-Deploy Workflow (Completed)
-1. Created Hetzner CX22 VPS at IP `204.168.181.110`
-2. Created Cloudflare DNS A record: `netbird.grab-lab.gg → 204.168.181.110` (DNS only, no proxy)
+1. Created Hetzner CX22 VPS at IP `<VPS_IP>`
+2. Created Cloudflare DNS A record: `netbird.grab-lab.gg → <VPS_IP>` (DNS only, no proxy)
 3. Generated SSH host key via `just gen-vps-hostkey`
 4. Added VPS age key to `.sops.yaml`
 5. Created `secrets/vps.yaml` with TURN password and encryption key
-6. Provisioned via `just provision-vps 204.168.181.110`
+6. Provisioned via `just provision-vps <VPS_IP>`
 7. Deployed pebble with Pi-hole DNS override via `just deploy pebble`
 8. Restarted Pi-hole to load split-DNS config
 
@@ -73,7 +73,7 @@ Status: Deployed, setup wizard completed, setup key encrypted into secrets.
 - [x] `curl https://netbird.grab-lab.gg/oauth2/.well-known/openid-configuration` returns Dex discovery JSON with `"issuer": "https://netbird.grab-lab.gg/oauth2"`
 - [x] `https://netbird.grab-lab.gg` loads NetBird dashboard (HTTP 200)
 - [x] TLS certificate from Let's Encrypt (E8 CA), served by Caddy via HTTP-01 ACME
-- [x] Pi-hole split-DNS: `netbird.grab-lab.gg → 204.168.181.110`
+- [x] Pi-hole split-DNS: `netbird.grab-lab.gg → <VPS_IP>`
 
 ## Remaining Manual Steps (Required Before Stage 7b)
 - [x] Complete setup wizard at `https://netbird.grab-lab.gg/setup` — admin account created (2026-04-15)

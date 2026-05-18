@@ -1,80 +1,26 @@
 ---
 kind: architecture
 title: Authentication Architecture
-tags: [auth, oidc, kanidm, pocket-id]
+tags: [auth, oidc, kanidm]
 supersedes: [docs/IDP-STRATEGY.md]
 ---
 
 # Authentication Architecture
 
-This homelab uses a **two-tier IdP architecture** to solve the chicken-and-egg problem of VPN authentication.
-
-## Two-Tier Design
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│  Tier 1: VPS                        Tier 2: Homelab (pebble)   │
-│  ┌──────────────────────────┐        ┌──────────────────────┐   │
-│  │ Pocket ID                │        │ Kanidm               │   │
-│  │ (passkey-only OIDC)      │        │ services.kanidm      │   │
-│  │ pocket-id OCI container  │        │ ~50–80 MB RAM        │   │
-│  │                          │        │                      │   │
-│  │ Handles: NetBird VPN     │        │ Handles: ALL service │   │
-│  │ auth ONLY                │        │ SSO (OIDC + LDAP)    │   │
-│  │ PKCE + WebAuthn/passkey  │        │ Accessible via VPN   │   │
-│  │ ~20 MB RAM               │        │ only (not internet)  │   │
-│  └──────────────────────────┘        └──────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Why Two Tiers?
-
-**The chicken-and-egg problem:** NetBird VPN auth cannot depend on the homelab IdP, because you need the VPN to reach the homelab — and you need the IdP to authenticate the VPN. A single homelab IdP creates a deadlock.
-
-**The solution:**
-- **Tier 1 (VPS):** Pocket ID handles VPN authentication exclusively. It's always reachable (public IP). Passkey/FIDO2 only — no passwords.
-- **Tier 2 (homelab):** Kanidm on pebble handles all service SSO. Never exposed to the internet — accessible only via NetBird VPN tunnel.
-
-**Benefits:**
-- VPS compromise cannot affect service credentials (Kanidm is on a different machine)
-- Reduced attack surface for the critical homelab IdP
-- Kanidm embedded SQLite means no PostgreSQL/Redis dependencies
+Kanidm on pebble is the sole IdP for all service SSO. WireGuard VPN access is authenticated by keypairs (no IdP required — see [ADR 0006](./adr/0006-wireguard-over-netbird.md)).
 
 ## Per-Service Authentication Table
 
 | Service | Machine | Auth Method | IdP | Notes |
 |---------|---------|-------------|-----|-------|
-| NetBird VPN | VPS | PKCE + passkey | Pocket ID | `EmbeddedIdP.Enabled = false` |
+| WireGuard VPN | VPS | Keypair | N/A | Static peers in `homelab/wireguard-server/default.nix` |
 | Grafana | pebble | Native OIDC | Kanidm | `auth.generic_oauth` settings |
 | Vaultwarden | pebble | Native OIDC | Kanidm | Master password still required |
 | Homepage | pebble | Caddy forward_auth | Kanidm | oauth2-proxy in front |
 | Uptime Kuma | pebble | Caddy forward_auth | Kanidm | oauth2-proxy in front |
 | Home Assistant | pebble | Header auth | Kanidm | Via forward_auth |
 
-## Tier 1: Pocket ID (VPS)
-
-Pocket ID is a minimal, passkey-only OIDC provider that replaced embedded Dex in Stage 10b.
-
-**Characteristics:**
-- WebAuthn/FIDO2 passkeys only — no email/password auth possible
-- Public OIDC client with PKCE (no client secret)
-- Serves NetBird dashboard only
-- SQLite backend, ~20 MB RAM
-
-**Auth flow:**
-1. Browser opens `https://netbird.grab-lab.gg/` → redirects to Pocket ID
-2. User authenticates with passkey at `https://pocket-id.grab-lab.gg`
-3. Pocket ID redirects back to `/nb-auth` with auth code
-4. Dashboard exchanges code (PKCE) for tokens
-
-**Known gotchas:**
-- Setup page is `/login/setup` (not `/setup`)
-- OIDC client must be **Public** (not confidential)
-- `offline_access` scope not supported
-- New users require SQLite approval before first login
-
-## Tier 2: Kanidm (pebble)
+## Kanidm (pebble)
 
 Kanidm is a modern identity platform with native NixOS module support.
 
@@ -166,7 +112,7 @@ For services without native OIDC (Homepage, Uptime Kuma), oauth2-proxy sits betw
 
 ```
 Stage 4 (Caddy) ──────────────────────────────────────────────────────┐
-Stage 7b (NetBird client) ─────────────────────────────────────────────┼──► Stage 7c (Kanidm)
+Stage 7b (WireGuard client) ───────────────────────────────────────────┼──► Stage 7c (Kanidm)
                                                                        │
 Stage 7c (Kanidm) ─────────────────────────────────────────────────────┼──► Grafana OIDC
                                                                        │
@@ -174,10 +120,6 @@ Stage 7c (Kanidm) ────────────────────�
 ```
 
 Kanidm must be deployed and verified before any service requiring SSO.
-
-## Future: Unified Credentials (Optional)
-
-Pocket ID could be replaced by Kanidm as the NetBird OIDC provider, giving unified credentials. However, this reintroduces the chicken-and-egg dependency — you need VPN to reach Kanidm, but need Kanidm to authenticate VPN. A separate NetBird bootstrap user or dedicated admin DNS path would be required.
 
 ## Key Files
 

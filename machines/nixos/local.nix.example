@@ -1,0 +1,5 @@
+# Copy this file to local.nix and fill in values, OR run: just setup-local
+# local.nix is gitignored — never commit it.
+{
+  vpsIP = "<VPS_IP>"; # Hetzner VPS public IP
+}

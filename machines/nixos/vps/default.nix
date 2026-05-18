@@ -2,9 +2,6 @@
 {
   imports = [
     ./disko.nix
-    ../../../homelab/netbird-client # Stage 10: VPS as NetBird peer (for Alloy → pebble Loki)
-    ./caddy.nix
-    ../../../modules/podman
   ];
 
   networking.hostName = "vps";
@@ -38,47 +35,39 @@
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
   };
 
+  my.services.wireguardServer.enable = true; # Stage 7b — WireGuard VPN hub
+
   networking.firewall.enable = true;
-  # Caddy: ACME HTTP-01 challenge + NetBird dashboard/API
-  # coturn: STUN/TURN (3478/5349) + relay range (49152-65535)
-  # NOTE: services.coturn does NOT open firewall ports automatically.
-  networking.firewall.allowedTCPPorts = [
-    80
-    443
-    3478
-    5349
-  ];
-  networking.firewall.allowedUDPPorts = [
-    3478
-    5349
-  ];
-  networking.firewall.allowedUDPPortRanges = [
-    {
-      from = 49152;
-      to = 65535;
-    }
-  ];
+  # WireGuard UDP 51820 opened by homelab/wireguard-server/default.nix.
+  # SSH (22) opened by machines/nixos/_common/ssh.nix.
+  # No other inbound ports needed.
 
-  # ACME: Caddy obtains TLS certs via Let's Encrypt HTTP-01 challenge.
-  # No Cloudflare DNS plugin needed — VPS has a public IP.
-  # acceptTerms + email are read by the Caddy module as ACME defaults.
-  security.acme = {
-    acceptTerms = true;
-    defaults.email = vars.adminEmail;
-  };
-
-  my.services.netbird.server.enable = true;
-  my.services.netbird = {
-    enable = true;
-    routing = false; # VPS only needs point-to-point overlay access to pebble, not LAN routing
-  };
-  my.services.pocketId.enable = true;
   my.services.alloy = {
     enable = true;
     hostLabel = "vps";
-    lokiUrl = "https://100.102.154.38:3100/loki/api/v1/push"; # NetBird overlay — VPS is not on pebble's LAN
+    # Reach pebble Loki over the WireGuard tunnel (pebble advertises 192.168.10.0/24 via wg0)
+    lokiUrl = "https://${vars.pebbleIP}:3100/loki/api/v1/push";
     insecureSkipVerify = true;
   }; # Stage 10
+
+  # Node exporter — scraped by pebble Prometheus over WireGuard (10.10.0.1).
+  # Not exposed on the public interface; wg0-scoped rule limits access to VPN peers only.
+  my.services.nodeExporter = {
+    enable = true;
+    openFirewall = false;
+  };
+  networking.firewall.interfaces."wg0".allowedTCPPorts = [
+    9100
+    9586
+  ];
+
+  # WireGuard exporter — binds to VPN IP so pebble can scrape all peer handshake times,
+  # including mobile clients (10.10.0.4+) which have no spoke-side exporter.
+  services.prometheus.exporters.wireguard = {
+    enable = true;
+    listenAddress = "10.10.0.1";
+    interfaces = [ "wg0" ];
+  };
 
   system.stateVersion = "25.11";
 }

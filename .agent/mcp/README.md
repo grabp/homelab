@@ -299,7 +299,7 @@ The server is configured in `.mcp.json` at the repository root:
       "cwd": "/Users/.../lab/.agent/mcp",
       "env": {
         "PEBBLE_IP": "192.168.10.50",
-        "VPS_IP": "204.168.181.110"
+        "VPS_IP": "<VPS_IP>"
       }
     }
   }

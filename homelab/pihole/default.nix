@@ -48,10 +48,6 @@ in
     system.activationScripts.pihole-dnsmasq-config = lib.stringAfter [ "var" ] ''
       mkdir -p /var/lib/pihole-dnsmasq
       {
-        # VPS-hosted services — specific entries override the wildcard below.
-        echo "address=/netbird.${vars.domain}/${vars.vpsIP}"
-        echo "address=/pocket-id.${vars.domain}/${vars.vpsIP}"
-
         # Wildcard split DNS: *.grab-lab.gg → Caddy (on pebble)
         echo "address=/${vars.domain}/${vars.pebbleIP}"
       } > /var/lib/pihole-dnsmasq/04-grab-lab.conf
@@ -149,16 +145,12 @@ in
     #     https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt
     # -------------------------------------------------------------------------
 
-    # When nixos-rebuild switch reloads the firewall (e.g. a new port was opened),
-    # NixOS flushes and rewrites ALL iptables chains — including the NETAVARK_*
-    # chains that Podman/Netavark wrote for port 53 DNAT. If podman-pihole is not
-    # restarted afterward, the DNAT rules are gone and external DNS queries time out
-    # even though the container is running.
-    # partOf: restart this service whenever firewall.service restarts.
-    # after:  ensure we start after the firewall so rules are added last.
+    # Ensure the container starts after the firewall so Netavark's iptables rules
+    # (DNAT for port 53, POSTROUTING masquerade) are written after the firewall
+    # chain flush. ip_forward is kept =1 by homelab/wireguard-client/default.nix
+    # via boot.kernel.sysctl — no ExecStartPost hook needed here.
     systemd.services.podman-pihole = {
       after = [ "firewall.service" ];
-      partOf = [ "firewall.service" ];
     };
 
     networking.firewall.allowedTCPPorts = [ 53 ]; # webPort (8089) intentionally omitted — Caddy proxies internally

@@ -6,13 +6,12 @@
 #   Stage 4:  caddy
 #   Stage 5:  vaultwarden
 #   Stage 6:  prometheus, grafana, loki
-#   Stage 7b: netbird
+#   Stage 7b: wireguard-client (client, replaced netbird-client), wireguard-server (hub, VPS only)
 #   Stage 7c: kanidm
 #   Stage 8:  homepage
 #   Stage 9a: mosquitto, home-assistant (+ ESPHome), uptime-kuma
 #   Stage 9b: wyoming, matter-server
 #   Stage 10: backup
-#   Stage 10b: pocket-id
 #   Stage 11: docs-site, alloy, node-exporter
 #   Stage 12: postgresql
 #   Stage 13: paperless, stirling-pdf
@@ -27,7 +26,8 @@
     ./prometheus # Stage 6
     ./grafana # Stage 6
     ./loki # Stage 6
-    ./netbird-client # Stage 7b
+    ./wireguard-client # Stage 7b — WireGuard VPN client (replaces NetBird)
+    ./wireguard-server # Stage 7b — WireGuard VPN hub server (VPS only)
     ./kanidm # Stage 7c — Kanidm OIDC + LDAP IdP
     ./homepage # Stage 8
     ./mosquitto # Stage 9a
@@ -39,7 +39,6 @@
     ./docs-site # Stage 11 — MkDocs documentation portal
     ./alloy # Stage 11 — Grafana Alloy log shipper (opt-in per machine)
     ./node-exporter # Stage 11 — Prometheus node_exporter for remote scraping (opt-in per machine)
-    ./pocket-id # Stage 10b — Pocket ID passkey OIDC provider
     ./postgresql # Stage 12 — Shared PostgreSQL instance (outline, vikunja, paperless)
     ./paperless # Stage 13 — Paperless-ngx document management
     ./stirling-pdf # Stage 13 — Stirling-PDF PDF toolkit

@@ -29,3 +29,10 @@ creation_rules:
           - *vps
         pgp:
           - *admin-gpg
+
+  - path_regex: secrets/admin\.yaml$
+    key_groups:
+      - age:
+          - *admin
+        pgp:
+          - *admin-gpg

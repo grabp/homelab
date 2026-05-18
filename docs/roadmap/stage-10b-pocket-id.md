@@ -25,7 +25,7 @@ Replaced embedded Dex (built into `netbirdio/management`) with Pocket ID, a pass
 - Image: `ghcr.io/pocket-id/pocket-id:v1.3.1@sha256:879760...` (pinned digest)
 - Port 1411 bound to `127.0.0.1` only — proxied by Caddy, not exposed directly
 - `ALLOW_USER_SIGNUPS = "disabled"` — signups locked after initial admin created
-- Cloudflare DNS: A record `pocket-id.grab-lab.gg → 204.168.181.110`
+- Cloudflare DNS: A record `pocket-id.grab-lab.gg → <VPS_IP>`
 - Pi-hole override so LAN devices bypass the wildcard `*.grab-lab.gg → pebble` for this subdomain
 - **Setup page**: `/login/setup` (not `/setup`) in v1.3.1
 - OIDC Client ID: `4c1b8f6b-736c-4f52-800b-022c45a8970f` (NetBird client in Pocket ID)
