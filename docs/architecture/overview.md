@@ -13,7 +13,7 @@ This document describes the high-level topology, machine roles, and network arch
 | Machine | Role | Hardware | Network | Host |
 |---------|------|----------|---------|------|
 | **pebble** | Homelab server, primary service host, NetBird routing peer | HP ProDesk 600 G1 | 192.168.10.50/24 (LAN), CGNAT | NixOS 25.11, ZFS |
-| **vps** | NetBird control plane, Pocket ID IdP, public entry point | Hetzner CX22 | 204.168.181.110 (public) | NixOS 25.11, ext4 |
+| **vps** | NetBird control plane, Pocket ID IdP, public entry point | Hetzner CX22 | `<VPS_IP>` (public, from vars.nix) | NixOS 25.11, ext4 |
 | **boulder** | Future media server, document management | HP EliteDesk (planned) | 192.168.10.51/24 (LAN) | NixOS 25.11, ZFS |
 
 ## Network Topology
@@ -25,14 +25,14 @@ LAN clients → Pi-hole (DNS :53) → resolves *.grab-lab.gg → 192.168.10.50
                                  → Caddy (:443) → localhost:<service-port>
 
 Mobile clients (phone/laptop)
-  → UDP 51820 → VPS WireGuard hub (10.10.0.1, public IP 204.168.181.110)
+  → UDP 51820 → VPS WireGuard hub (10.10.0.1, public IP from vars.vpsIP)
       ↕ WireGuard (end-to-end encrypted)
   ← pebble (10.10.0.2, behind CGNAT, outbound-only to VPS)
   → DNS: 192.168.10.50 (Pi-hole via tunnel) → *.grab-lab.gg → Caddy → service
 
 pebble ← ISP CGNAT (symmetric NAT, no inbound)
-  pebble initiates outbound WireGuard to VPS; PersistentKeepalive=25s keeps CGNAT
-  mapping alive. VPS routes mobile → pebble → LAN services.
+  pebble initiates outbound WireGuard to VPS (10.10.0.1); PersistentKeepalive=25s
+  keeps CGNAT mapping alive. VPS routes mobile → pebble → LAN services.
 ```
 
 ### CGNAT — hub-and-spoke eliminates TURN relay

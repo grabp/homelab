@@ -1,6 +1,9 @@
 # justfile — NixOS homelab task runner
 # Install just: nix-shell -p just
 
+# ── Machine IPs (sourced from vars.nix) ───────
+vps_ip := `grep -oP '(?<=vpsIP = ")[^"]+' machines/nixos/vars.nix`
+
 # ── Local Operations ──────────────────────────
 switch:
     sudo nixos-rebuild switch --flake .
@@ -118,7 +121,7 @@ ssh-pebble:
     ssh admin@192.168.10.50
 
 ssh-vps:
-    ssh admin@204.168.181.110
+    ssh admin@{{vps_ip}}
 
 ssh-boulder:
     ssh admin@192.168.10.51

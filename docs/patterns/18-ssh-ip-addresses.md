@@ -6,7 +6,7 @@ tags: [ssh, deployment, DNS, safety]
 
 # Pattern 18: Always use IP addresses for SSH, never domain names
 
-**Problem:** When deploying to multiple machines, DNS resolution can return the wrong IP if Pi-hole or split-horizon DNS is misconfigured. A command like `ssh admin@netbird.grab-lab.gg` may resolve to a LAN server (192.168.10.50) instead of the intended VPS (204.168.181.110), causing the wrong machine to receive the deployment — potentially breaking the local server with incompatible configuration.
+**Problem:** When deploying to multiple machines, DNS resolution can return the wrong IP if Pi-hole or split-horizon DNS is misconfigured. A command like `ssh admin@netbird.grab-lab.gg` may resolve to a LAN server (192.168.10.50) instead of the intended VPS (<VPS_IP>), causing the wrong machine to receive the deployment — potentially breaking the local server with incompatible configuration.
 
 **Rule:** Always use explicit IP addresses from `vars.nix` for SSH and deployment commands. Never rely on domain names for infrastructure operations.
 
@@ -14,7 +14,7 @@ tags: [ssh, deployment, DNS, safety]
 # machines/nixos/vars.nix — single source of truth for IPs
 {
   serverIP = "192.168.10.50";   # pebble (homelab)
-  vpsIP = "204.168.181.110";    # VPS (NetBird control plane)
+  vpsIP = "<VPS_IP>";    # VPS (NetBird control plane)
   routerIP = "192.168.1.1";
 }
 ```
@@ -25,7 +25,7 @@ ssh-pebble:
     ssh admin@192.168.10.50
 
 ssh-vps:
-    ssh admin@204.168.181.110
+    ssh admin@<VPS_IP>
 
 deploy-vps:
     # deploy-rs uses hostname from flakeHelpers.nix — ensure it's the IP, not domain

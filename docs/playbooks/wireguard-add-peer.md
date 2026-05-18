@@ -71,7 +71,7 @@ PrivateKey = <device private key from /tmp/new-device.key>
 
 [Peer]
 PublicKey = Va6gsgUqcxtgW8wLNCiBGVv+dr3xe9J27pbniMRHExU=
-Endpoint = 204.168.181.110:51820
+Endpoint = <VPS_IP>:51820
 AllowedIPs = 10.10.0.0/24, 192.168.10.0/24
 PersistentKeepalive = 25
 ```

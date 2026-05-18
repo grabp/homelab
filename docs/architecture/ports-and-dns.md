@@ -37,7 +37,7 @@ tags: [ports, dns, reference]
 | 10400 | TCP | OpenWakeWord | Wake word (localhost only) |
 | 8123 | TCP | Home Assistant | HA web interface (host network) |
 
-### vps (WireGuard hub) — 204.168.181.110
+### vps (WireGuard hub) — `vars.vpsIP`
 
 | Port | Protocol | Service | Notes |
 |------|----------|---------|-------|

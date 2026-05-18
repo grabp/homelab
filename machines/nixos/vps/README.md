@@ -11,12 +11,12 @@ NetBird management server and signal/coturn relay. Hosts Pocket ID (passkey-only
 ## Hardware
 - **Provider:** Hetzner Cloud
 - **Instance:** CX22
-- **Public IP:** `204.168.181.110` (from vars.nix)
+- **Public IP:** set in `machines/nixos/vars.nix` as `vpsIP`
 - **Virtualization:** QEMU/KVM with virtio drivers
 - **Boot mode:** SeaBIOS (legacy BIOS, not UEFI)
 
 ## Network
-- **Static public IP:** `204.168.181.110` (no CGNAT)
+- **Static public IP:** `vars.vpsIP` (no CGNAT)
 - **Firewall:** enabled
 - **Allowed TCP ports:** 80 (HTTP), 443 (HTTPS), 3478 (STUN), 5349 (STUN/TLS)
 - **Allowed UDP ports:** 3478 (STUN), 5349 (STUN/TLS), 49152-65535 (coturn relay range)

@@ -21,14 +21,10 @@ echo "Running tests to verify installation..."
 echo ""
 echo "Configuring MCP integration..."
 
-# Get machine IPs from vars.nix if available
-PEBBLE_IP="192.168.10.50"
-VPS_IP="204.168.181.110"
-VARS_NIX="$REPO_ROOT/vars.nix"
-if [ -f "$VARS_NIX" ]; then
-    PEBBLE_IP=$(grep -o 'pebbleIp = "[^"]*"' "$VARS_NIX" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' || echo "$PEBBLE_IP")
-    VPS_IP=$(grep -o 'vpsIp = "[^"]*"' "$VARS_NIX" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/' || echo "$VPS_IP")
-fi
+# Get machine IPs from vars.nix (single source of truth)
+VARS_NIX="$REPO_ROOT/machines/nixos/vars.nix"
+PEBBLE_IP=$(grep -oP '(?<=pebbleIP = ")[^"]+' "$VARS_NIX" 2>/dev/null || echo "192.168.10.50")
+VPS_IP=$(grep -oP '(?<=vpsIP = ")[^"]+' "$VARS_NIX" 2>/dev/null || echo "unknown")
 
 # Generate .mcp.json for Claude Code
 cd "$REPO_ROOT"

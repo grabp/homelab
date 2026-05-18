@@ -124,7 +124,7 @@ PrivateKey = <device-private-key>
 
 [Peer]
 PublicKey = <vps-public-key>
-Endpoint = 204.168.181.110:51820
+Endpoint = <VPS_IP>:51820
 AllowedIPs = 10.10.0.0/24, 192.168.10.0/24
 PersistentKeepalive = 25
 ```
