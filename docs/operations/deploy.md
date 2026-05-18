@@ -36,7 +36,11 @@ For bare-metal or fresh VPS. Requires ≥1 GB RAM.
 ### VPS provisioning workflow
 
 ```bash
-# 1. Create VPS, note the assigned public IP — update machines/nixos/vars.nix vpsIP
+# 0. Prerequisites: machines/nixos/local.nix must exist with the new VPS IP.
+#    Run: just edit-secrets-admin  (update vpsIP)
+#    Then: just setup-local        (regenerates local.nix)
+
+# 1. Create VPS, note the assigned public IP
 
 # 2. DNS record (Cloudflare, no proxy)
 # A netbird.grab-lab.gg → <VPS_IP>

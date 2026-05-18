@@ -12,9 +12,10 @@ tags: [ssh, deployment, DNS, safety]
 
 ```nix
 # machines/nixos/vars.nix — single source of truth for IPs
+# vpsIP is loaded from gitignored local.nix (run: just setup-local)
 {
   serverIP = "192.168.10.50";   # pebble (homelab)
-  vpsIP = "<VPS_IP>";    # VPS (NetBird control plane)
+  vpsIP = "<VPS_IP>";           # VPS — from machines/nixos/local.nix (see ADR 0007)
   routerIP = "192.168.1.1";
 }
 ```

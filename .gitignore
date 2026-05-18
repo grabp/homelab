@@ -5,3 +5,4 @@ result
 .mcp.json
 opencode.json
 result*/
+machines/nixos/local.nix

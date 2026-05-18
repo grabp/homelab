@@ -63,6 +63,9 @@ Available skills (invoke with `/<name>`):
 To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`, `user-invocable: true`), then copy it to `~/.claude/skills/<name>/SKILL.md` for global access.
 
 ## Commands
+
+> **First run on a new clone:** `just setup-local` — decrypts VPS IP from `secrets/admin.yaml` into gitignored `machines/nixos/local.nix`. Required before any VPS build or deploy.
+
 - `just build` — build without switching
 - `just switch` — build and switch locally
 - `just deploy pebble` — remote deploy pebble via deploy-rs
@@ -82,3 +85,5 @@ To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter
 - `just edit-secrets-pebble` — edit pebble secrets (secrets/pebble.yaml)
 - `just edit-secrets-boulder` — edit boulder secrets (secrets/boulder.yaml)
 - `just edit-secrets-vps` — edit VPS secrets (secrets/vps.yaml)
+- `just edit-secrets-admin` — edit admin secrets (secrets/admin.yaml, includes vpsIP)
+- `just setup-local` — regenerate machines/nixos/local.nix from secrets/admin.yaml

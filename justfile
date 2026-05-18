@@ -1,31 +1,31 @@
 # justfile — NixOS homelab task runner
 # Install just: nix-shell -p just
 
-# ── Machine IPs (sourced from vars.nix) ───────
-vps_ip := `grep -oP '(?<=vpsIP = ")[^"]+' machines/nixos/vars.nix`
+# ── Machine IPs (sourced from local.nix — gitignored, run: just setup-local) ───────
+vps_ip := `grep -oP '(?<=vpsIP = ")[^"]+' machines/nixos/local.nix 2>/dev/null || echo "unknown (run: just setup-local)"`
 
 # ── Local Operations ──────────────────────────
 switch:
-    sudo nixos-rebuild switch --flake .
+    sudo nixos-rebuild switch --flake path:.
 
 test:
-    nixos-rebuild test --flake . --use-remote-sudo
+    nixos-rebuild test --flake path:. --use-remote-sudo
 
 build:
-    nixos-rebuild build --flake .
+    nixos-rebuild build --flake path:.
 
 debug:
-    nixos-rebuild switch --flake . --use-remote-sudo --show-trace --verbose
+    nixos-rebuild switch --flake path:. --use-remote-sudo --show-trace --verbose
 
 # ── Remote Deployment ─────────────────────────
 deploy host="pebble":
-    nix run github:serokell/deploy-rs -- -s .#{{ host }}
+    nix run github:serokell/deploy-rs -- -s path:.#{{ host }}
 
 deploy-all:
-    nix run github:serokell/deploy-rs -- -s .
+    nix run github:serokell/deploy-rs -- -s path:.
 
 deploy-vps:
-    nix run github:serokell/deploy-rs -- -s .#vps
+    nix run github:serokell/deploy-rs -- -s path:.#vps
 
 # Initial VPS provisioning via nixos-anywhere (run once per VPS)
 # Prereqs: run `just gen-vps-hostkey` first, add the age key to .sops.yaml,
@@ -35,7 +35,7 @@ deploy-vps:
 # Usage: just provision-vps 1.2.3.4
 provision-vps ip:
     nix run github:nix-community/nixos-anywhere -- \
-      --flake .#vps \
+      --flake path:.#vps \
       --extra-files /tmp/vps-hostkey \
       root@{{ ip }}
 
@@ -44,7 +44,7 @@ provision-vps ip:
 #   1. just gen-pebble-hostkey     — generates key, prints age key
 #   2. Edit .sops.yaml             — add `- &pebble age1...`, add `- *pebble` to pebble.yaml rule
 #   3. just edit-secrets-pebble    — create secrets/pebble.yaml
-#   4. nix build .#nixosConfigurations.pebble.config.system.build.toplevel
+#   4. nix build path:.#nixosConfigurations.pebble.config.system.build.toplevel
 #   5. just provision-pebble <IP>  — install NixOS with pre-generated host key
 gen-pebble-hostkey:
     #!/usr/bin/env bash
@@ -67,7 +67,7 @@ gen-pebble-hostkey:
     echo "  1. Add '- &pebble age1...' to .sops.yaml keys section"
     echo "  2. Add '- *pebble' to the pebble.yaml creation rule"
     echo "  3. just edit-secrets-pebble"
-    echo "  4. nix build .#nixosConfigurations.pebble.config.system.build.toplevel"
+    echo "  4. nix build path:.#nixosConfigurations.pebble.config.system.build.toplevel"
     echo "  5. just provision-pebble <IP>"
 
 # Initial pebble provisioning via nixos-anywhere (run once on fresh machine).
@@ -78,7 +78,7 @@ gen-pebble-hostkey:
 # Usage: just provision-pebble 192.168.10.50
 provision-pebble ip:
     nix run github:nix-community/nixos-anywhere -- \
-      --flake .#pebble \
+      --flake path:.#pebble \
       --extra-files /tmp/pebble-hostkey \
       root@{{ ip }}
 
@@ -134,7 +134,7 @@ ssh-boulder:
 #   1. just gen-boulder-hostkey    — generates key, prints age key
 #   2. Edit .sops.yaml             — add `- &boulder age1...` and the boulder.yaml creation rule
 #   3. just edit-secrets-boulder   — create secrets/boulder.yaml with netbird/setup_key
-#   4. nix build .#nixosConfigurations.boulder.config.system.build.toplevel
+#   4. nix build path:.#nixosConfigurations.boulder.config.system.build.toplevel
 #   5. just provision-boulder <IP> — install NixOS with pre-generated host key
 gen-boulder-hostkey:
     #!/usr/bin/env bash
@@ -157,7 +157,7 @@ gen-boulder-hostkey:
     echo "  1. Add '- &boulder age1...' to .sops.yaml keys section"
     echo "  2. Add boulder.yaml creation rule in .sops.yaml (see vps.yaml rule as template)"
     echo "  3. just edit-secrets-boulder  # create secrets/boulder.yaml with netbird/setup_key"
-    echo "  4. nix build .#nixosConfigurations.boulder.config.system.build.toplevel"
+    echo "  4. nix build path:.#nixosConfigurations.boulder.config.system.build.toplevel"
     echo "  5. just provision-boulder <IP>"
 
 # Initial boulder provisioning via nixos-anywhere (run once on fresh machine)
@@ -166,7 +166,7 @@ gen-boulder-hostkey:
 # Usage: just provision-boulder 192.168.10.51
 provision-boulder ip:
     nix run github:nix-community/nixos-anywhere -- \
-      --flake .#boulder \
+      --flake path:.#boulder \
       --extra-files /tmp/boulder-hostkey \
       root@{{ ip }}
 
@@ -178,10 +178,10 @@ update-input input:
     nix flake update {{ input }}
 
 check:
-    nix flake check
+    nix flake check path:.
 
 show:
-    nix flake show
+    nix flake show path:.
 
 # ── Secrets ───────────────────────────────────
 edit-secrets-pebble:
@@ -192,6 +192,20 @@ edit-secrets-vps:
 
 edit-secrets-boulder:
     sops secrets/boulder.yaml
+
+edit-secrets-admin:
+    sops secrets/admin.yaml
+
+setup-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v sops &>/dev/null; then
+        echo "Error: sops not found. Run: nix develop" >&2
+        exit 1
+    fi
+    VPS_IP=$(sops -d --extract '["vpsIP"]' secrets/admin.yaml)
+    printf '# Auto-generated by '"'"'just setup-local'"'"' — do not commit.\n# Source of truth: secrets/admin.yaml (sops-encrypted).\n{\n  vpsIP = "%s";\n}\n' "$VPS_IP" > machines/nixos/local.nix
+    echo "✓ Created machines/nixos/local.nix with VPS IP"
 
 rekey:
     find secrets -name '*.yaml' -exec sops updatekeys {} \;
@@ -249,7 +263,7 @@ docs-serve:
 
 # Build static site to site/ directory
 docs-build:
-    nix build .#docs-site && echo "BUILD OK"
+    nix build path:.#docs-site && echo "BUILD OK"
 
 # ── Agent Setup ────────────────────────────────
 
