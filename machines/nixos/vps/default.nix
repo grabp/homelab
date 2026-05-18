@@ -50,5 +50,24 @@
     insecureSkipVerify = true;
   }; # Stage 10
 
+  # Node exporter — scraped by pebble Prometheus over WireGuard (10.10.0.1).
+  # Not exposed on the public interface; wg0-scoped rule limits access to VPN peers only.
+  my.services.nodeExporter = {
+    enable = true;
+    openFirewall = false;
+  };
+  networking.firewall.interfaces."wg0".allowedTCPPorts = [
+    9100
+    9586
+  ];
+
+  # WireGuard exporter — binds to VPN IP so pebble can scrape all peer handshake times,
+  # including mobile clients (10.10.0.4+) which have no spoke-side exporter.
+  services.prometheus.exporters.wireguard = {
+    enable = true;
+    listenAddress = "10.10.0.1";
+    interfaces = [ "wg0" ];
+  };
+
   system.stateVersion = "25.11";
 }

@@ -87,12 +87,20 @@
     workspacePath = "/var/lib/homeassistant"; # default, but explicit
   };
 
-  # Prometheus: scrape boulder's node_exporter over LAN (Stage 11)
-  # job_name must differ from "node" (used by pebble's own exporter in homelab/prometheus/default.nix)
+  # Prometheus: scrape boulder and VPS exporters.
+  # job_name "node" is used by pebble's own exporter in homelab/prometheus/default.nix.
   services.prometheus.scrapeConfigs = [
     {
       job_name = "node_boulder";
       static_configs = [ { targets = [ "${vars.boulderIP}:9100" ]; } ];
+    }
+    {
+      job_name = "node_vps";
+      static_configs = [ { targets = [ "10.10.0.1:9100" ]; } ];
+    }
+    {
+      job_name = "wireguard_vps";
+      static_configs = [ { targets = [ "10.10.0.1:9586" ]; } ];
     }
   ];
 

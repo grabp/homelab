@@ -58,6 +58,7 @@
         sops-nix.nixosModules.sops
         ./homelab/wireguard-server # Stage 7b — WireGuard VPN hub
         ./homelab/alloy # Stage 10 — log shipping to pebble Loki
+        ./homelab/node-exporter # metrics — scraped by pebble Prometheus over WireGuard
       ])
 
       {

@@ -144,7 +144,7 @@ in
             - name: availability
               rules:
                 - alert: HostMetricsDown
-                  expr: up{job=~"node|node_boulder"} == 0
+                  expr: up{job=~"node|node_boulder|node_vps"} == 0
                   for: 5m
                   labels:
                     severity: critical
@@ -258,6 +258,7 @@ in
         }
         # WireGuard peer handshake metrics — prometheus-wireguard-exporter on each spoke.
         # Port 9586 opened by homelab/wireguard-client/default.nix.
+        # node_boulder, node_vps, wireguard_vps declared in machines/nixos/pebble/default.nix.
         {
           job_name = "wireguard";
           static_configs = [
