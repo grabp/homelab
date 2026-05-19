@@ -229,15 +229,23 @@ in
           groups:
             - name: wireguard
               rules:
-                # Fires when a WireGuard peer has not completed a handshake in >3 minutes.
-                # Metric: wireguard_latest_handshake_seconds from prometheus-wireguard-exporter
-                # (prometheus-wireguard-exporter 3.6.6, port 9586, enabled in wireguard-client).
+                # Fires when a WireGuard infrastructure peer has not completed a handshake in >3 minutes.
+                # Metric: wireguard_latest_handshake_seconds from prometheus-wireguard-exporter.
                 # With persistentKeepalive=25s, a stale handshake means the tunnel is down.
-                # Covers pebble↔VPS (job="wireguard") and boulder↔VPS (job="wireguard_boulder").
-                # Mobile peers (10.10.0.4+) connect to VPS only — VPS has no exporter —
-                # so they are naturally excluded from this alert.
+                #
+                # Three scrape jobs feed this metric:
+                #   wireguard        — pebble exporter (only peer: VPS)
+                #   wireguard_boulder — boulder exporter (only peer: VPS)
+                #   wireguard_vps    — VPS exporter (sees all peers: pebble, boulder, mobile)
+                #
+                # For wireguard_vps we filter to infra peers only (10.10.0.2 pebble,
+                # 10.10.0.3 boulder) via allowed_ips. Mobile peers (10.10.0.4+) are
+                # intentionally excluded — they connect opportunistically, not persistently.
                 - alert: WireGuardPeerDisconnected
-                  expr: time() - wireguard_latest_handshake_seconds > 180
+                  expr: |
+                    (time() - wireguard_latest_handshake_seconds{job!="wireguard_vps"} > 180)
+                    or
+                    (time() - wireguard_latest_handshake_seconds{job="wireguard_vps", allowed_ips=~"10\\.10\\.0\\.[23]/32.*"} > 180)
                   for: 5m
                   labels:
                     severity: critical
