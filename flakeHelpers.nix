@@ -18,6 +18,10 @@ let
   mkNixos = hostname: nixpkgsVersion: extraModules: {
     deploy.nodes.${hostname} = {
       hostname = deployHostname hostname;
+      # Build on the target — required for cross-arch deploys (aarch64-darwin → x86_64-linux)
+      remoteBuild = true;
+      # LAN machines get fast direct copy; VPS substitutes from cache.nixos.org
+      fastConnection = hostname != "vps";
       profiles.system = {
         user = "root";
         sshUser = "admin";

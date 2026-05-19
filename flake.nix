@@ -41,6 +41,7 @@
         ./homelab
         ./modules/networking
         ./modules/podman
+        ./modules/nix-builder # Fallback remote builder
       ])
 
       # Media/productivity server: Immich, Jellyfin, Paperless, etc.
@@ -50,6 +51,7 @@
         ./homelab
         ./modules/networking
         ./modules/podman
+        ./modules/nix-builder # Primary remote builder
       ])
 
       # VPS: WireGuard hub + log shipping to pebble Loki

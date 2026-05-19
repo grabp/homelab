@@ -62,6 +62,14 @@ Available skills (invoke with `/<name>`):
 
 To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`, `user-invocable: true`), then copy it to `~/.claude/skills/<name>/SKILL.md` for global access.
 
+## Remote Builds
+
+Development machine is Apple Silicon (aarch64-darwin). All targets are x86_64-linux.
+
+**deploy-rs** uses `remoteBuild = true` — each target builds its own closure. Works from any architecture.
+
+**Remote builders** (boulder primary, pebble fallback) are configured for `nix build` and `nix flake check` from the Mac. See `docs/operations/remote-build.md` for Mac-side setup.
+
 ## Commands
 
 > **First run on a new clone:** `just setup-local` — decrypts VPS IP from `secrets/admin.yaml` into gitignored `machines/nixos/local.nix`. Required before any VPS build or deploy.
@@ -87,3 +95,5 @@ To add a new skill: create `.agent/skills/<name>/SKILL.md` with YAML frontmatter
 - `just edit-secrets-vps` — edit VPS secrets (secrets/vps.yaml)
 - `just edit-secrets-admin` — edit admin secrets (secrets/admin.yaml, includes vpsIP)
 - `just setup-local` — regenerate machines/nixos/local.nix from secrets/admin.yaml
+- `just check-builder` — verify Mac can reach remote builders (run with sudo)
+- `just remote-build <host>` — build a host's closure using remote builders

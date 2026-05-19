@@ -16,6 +16,7 @@ Find answers quickly with the Q→Doc lookup table below.
 | How do authentication and SSO work? | [architecture/auth.md](architecture/auth.md) |
 | What services run on which ports? | [architecture/ports-and-dns.md](architecture/ports-and-dns.md) |
 | How do I deploy changes? | [operations/deploy.md](operations/deploy.md) |
+| How do I deploy from Apple Silicon Mac? | [operations/remote-build.md](operations/remote-build.md) |
 | How do I add or rotate secrets? | [operations/secrets.md](operations/secrets.md) |
 | How do backups work? | [operations/backup-and-restore.md](operations/backup-and-restore.md) |
 | How do I access monitoring dashboards? | [operations/monitoring.md](operations/monitoring.md) |

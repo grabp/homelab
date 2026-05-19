@@ -69,5 +69,16 @@
   }; # Stage 11
   my.services.backup.enable = true;
 
+  # Remote builder: accept builds from the admin Mac
+  my.builder = {
+    enable = true;
+    authorizedKeys = [
+      # Root SSH key from the Mac (Nix daemon runs as root).
+      # Generate on Mac: sudo ssh-keygen -t ed25519 -f /var/root/.ssh/nix-builder-key -C "nix-builder@mac"
+      # Then paste the public key here:
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHBGiTIvwv29sKF5udISmLiPhqs4ttaiEgNicBR7f7nv nix-builder@mac"
+    ];
+  };
+
   system.stateVersion = "25.11";
 }

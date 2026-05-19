@@ -255,6 +255,20 @@ disko-format host:
 gen-hostid:
     head -c4 /dev/urandom | od -A none -t x4 | tr -d ' \n' && echo
 
+# ── Remote Build ───────────────────────────────
+
+# Verify remote builder connectivity from Mac (run as: sudo just check-builder)
+check-builder:
+    @echo "Testing boulder (primary builder)..."
+    sudo ssh -i /var/root/.ssh/nix-builder-key -o ConnectTimeout=5 nixremote@192.168.10.51 "nix store ping" && echo "✓ boulder reachable" || echo "✗ boulder unreachable"
+    @echo ""
+    @echo "Testing pebble (fallback builder)..."
+    sudo ssh -i /var/root/.ssh/nix-builder-key -o ConnectTimeout=5 nixremote@192.168.10.50 "nix store ping" && echo "✓ pebble reachable" || echo "✗ pebble unreachable"
+
+# Build a host's system closure using remote builders (verify before deploy)
+remote-build host="pebble":
+    nix build .#nixosConfigurations.{{ host }}.config.system.build.toplevel --no-link
+
 # ── Documentation ──────────────────────────────
 
 # Serve docs locally at http://localhost:8000

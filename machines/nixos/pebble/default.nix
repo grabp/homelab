@@ -104,5 +104,14 @@
     }
   ];
 
+  # Remote builder: fallback when boulder is the deploy target
+  my.builder = {
+    enable = true;
+    authorizedKeys = [
+      # Same root SSH key from the Mac as boulder — see boulder/default.nix for generation steps.
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHBGiTIvwv29sKF5udISmLiPhqs4ttaiEgNicBR7f7nv nix-builder@mac"
+    ];
+  };
+
   system.stateVersion = "25.11";
 }
