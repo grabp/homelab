@@ -44,6 +44,14 @@ in
       mode = "0400"; # read by podman (root) via --env-file before container start
     };
 
+    # Paperless v3 requires PAPERLESS_SECRET_KEY (no built-in default anymore).
+    # Format: one line "PAPERLESS_SECRET_KEY=<value>" (env file). Rotating it only
+    # invalidates sessions and signed tokens.
+    sops.secrets."paperless/secret_key_env" = {
+      mode = "0400";
+      restartUnits = [ "podman-paperless.service" ];
+    };
+
     # ── Storage directories owned by container UID 1000 ───────────────────────
     systemd.tmpfiles.rules = [
       "d /var/lib/paperless         0750 1000 1000 -"
@@ -76,7 +84,7 @@ in
 
     # ── Redis broker — required by Celery task queue ──────────────────────────
     virtualisation.oci-containers.containers.paperless-redis = {
-      image = "docker.io/library/redis:7-alpine@sha256:84b07a33a16c4584d2933128ffb28b66ee4d3284ac9dc327a5170782d5cf5b27";
+      image = "docker.io/library/redis:8-alpine@sha256:41ed50f5c0d9cf8b2151ad63df24ba96d018ccc84804d0688e9b9f1ed3d9f558";
       extraOptions = [
         "--network=paperless-net"
         "--name=paperless-redis"
@@ -89,7 +97,7 @@ in
     # PostgreSQL: Unix socket mounted from host; trust auth in pg_hba allows
     # container UID 1000 to authenticate as 'paperless' without a password.
     virtualisation.oci-containers.containers.paperless = {
-      image = "ghcr.io/paperless-ngx/paperless-ngx:2.20.15@sha256:835974fc3368fc6714aa38542db7a1f0f542d03244e39b981e519aefc100f355";
+      image = "ghcr.io/paperless-ngx/paperless-ngx:3.5.1@sha256:f477d12a1ff8740d9a32bccc50814cd7740bf00d5e2694c294ae0334bb956539";
       ports = [ "0.0.0.0:${toString cfg.port}:8000" ];
       extraOptions = [ "--network=paperless-net" ];
       volumes = [
@@ -98,7 +106,10 @@ in
         "/var/lib/paperless/consume:/usr/src/paperless/consume"
         "/var/lib/paperless/data:/usr/src/paperless/data"
       ];
-      environmentFiles = [ config.sops.secrets."paperless/admin_password".path ];
+      environmentFiles = [
+        config.sops.secrets."paperless/admin_password".path
+        config.sops.secrets."paperless/secret_key_env".path
+      ];
       environment = {
         PAPERLESS_DBENGINE = "postgresql";
         PAPERLESS_DBHOST = "/run/postgresql"; # Unix socket peer — trust auth, no password
@@ -108,6 +119,8 @@ in
         PAPERLESS_URL = "https://paperless.${vars.domain}";
         PAPERLESS_OCR_LANGUAGE = "pol+eng";
         PAPERLESS_OCR_LANGUAGES = "pol"; # install Polish Tesseract data at container startup
+        # v3 accepts duplicates by default; keep the v2 behaviour of rejecting them.
+        PAPERLESS_CONSUMER_DELETE_DUPLICATES = "true";
         # Some PDFs trigger a Ghostscript soft error during PDF/A conversion.
         # continue_on_soft_render_error: OCR still runs, output is not strict PDF/A.
         # optimize 0: disables JPEG transcoding — avoids transcode_jpegs failures.
