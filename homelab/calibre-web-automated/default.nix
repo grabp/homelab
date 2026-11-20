@@ -74,7 +74,8 @@ in
     # Pattern 19: NixOS firewall reload flushes Netavark DNAT rules — restart
     # container so port mappings are re-registered.
     systemd.services.podman-calibre-web-automated = {
-      after = [ "firewall.service" ];
+      after = [ "sops-install-secrets.service" "firewall.service" ];
+      wants = [ "sops-install-secrets.service" ];
       partOf = [ "firewall.service" ];
     };
 

@@ -121,6 +121,12 @@ in
             reverse_proxy localhost:${toString config.my.services.codeServer.port}
           }
 
+          @zigbee host zigbee.${vars.domain}
+          handle @zigbee {
+            # Frontend binds 127.0.0.1 and has no auth of its own.
+            reverse_proxy 127.0.0.1:${toString config.my.services.zigbee2mqtt.port}
+          }
+
           @docs host docs.${vars.domain}
           handle @docs {
             reverse_proxy localhost:${toString config.my.services.docsSite.port}

@@ -44,6 +44,22 @@ in
               # The service will reject auth (but still start) until a valid hash is set.
               hashedPassword = "$7$101$J0EXRr5XXVpwRqJy$YdlvpxnMuVs4eTDIONJcX4t6AYQkcWhQ4Fv2BDbxlzLdqdS+YW46LtAIXgaGcPbX2zNHA5Hu9vsB5jU6WEp53Q==";
             };
+
+            # Zigbee2MQTT bridge (homelab/zigbee2mqtt). Scoped to its own base
+            # topic plus the HA discovery prefix it publishes device configs to.
+            # PBKDF2-SHA512 hash of the password in
+            # secrets/pebble.yaml → zigbee2mqtt/env (ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD).
+            # Rotating one means rotating both — regenerate the hash with:
+            #   nix shell nixpkgs#mosquitto --command \
+            #     mosquitto_passwd -c -b /tmp/p zigbee2mqtt '<password>'
+            #   cat /tmp/p   # take the part after "zigbee2mqtt:"
+            zigbee2mqtt = {
+              acl = [
+                "readwrite zigbee2mqtt/#"
+                "readwrite homeassistant/#"
+              ];
+              hashedPassword = "$7$101$ZbXpXd1ndrD2mAs9$gmMOotT1MEgp2pdI1mGn50iDuoyUHaBFFhKwU20v5a4iH1gzt0bZzWHUILbktXtYj4ExzFBfbqo67CmyK7dY2g==";
+            };
           };
         }
       ];

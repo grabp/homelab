@@ -189,11 +189,12 @@ in
 
         # --network=host: required for mDNS device discovery (UniFi, Chromecast, etc.)
         # Capabilities: NET_ADMIN (multicast for HomeKit bridge) + NET_RAW (UniFi raw sockets)
-        # USB device: /dev/ttyUSB0 (Zigbee coordinator)
+        # No USB passthrough: the Zigbee coordinator (/dev/ttyUSB0) is owned
+        # exclusively by zigbee2mqtt (homelab/zigbee2mqtt), which exposes
+        # devices to HA over MQTT discovery instead of ZHA.
         # Matter/Bluetooth handled via separate matter-server container
         extraOptions = [
           "--network=host"
-          "--device=/dev/ttyUSB0:/dev/ttyUSB0"
           "--cap-drop=ALL"
           "--cap-add=NET_ADMIN"
           "--cap-add=NET_RAW"

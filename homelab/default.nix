@@ -44,5 +44,6 @@
     ./stirling-pdf # Stage 13 — Stirling-PDF PDF toolkit
     ./calibre-web-automated # Stage 16b — Calibre-Web Automated e-book library
     ./code-server # Extra — VS Code in the browser (HA config editor)
+    ./zigbee2mqtt # Extra — Zigbee coordinator bridge (replaces HA's ZHA)
   ];
 }

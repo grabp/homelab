@@ -122,10 +122,12 @@ in
     # containers so port mappings are re-registered.
     systemd.services.podman-paperless = {
       after = [
+        "sops-install-secrets.service"
         "firewall.service"
         "postgresql.service"
         "podman-paperless-network.service"
       ];
+      wants = [ "sops-install-secrets.service" ];
       requires = [
         "postgresql.service"
         "podman-paperless-network.service"

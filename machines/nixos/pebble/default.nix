@@ -86,6 +86,9 @@
     enable = true;
     workspacePath = "/var/lib/homeassistant"; # default, but explicit
   };
+  # Owns /dev/ttyUSB0 exclusively — the Zigbee coordinator was removed from the
+  # Home Assistant container, so ZHA is no longer available.
+  my.services.zigbee2mqtt.enable = true;
 
   # Prometheus: scrape boulder and VPS exporters.
   # job_name "node" is used by pebble's own exporter in homelab/prometheus/default.nix.
