@@ -37,6 +37,7 @@
 | 15 | Jellyfin | ⬜ NOT STARTED | [docs/roadmap/stage-15-jellyfin.md](docs/roadmap/stage-15-jellyfin.md) |
 | 16 | Productivity (Outline, Vikunja, Karakeep, Actual) | ⬜ NOT STARTED | [docs/roadmap/stage-16-productivity.md](docs/roadmap/stage-16-productivity.md) |
 | 16b | Calibre-Web Automated (e-book library) | ✅ COMPLETE | `homelab/calibre-web-automated/` — post-deploy: OIDC wiring in CWA admin UI |
+| — | Zigbee2MQTT (pebble, replaces HA ZHA) | ✅ COMPLETE | `homelab/zigbee2mqtt/` — ZHA network resumed from ZBT-1 NVRAM (no re-pair needed), `https://zigbee.${domain}`. Post-deploy: rejoin remaining devices, delete ZHA integration, restore friendly names, rebuild groups/binds. See README Migration. |
 | 17 | Windows VM | ⬜ NOT STARTED | [docs/roadmap/stage-17-windows-vm.md](docs/roadmap/stage-17-windows-vm.md) |
 | 18 | Whisper Migration | ⬜ NOT STARTED | [docs/roadmap/stage-18-whisper-migration.md](docs/roadmap/stage-18-whisper-migration.md) |
 

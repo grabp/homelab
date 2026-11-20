@@ -86,6 +86,13 @@
     enable = true;
     workspacePath = "/var/lib/homeassistant"; # default, but explicit
   };
+  # Owns the Zigbee coordinator (HA Connect ZBT-1) exclusively — it was removed
+  # from the Home Assistant container, so ZHA is no longer available.
+  # by-id path: ttyUSBn numbering is not stable if another USB serial device appears.
+  my.services.zigbee2mqtt = {
+    enable = true;
+    serialPort = "/dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_6203c46a1292ed1187edc6d13b20a988-if00-port0";
+  };
 
   # Prometheus: scrape boulder and VPS exporters.
   # job_name "node" is used by pebble's own exporter in homelab/prometheus/default.nix.

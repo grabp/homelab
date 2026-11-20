@@ -58,11 +58,15 @@ The `ha-init-config` activation script writes this automatically.
 
 - OCI container is recommended (not `services.home-assistant`) — upstream
   considers NixOS unsupported; native module freezes HA at branch-off.
-- `--network=host` is required for mDNS device discovery (Zigbee, Chromecast,
+- `--network=host` is required for mDNS device discovery (Chromecast,
   Matter multicast, HomeKit).
 - HomeKit bridge: each bridge instance needs its TCP port open in the firewall
   (21064 for first, 21065 for second). Configure via `homekitPorts` option.
-- `--device=/dev/ttyUSB0` is included for Zigbee/Z-Wave USB adapters.
+- No USB passthrough. The Zigbee coordinator (`/dev/ttyUSB0`) is owned
+  exclusively by `homelab/zigbee2mqtt`, so **ZHA is not available** — Zigbee
+  devices arrive through the MQTT integration via Zigbee2MQTT's discovery
+  topics. Re-adding `--device=/dev/ttyUSB0` would make both fight over the
+  serial port. A Z-Wave stick would need its own `--device` entry here.
 - UniFi integration requires a **local admin user** on the UniFi controller,
   not an SSO account.
 - HACS install: oneshot service downloads from GitHub on first boot. Internet

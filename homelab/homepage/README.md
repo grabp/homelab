@@ -23,7 +23,7 @@ Architecture: Caddy → oauth2-proxy (4180) → Homepage (3010).
 | Infrastructure | Pi-hole, Caddy |
 | Security | Vaultwarden, Kanidm |
 | Monitoring | Grafana, Prometheus, Uptime Kuma |
-| Home Automation | Home Assistant, ESPHome |
+| Home Automation | Home Assistant, ESPHome, Zigbee2MQTT, code-server |
 | Documents | Paperless, Stirling-PDF |
 | Networking | NetBird |
 | Identity | Pocket ID |

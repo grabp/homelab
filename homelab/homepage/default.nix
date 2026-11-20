@@ -125,6 +125,13 @@ in
               };
             }
             {
+              "Zigbee2MQTT" = {
+                href = "https://zigbee.${vars.domain}";
+                description = "Zigbee bridge";
+                icon = "zigbee2mqtt.svg";
+              };
+            }
+            {
               "code-server" = {
                 href = "https://code.${vars.domain}";
                 description = "VS Code (HA config editor)";
@@ -220,6 +227,14 @@ in
       # OAUTH2_PROXY_CLIENT_SECRET and OAUTH2_PROXY_COOKIE_SECRET injected here.
       environmentFiles = [ config.sops.secrets."oauth2-proxy/homepage_env".path ];
       extraOptions = [ "--network=host" ];
+    };
+
+    # sops-install-secrets.service decrypts the environmentFile at activation time.
+    # Without this ordering, the container starts before the secret file exists and
+    # crashes repeatedly until a manual restart after boot has completed.
+    systemd.services.podman-oauth2-proxy-homepage = {
+      after = [ "sops-install-secrets.service" ];
+      wants = [ "sops-install-secrets.service" ];
     };
 
     # oauth2-proxy/homepage_env must contain:
