@@ -33,12 +33,21 @@ Do not move it to `0.0.0.0`.
 |------|-------|
 | Adapter | Home Assistant Connect ZBT-1 (Silabs EFR32, EmberZNet) |
 | Driver | `ember` (`my.services.zigbee2mqtt.adapter`) — not the legacy `ezsp` |
-| Serial device | `/dev/ttyUSB0` (`my.services.zigbee2mqtt.serialPort`) |
+| Serial device | `/dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_6203c46a1292ed1187edc6d13b20a988-if00-port0` (`my.services.zigbee2mqtt.serialPort`, set in `machines/nixos/pebble/default.nix`; currently resolves to `/dev/ttyUSB0`) |
+| Flow control | RTS/CTS hardware (`my.services.zigbee2mqtt.rtscts`, default `true`) |
 | Channel | 25 (`my.services.zigbee2mqtt.channel`) |
 | Exclusive? | Yes — removed from the Home Assistant container's `--device` list |
 
-If a second USB serial device is ever plugged into pebble, switch `serialPort`
-to a `/dev/serial/by-id/...` path; `ttyUSB` numbering is not stable.
+The by-id path is used because `ttyUSB` numbering is not stable once a second
+USB serial device is plugged in. systemd resolves the symlink for
+`DeviceAllow` at unit start, so the stick must be present when the service
+starts.
+
+The ZBT-1's EmberZNet firmware reports hardware flow control itself (bellows
+records `flow_control: hardware` in ZHA backups via XNCP). With `rtscts` off,
+the ember driver falls back to XON/XOFF, which this firmware never sends, and
+logs `RTS/CTS config is off, enabling software flow control.` If ASH ever
+fails to connect after a firmware change, try `rtscts = false`.
 
 ## Secrets
 
