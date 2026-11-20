@@ -21,12 +21,18 @@ import json
 import re
 import sys
 
-# JSON paths inside an open-coordinator-backup (what ZHA exports and zigpy
-# writes), plus the byte count Zigbee2MQTT expects for each.
+# JSON paths inside a zigpy NetworkBackup (what ZHA's "download backup"
+# exports), the byte count Zigbee2MQTT expects, and whether the string must be
+# reversed. zigpy prints EUI64-typed values (extended_pan_id) most-significant
+# byte first, i.e. reversed from the wire order; keys (KeyData) are printed in
+# wire order. zigbee-herdsman compares config.advanced.ext_pan_id byte-for-byte
+# against the raw EZSP network parameters (wire order), so a non-reversed
+# ext_pan_id makes the ember driver leave the existing network on first start.
+# Verified against zigpy 0.86: ExtendedPanId.deserialize(01..08) -> "08:07:..:01".
 BACKUP_FIELDS = {
-    "network_key": (("network_info", "network_key", "key"), 16),
-    "ext_pan_id": (("network_info", "extended_pan_id"), 8),
-    "tc_link_key": (("network_info", "tc_link_key", "key"), 16),
+    "network_key": (("network_info", "network_key", "key"), 16, False),
+    "ext_pan_id": (("network_info", "extended_pan_id"), 8, True),
+    "tc_link_key": (("network_info", "tc_link_key", "key"), 16, False),
 }
 
 
@@ -51,14 +57,14 @@ def hex_to_bytes(text, expected=None):
 
 
 def from_backup(path, field):
-    keys, expected = BACKUP_FIELDS[field]
+    keys, expected, reverse = BACKUP_FIELDS[field]
     with open(path) as handle:
         node = json.load(handle)
     for key in keys:
         if not isinstance(node, dict) or key not in node:
             raise ValueError(f"{path}: no '{'.'.join(keys)}' — not a coordinator backup?")
         node = node[key]
-    return node, expected
+    return node, expected, reverse
 
 
 def main():
@@ -87,8 +93,9 @@ def main():
     args = parser.parse_args()
 
     try:
+        reverse = False
         if args.file:
-            text, expected = from_backup(args.file, args.field)
+            text, expected, reverse = from_backup(args.file, args.field)
             field = args.field
         else:
             text = args.hex if args.hex is not None else sys.stdin.read()
@@ -97,6 +104,8 @@ def main():
         if args.bytes is not None:
             expected = args.bytes
         values = hex_to_bytes(text, expected)
+        if reverse:
+            values.reverse()
     except (OSError, ValueError, json.JSONDecodeError) as err:
         sys.exit(f"error: {err}")
 

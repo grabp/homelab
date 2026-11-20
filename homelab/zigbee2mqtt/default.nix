@@ -83,6 +83,17 @@ in
       description = "Zigbee adapter driver. Set explicitly — autodetect is unreliable.";
     };
 
+    rtscts = lib.mkOption {
+      type = lib.types.bool;
+      # ZBT-1 EmberZNet firmware uses hardware flow control: bellows read
+      # flow_control = "hardware" from the firmware itself (XNCP
+      # get_flow_control_type) into the ZHA backup metadata. With rtscts off,
+      # the ember driver falls back to XON/XOFF (zigbee-herdsman ash.js), which
+      # this firmware never sends.
+      default = true;
+      description = "RTS/CTS hardware flow control on the coordinator serial port.";
+    };
+
     channel = lib.mkOption {
       type = lib.types.int;
       # Channel 25 — matches the ZHA network migrated from (ZHA backup
@@ -131,6 +142,7 @@ in
         serial = {
           port = cfg.serialPort;
           adapter = cfg.adapter;
+          rtscts = cfg.rtscts;
         };
 
         frontend = {

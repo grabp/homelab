@@ -58,7 +58,7 @@ in
                 "readwrite zigbee2mqtt/#"
                 "readwrite homeassistant/#"
               ];
-              hashedPassword = "$7$101$ZbXpXd1ndrD2mAs9$gmMOotT1MEgp2pdI1mGn50iDuoyUHaBFFhKwU20v5a4iH1gzt0bZzWHUILbktXtYj4ExzFBfbqo67CmyK7dY2g==";
+              hashedPassword = "$7$101$1hWBpMmo7HrgE3Yx$RVBSNQZWCqrce4Z65eeMgWfjvJpmE2W7qUESqwgnhL8h9PonFiFDkDrmC3a4en+r0PXCDiuqa37VRtuVfarIRA==";
             };
           };
         }

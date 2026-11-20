@@ -140,38 +140,76 @@ network even though they are not secret like the key is.
 | pan_id | `network_info.pan_id` (bare hex) | sops `zigbee2mqtt/env`, as decimal |
 | ext_pan_id | `network_info.extended_pan_id` | sops `zigbee2mqtt/env`, as byte array |
 | network_key | `network_info.network_key.key` | sops `zigbee2mqtt/env`, as byte array |
-| tc_link_key | `network_info.tc_link_key.key` | nowhere — restored from `coordinator_backup.json` |
+| tc_link_key | `network_info.tc_link_key.key` | nowhere — stays in the stick's NVRAM |
 
 Zigbee2MQTT's schema rejects hex strings for these (`advanced.network_key:
 should be array or 'GENERATE'`), so they need converting to decimal byte
 arrays. `scripts/hex2bytes.py` does that straight out of the backup file.
 
-**Zigbee2MQTT's first start is the destructive step.** With no
-`coordinator_backup.json` and `GENERATE`d parameters it re-forms the network on
-the stick, which permanently orphans every paired device. Keep
-`my.services.zigbee2mqtt.enable = false` until the backup file is in place.
+**Byte order.** zigpy writes `extended_pan_id` (an EUI64) most-significant
+byte first — reversed from the wire order — while keys are written in wire
+order. zigbee-herdsman compares `advanced.ext_pan_id` byte-for-byte with the
+raw EZSP network parameters, so the array must be in wire order.
+`hex2bytes.py -f … -k ext_pan_id` reverses it; never transcribe it by hand.
+
+### How the network survives
+
+The network is **resumed from the stick's NVRAM**, not restored from a backup
+file. EmberZNet keeps the formed network (keys, PAN IDs, child table, TC link
+key) on the ZBT-1 after ZHA stops. On start, the ember driver
+(`zigbee-herdsman` 6.3.2, `emberAdapter.js` `initTrustCenter`) compares
+`pan_id`, `ext_pan_id` and `network_key` from the config against what the stick
+holds:
+
+- all match: resumes the existing network. This is the path we want.
+- any mismatch: **leaves the network** on the stick, then forms a new one from
+  `coordinator_backup.json` if that matches config, otherwise from the config
+  values. Either way, the existing devices are cut off.
+
+**Do not place the ZHA backup at `/var/lib/zigbee2mqtt/coordinator_backup.json`.**
+ZHA's download is zigpy's own `NetworkBackup` format (`network_info` /
+`node_info`), not open-coordinator-backup. The ember driver reads that path on
+every start and throws `[BACKUP] Unknown backup format.` for anything else, so
+Zigbee2MQTT would never start. Zigbee2MQTT writes its own backup there once it
+is running.
+
+The first start is the destructive step only if the env file is wrong. Keep
+`my.services.zigbee2mqtt.enable = false` until the sops values are confirmed.
 
 Order:
 
 1. Snapshot the ZFS dataset holding `/var/lib/homeassistant` (keeps `zigbee.db`
-   for rollback).
+   for rollback). Keep the ZHA backup JSON somewhere safe off-repo: it is the
+   only way back if the stick ever leaves the network.
 2. In HA: Settings → Devices & services → ZHA → ⋮ → Disable. Then
    `systemctl stop podman-homeassistant` to free the serial port.
-3. Deploy with `zigbee2mqtt.enable = false` so the `zigbee2mqtt` user exists.
-4. Copy the ZHA backup in as the coordinator backup:
+3. Read the network identity straight off the stick. It is the source of truth
+   (the ZHA download is a proxy and may be stale). On pebble:
    ```bash
-   install -d -o zigbee2mqtt -g zigbee2mqtt -m 0700 /var/lib/zigbee2mqtt
-   install -o zigbee2mqtt -g zigbee2mqtt -m 0600 zha-backup.json \
-     /var/lib/zigbee2mqtt/coordinator_backup.json
+   nix shell nixpkgs#zigpy-cli --command \
+     zigpy radio --baudrate 115200 ezsp /dev/ttyUSB0 backup -z /root/zbt1-backup.json
    ```
-   Zigbee2MQTT reads this path (`dist/zigbee.js`, `backupPath`) and restores
-   rather than forming a new network. The format ZHA exports is the open
-   coordinator backup format it expects. A stale `tx_counter` is fine — the
-   frame counter is bumped on restore.
-5. Add `zigbee2mqtt/env` to `secrets/pebble.yaml`, hash the password into
-   `homelab/mosquitto/default.nix`, flip `enable = true`, deploy.
-6. `journalctl -fu zigbee2mqtt`. Mains-powered devices report within a minute;
-   battery devices when they next wake.
+   `-z` writes zigpy format (`network_info.*`), which `hex2bytes.py` reads.
+4. Generate the env values from that file with `hex2bytes.py` (above). Put them
+   in `zigbee2mqtt/env` in `secrets/pebble.yaml`, or compare them with what is
+   already there. Hash the MQTT password into `homelab/mosquitto/default.nix`.
+5. Flip `enable = true`, deploy, `journalctl -fu zigbee2mqtt`.
+   - Success is the info line `zigbee-herdsman started (resumed)`.
+   - `Adapter network does not match config. Leaving network...` means the
+     values were wrong. Stop the service immediately.
+   - `[INIT TC] …` details and the unknown-device messages below are debug-level.
+     To see them during migration, raise the log level in the frontend
+     settings.
+6. Bring devices into Zigbee2MQTT's database. `database.db` starts empty, and
+   herdsman drops frames (`Data is from unknown device`) and device announces
+   from unknown devices. Only a trust-center join or rejoin creates a device
+   (`deviceJoined`, then an interview). Rejoins work with `permit_join` off.
+   - Try a power-cycle on mains devices and a battery re-seat on battery
+     devices. This only helps if the device does a TC rejoin. A device that
+     resumes from its own NVRAM and only announces stays invisible.
+   - Expect to factory-reset and re-pair any device that does not show up, with
+     `permit_join` on briefly. With 5 nodes that is cheap. The migration still
+     keeps the network and its other devices intact.
 
 Not carried over — redo by hand:
 
@@ -181,12 +219,12 @@ Not carried over — redo by hand:
   automations and dashboards.
 - **Groups and binds.** Zigbee groups and reporting configs must be rebuilt in
   the frontend (`groups.yaml`).
-- Devices paired after the backup was taken are absent from the restored tables
-  and need individual re-pairing.
 
-Rollback (valid only while Zigbee2MQTT has not re-formed the network): stop
+Rollback, while the stick still holds the original network: stop
 `zigbee2mqtt`, re-add `--device=/dev/ttyUSB0:/dev/ttyUSB0` to the HA container,
-re-enable ZHA, restore the snapshot.
+re-enable ZHA, restore the snapshot. If the stick has left or re-formed the
+network, restore the ZHA backup JSON onto it from ZHA (Configure → Migrate
+radio / restore backup) before re-enabling.
 
 ## Backup/restore
 
