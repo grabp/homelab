@@ -51,6 +51,13 @@ Not applicable.
   systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
   ```
   This is already applied in the module.
+- **Fails at boot if huggingface.co is unreachable:** faster-whisper fetches the
+  `openai/whisper-tiny` tokenizer on every start (`HF_HOME=/tmp`). A failed
+  request surfaces as `RuntimeError: Cannot send a request, as the client has
+  been closed` (huggingface_hub 1.x masks the real error — look for
+  `thrown while requesting` lines). The module sets `Restart = "on-failure"`.
+  If it keeps failing, check `getent hosts huggingface.co` on pebble — Pi-hole
+  may be serving a cached upstream block (`0.0.0.0`); `pihole reloaddns` clears it.
 - `device = "cpu"` is required — `pkgs.wyoming-faster-whisper` is not compiled
   with CUDA support.
 - OpenWakeWord v2.0.0 renamed `ok_nabu` → `okay_nabu`. Verify model name

@@ -40,7 +40,15 @@ in
     # nixos-25.11 already ships the fix (ProcSubset=all in the module), but
     # lib.mkForce is kept as explicit documentation — it is harmless when already "all".
     # Without "all", CTranslate2 cannot read /proc/cpuinfo: a 3-second clip takes ~20 s.
-    systemd.services."wyoming-faster-whisper-main".serviceConfig.ProcSubset = lib.mkForce "all";
+    #
+    # Restart: the unit fetches the tokenizer from HuggingFace on every start
+    # (HF_HOME=/tmp) and has no restart policy upstream. A DNS/network hiccup
+    # at boot (e.g. Pi-hole serving a cached upstream block) leaves it failed.
+    systemd.services."wyoming-faster-whisper-main".serviceConfig = {
+      ProcSubset = lib.mkForce "all";
+      Restart = "on-failure";
+      RestartSec = "30s";
+    };
 
     # === Text-to-speech (Piper) ===
     services.wyoming.piper.servers."main" = {
