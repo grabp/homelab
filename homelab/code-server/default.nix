@@ -75,7 +75,7 @@ in
     ];
 
     virtualisation.oci-containers.containers.code-server = {
-      image = "lscr.io/linuxserver/code-server:latest@sha256:35cc23ca91d088d00e0fa2bcd70891b0a70270937be8f8922e610132e2430c23";
+      image = "lscr.io/linuxserver/code-server:4.146.0@sha256:49b257f0817c77358ea1779a581a37a0ed3a5af5c01abf6d2b3f47b0cdb8329a";
       # Bind to loopback — Caddy is the only consumer, no LAN exposure needed.
       ports = [ "127.0.0.1:${toString cfg.port}:8443" ];
       volumes = [
@@ -96,7 +96,10 @@ in
     # Pattern 19: NixOS firewall reload flushes Netavark DNAT rules — restart
     # the container so its port mapping is re-registered.
     systemd.services.podman-code-server = {
-      after = [ "sops-install-secrets.service" "firewall.service" ];
+      after = [
+        "sops-install-secrets.service"
+        "firewall.service"
+      ];
       wants = [ "sops-install-secrets.service" ];
       partOf = [ "firewall.service" ];
     };

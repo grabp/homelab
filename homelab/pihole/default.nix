@@ -21,7 +21,7 @@ in
 
     image = lib.mkOption {
       type = lib.types.str;
-      default = "pihole/pihole:2026.04.0@sha256:84eab06f21fba049215dd4f6a0d6ce5ace65bb165265b00eeb9de0c0f58dfd7e";
+      default = "pihole/pihole:2026.11.0@sha256:52762e1620160b1e8cb3e12c585d0d0b0df901395c2bad6b514db379e526a9fb";
       description = "Pi-hole OCI image with version tag";
     };
   };

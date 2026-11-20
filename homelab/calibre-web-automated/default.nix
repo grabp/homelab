@@ -48,7 +48,7 @@ in
 
     # ── Calibre-Web Automated ─────────────────────────────────────────────────
     virtualisation.oci-containers.containers.calibre-web-automated = {
-      image = "docker.io/crocodilestick/calibre-web-automated:latest@sha256:fbf0c866e77b366f07050a6a12fee4e840b60d364485576a810109851a488eec";
+      image = "docker.io/crocodilestick/calibre-web-automated:v4.0.8@sha256:1297be5207318acea7030884a2d283ef3e805c745eaeaa4c5602bc3dc9b7f47a";
       ports = [ "0.0.0.0:${toString cfg.port}:8083" ];
       # Disable the image's built-in healthcheck. It fires within milliseconds of
       # container start (before CWA initialises), causing the transient Podman
@@ -74,7 +74,10 @@ in
     # Pattern 19: NixOS firewall reload flushes Netavark DNAT rules — restart
     # container so port mappings are re-registered.
     systemd.services.podman-calibre-web-automated = {
-      after = [ "sops-install-secrets.service" "firewall.service" ];
+      after = [
+        "sops-install-secrets.service"
+        "firewall.service"
+      ];
       wants = [ "sops-install-secrets.service" ];
       partOf = [ "firewall.service" ];
     };

@@ -83,7 +83,7 @@ in
 
       image = lib.mkOption {
         type = lib.types.str;
-        default = "ghcr.io/esphome/esphome:2026.3.1@sha256:cb9875ef7b63ecefea0e599c97981bea22e4d8ee5c822b03fbf22ccebcbbb49c";
+        default = "ghcr.io/esphome/esphome:2026.11.0@sha256:b214049c0bf0a4e2a3cbaee496beae8adacfa3659b056bdc55a3a737f5cdc34c";
         description = "OCI image tag — pin to a specific release for reproducibility";
       };
 
