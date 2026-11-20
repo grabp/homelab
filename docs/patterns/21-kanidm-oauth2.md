@@ -9,11 +9,11 @@ tags: [kanidm, OAuth2, OIDC, provisioning]
 Kanidm's `services.kanidm.provision` block lets you define users, groups, and OAuth2 resource servers in NixOS config. **No web UI clicking required.** Each service module co-locates its Kanidm client definition alongside its service config.
 
 ```nix
-# homelab/kanidm/default.nix — verified working pattern (nixos-25.11, kanidm 1.9)
+# homelab/kanidm/default.nix — verified working pattern (nixos-26.05, kanidm 1.11; originally nixos-25.11, kanidm 1.9)
 { config, lib, pkgs, vars, ... }:
 {
   # CLI in PATH without enableClient (which requires clientSettings to also be set)
-  environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_9 ];
+  environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_11 ];
 
   # Kanidm requires TLS even on localhost. Generate a self-signed cert that:
   # - has basicConstraints=CA:FALSE (kanidm 1.9 rejects CA:TRUE with CaUsedAsEndEntity)
@@ -49,9 +49,9 @@ Kanidm's `services.kanidm.provision` block lets you define users, groups, and OA
 
   services.kanidm = {
     server.enable = true;
-    # nixos-25.11 module defaults to kanidm_1_4 (EOL, removed from nixpkgs).
-    # _1_7 is also gone (insecure). Must pin explicitly.
-    package = pkgs.kanidmWithSecretProvisioning_1_9;
+    # Always pin explicitly; old minors become EOL (insecure) and get removed.
+    # Upgrade one minor at a time (N-1 → N), one deploy each.
+    package = pkgs.kanidmWithSecretProvisioning_1_11;
     server.settings = {
       origin          = "https://id.${vars.domain}";
       domain          = "id.${vars.domain}";
@@ -119,7 +119,7 @@ kanidm --url https://id.grab-lab.gg person credential create-reset-token <userna
 ```
 
 **Known gotchas:**
-- **`kanidm_1_4` removed** — explicitly set `package = pkgs.kanidmWithSecretProvisioning_1_9`
+- **`kanidm_1_4` removed** — explicitly set `package = pkgs.kanidmWithSecretProvisioning_1_11` (bump one minor at a time)
 - **nixos-26.05 renames** — `enableServer`/`serverSettings` → `server.enable`/`server.settings` (same for client/unix)
 - **One minor version per upgrade** — Kanidm only migrates from N-1 → N, one-way. Step through each minor with its own deploy; run `kanidmd domain upgrade-check` first
 - **"admin" username reserved** — use a distinct person username

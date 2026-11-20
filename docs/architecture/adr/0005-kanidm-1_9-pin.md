@@ -2,10 +2,10 @@
 kind: adr
 status: accepted
 date: 2025-04-21
-title: Pin Kanidm to version 1.9 explicitly
+title: Pin Kanidm minor version explicitly (originally 1.9)
 ---
 
-# ADR 0005: Pin Kanidm to version 1.9 explicitly
+# ADR 0005: Pin Kanidm minor version explicitly (originally 1.9)
 
 ## Context
 
@@ -36,6 +36,20 @@ Explicitly set `services.kanidm.package = pkgs.kanidmWithSecretProvisioning_1_9`
 **Negative:**
 - Manual version tracking required when 1.10 releases (nixpkgs will add new package)
 - Must verify `CaUsedAsEndEntity` TLS certificate constraints (1.9 is stricter than 1.4)
+
+---
+
+## Update 2026-11-20: nixos-26.05
+
+nixos-26.05 marks Kanidm 1.9 and 1.10 as EOL (`knownVulnerabilities`). Kanidm only supports
+upgrading one minor version at a time and its DB migration is one-way, so the pin was stepped
+1.9 → 1.10 → 1.11 with one pebble deploy per step (1.9 and 1.10 temporarily allowed via
+`nixpkgs.config.permittedInsecurePackages`). Current pin: `pkgs.kanidmWithSecretProvisioning_1_11`.
+
+Per-step procedure:
+1. `sudo -u kanidm kanidmd domain upgrade-check -c /etc/kanidm/server.toml` — all items PASS
+2. `sudo zfs snapshot zroot/var@pre-kanidm-<version>`
+3. Bump `kanidmPackage` in `homelab/kanidm/default.nix`, deploy pebble, verify OIDC logins
 
 ---
 

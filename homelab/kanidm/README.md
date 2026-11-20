@@ -57,7 +57,7 @@ To add a new OAuth2 client: add a `systems.oauth2."<name>"` block in
 
 ## Known gotchas
 
-- Package must be `pkgs.kanidmWithSecretProvisioning_1_9` — `pkgs.kanidm` and
+- Package must be `pkgs.kanidmWithSecretProvisioning_1_11` — `pkgs.kanidm` and
   `pkgs.kanidm_1_4` are EOL/removed in nixos-25.11.
 - `"admin"` is a reserved Kanidm system account — do not provision a person
   with that username (409 Conflict).

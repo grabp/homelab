@@ -20,11 +20,11 @@ COMPLETE (verified 2026-04-16)
 - `machines/nixos/pebble/default.nix` — added `my.services.kanidm.enable = true`
 
 ## Configuration Notes
-- **Package override required**: nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` (EOL, removed). Must explicitly set `services.kanidm.package = pkgs.kanidmWithSecretProvisioning_1_9`. `_1_7` is also insecure/removed. Use `_1_9` (1.9.x).
+- **Package override required**: nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` (EOL, removed). Must explicitly set `services.kanidm.package`. Originally pinned to `_1_9`; since nixos-26.05 pinned to `pkgs.kanidmWithSecretProvisioning_1_11` (upgraded stepwise 1.9 → 1.10 → 1.11, see ADR 0005).
 - **"admin" username is reserved**: Kanidm has a built-in system account named `admin`. Provisioning a person named `admin` → 409 Conflict. Use a distinct username (`grabowskip`).
 - **sops secret ownership**: provisioning `ExecStartPost` runs as the `kanidm` user. Default `root:root 0400` → permission denied. Fix: `sops.secrets."kanidm/admin_password" = { owner = "kanidm"; }` (same for `idm_admin_password`).
 - **Self-signed cert must have `CA:FALSE`**: OpenSSL default self-signed certs have `CA:TRUE`. Kanidm 1.9's strict TLS rejects them (`CaUsedAsEndEntity` error). The oneshot script uses `-addext "basicConstraints=CA:FALSE"` + `-addext "subjectAltName=IP:127.0.0.1,DNS:id.<domain>"`. Also detects and regenerates old bad certs.
-- **`enableClient = true` requires `clientSettings`**: module enforces this. Use `environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_9 ]` instead to put CLI in PATH without the constraint.
+- **`enableClient = true` requires `clientSettings`**: module enforces this. Use `environment.systemPackages = [ kanidmPackage ]` instead to put CLI in PATH without the constraint.
 - **PKCE enforced by default**: Kanidm 1.9 requires PKCE on all OAuth2 clients. Grafana must set `use_pkce = true` in `"auth.generic_oauth"`.
 - **Groups returned as SPNs**: Kanidm returns groups in the `groups` claim as full SPNs (`groupname@kanidm-domain`, e.g. `homelab_admins@id.grab-lab.gg`). Grafana `role_attribute_path` must match the full SPN: `contains(groups[*], 'homelab_admins@id.grab-lab.gg') && 'Admin' || 'Viewer'`.
 - `provision.instanceUrl = "https://127.0.0.1:8443"` + `acceptInvalidCerts = true` — provisioning connects directly (not via Caddy) and accepts the self-signed cert.

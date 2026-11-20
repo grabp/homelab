@@ -12,7 +12,7 @@ let
   # DB migration is one-way. Step through each minor with a separate deploy and run
   # `kanidmd domain upgrade-check` before each. withSecretProvisioning includes the
   # kanidm-provision helper. See docs/architecture/adr/0005-kanidm-1_9-pin.md.
-  kanidmPackage = pkgs.kanidmWithSecretProvisioning_1_10;
+  kanidmPackage = pkgs.kanidmWithSecretProvisioning_1_11;
 in
 {
   options.my.services.kanidm.enable = lib.mkEnableOption "Kanidm OIDC + LDAP identity provider";
@@ -68,10 +68,6 @@ in
     # -------------------------------------------------------------------------
     # kanidm CLI available system-wide without enableClient (which requires clientSettings).
     environment.systemPackages = [ kanidmPackage ];
-
-    # 1.9 and 1.10 are EOL (knownVulnerabilities) in nixos-26.05. Temporary allowance
-    # while stepping 1.9 → 1.10 → 1.11; remove once on 1.11.
-    nixpkgs.config.permittedInsecurePackages = [ kanidmPackage.name ];
 
     services.kanidm = {
       server.enable = true;
