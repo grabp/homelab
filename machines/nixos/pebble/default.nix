@@ -48,6 +48,11 @@
     ];
   };
 
+  # openresolv drops non-local nameservers when a local one (127.0.0.1) is
+  # listed, so without this resolv.conf only had Pi-hole: while Pi-hole was
+  # stopped during activation, image pulls failed with "no such host".
+  networking.resolvconf.extraConfig = "resolv_conf_local_only=NO";
+
   # Firewall — default deny, SSH allowed via _common/ssh.nix
   networking.firewall.enable = true;
   # Loki: accept log pushes from two sources.
