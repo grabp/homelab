@@ -47,9 +47,14 @@
 
 `system.stateVersion` stays `"25.11"` on all hosts. Deploy order: vps → boulder → pebble. Snapshot Kanidm + Grafana state on pebble before deploying (one-way migrations).
 
+Lessons from the 25.11 → 26.05 switch:
+- **deploy-rs breaks on release upgrades** ([serokell/deploy-rs#390](https://github.com/serokell/deploy-rs/issues/390)): activation restarts sshd/journald/dbus, the SSH channel dies, magic rollback fails with `Could not acquire lock`. Use `nixos-rebuild switch|boot --flake path:.#<host> --target-host admin@<ip> --sudo` for release bumps; `just deploy` is fine afterwards.
+- **dbus → dbus-broker** is the new default and needs a reboot (`switch` exits 4 with `Failed to reload dbus-broker.service`). Prefer `nixos-rebuild boot` + reboot.
+- **Network is intercepted on port 53** (router/ISP — `id.server` gets no Cloudflare answer). At boot Pi-hole cached an upstream block (`0.0.0.0`, FTL status 8) for huggingface.co/grafana.com, which broke faster-whisper; `pihole reloaddns` cleared it. Check router DNS filtering.
+
 | Step | Description | Status |
 |------|-------------|--------|
-| 1 | nixpkgs → nixos-26.05; Kanidm option renames (`server.enable`/`server.settings`), 1.9 kept via `permittedInsecurePackages`; Grafana `secret_key` from sops (`grafana/secret_key`, old default value); Caddy plugin hash; `nixfmt-rfc-style` → `nixfmt` | 🔄 IN PROGRESS — all 3 hosts build, `just check` passes, not deployed |
+| 1 | nixpkgs → nixos-26.05; Kanidm option renames (`server.enable`/`server.settings`), 1.9 kept via `permittedInsecurePackages`; Grafana `secret_key` from sops (`grafana/secret_key`, old default value); Caddy plugin hash; `nixfmt-rfc-style` → `nixfmt` | ✅ COMPLETE — deployed to vps, boulder, pebble (2026-11-20) |
 | 2 | Kanidm 1.9 → 1.10 (pebble deploy, `kanidmd domain upgrade-check` first) | ⬜ NOT STARTED |
 | 3 | Kanidm 1.10 → 1.11, drop `permittedInsecurePackages`; update ADR 0005, stage-07c, pattern 21 | ⬜ NOT STARTED |
 | 4 | Grafana secret_key rotation: stop Grafana, re-encrypt `grafana.db` with grafana-secretkey-rotation-tool, put new random key in sops, deploy | ⬜ NOT STARTED |
