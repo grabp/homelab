@@ -32,13 +32,16 @@ in
     ];
 
     virtualisation.oci-containers.containers.stirling-pdf = {
-      image = "ghcr.io/stirling-tools/stirling-pdf:0.42.0@sha256:eb8684f6b9e9af7e0323fc4d6bc193f8a0f12a2b52544292a2aebab60992c4f0";
+      image = "ghcr.io/stirling-tools/stirling-pdf:3.4.0@sha256:25258985ef89720f332752b0b84f86b5ffa3b73caf355dfc028c0a59648ff4f3";
       ports = [ "0.0.0.0:${toString cfg.port}:8080" ];
       volumes = [ "/var/lib/stirling-pdf:/configs" ];
       environment = {
-        DOCKER_ENABLE_SECURITY = "false";
-        INSTALL_BOOK_AND_ADVANCED_HTML_OPS = "false";
-        LANGS = "en_GB pl_PL";
+        # v1+ env names: DOCKER_ENABLE_SECURITY → DISABLE_ADDITIONAL_FEATURES
+        # (no login/security jar); LANGS and INSTALL_BOOK_AND_ADVANCED_HTML_OPS
+        # are no longer read by the standard image.
+        DISABLE_ADDITIONAL_FEATURES = "true";
+        SECURITY_ENABLELOGIN = "false";
+        SYSTEM_DEFAULTLOCALE = "en-GB";
       };
     };
 
