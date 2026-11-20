@@ -1,9 +1,14 @@
 # homelab/matter-server/default.nix — Matter Server (Stage 9b)
 #
-# Podman OCI container (not services.matter-server native module).
-# Reason: CHIP SDK (home-assistant-chip-core) requires architecture-specific
-# binary wheels with a non-standard build system (CIPD + GN); building natively
-# on NixOS is extremely difficult (nixpkgs #255774). The Docker image bundles them.
+# Podman OCI container running the Open Home Foundation Matter(.js) Server
+# (ghcr.io/matter-js/matterjs-server) — drop-in replacement for the archived
+# python-matter-server (same WebSocket API on :5580, same /data directory).
+# On first start it migrates the Python data files (chip.json + <fabric-id>.json)
+# into its own storage format; see README "Migration from python-matter-server".
+#
+# The image runs as unprivileged UID 1000, so /var/lib/matter-server must be
+# owned by 1000:1000 (tmpfiles rule below; existing files from the Python
+# server need a one-time `chown -R 1000:1000`).
 #
 # Network mode: --network=host — mandatory.
 #   Matter uses IPv6 link-local multicast for device discovery. Bridge networking
@@ -33,7 +38,7 @@ in
 
     image = lib.mkOption {
       type = lib.types.str;
-      default = "ghcr.io/home-assistant-libs/python-matter-server:stable@sha256:170aa093ce91c76cde4cc390918307590f0f5558fcec93f913af3cb019e6562a";
+      default = "ghcr.io/matter-js/matterjs-server:1.6.0@sha256:27d68110ba213d35e2f10513be9d379acad4d3e809356df4e00c0e9c4c9e48d7";
       description = "OCI image tag — pin to a specific version for reproducibility";
     };
   };
@@ -69,7 +74,7 @@ in
 
     # Persistent state directory for Matter fabric credentials and device data.
     systemd.tmpfiles.rules = [
-      "d /var/lib/matter-server 0755 root root -"
+      "d /var/lib/matter-server 0750 1000 1000 -"
     ];
 
     # Matter requires IPv6 for link-local multicast device discovery.
