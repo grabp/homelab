@@ -56,7 +56,8 @@ Lessons from the 25.11 → 26.05 switch:
 |------|-------------|--------|
 | 1 | nixpkgs → nixos-26.05; Kanidm option renames (`server.enable`/`server.settings`), 1.9 kept via `permittedInsecurePackages`; Grafana `secret_key` from sops (`grafana/secret_key`, old default value); Caddy plugin hash; `nixfmt-rfc-style` → `nixfmt` | ✅ COMPLETE — deployed to vps, boulder, pebble (2026-11-20) |
 | 2 | Kanidm 1.9 → 1.10 (pebble deploy, `kanidmd domain upgrade-check` first) | ✅ COMPLETE |
-| 3 | Kanidm 1.10 → 1.11, drop `permittedInsecurePackages`; update ADR 0005, stage-07c, pattern 21 | 🔄 IN PROGRESS — builds, not deployed |
+| 3 | Kanidm 1.10 → 1.11, drop `permittedInsecurePackages`; update ADR 0005, stage-07c, pattern 21 | ✅ COMPLETE |
+| 3b | Kanidm 1.11 → 1.12 (1.11 deprecated, EOL 2026-12-01) | 🔄 IN PROGRESS — builds, not deployed |
 | 4 | Grafana secret_key rotation: stop Grafana, re-encrypt `grafana.db` with grafana-secretkey-rotation-tool, put new random key in sops, deploy | ⬜ NOT STARTED |
 
 ---

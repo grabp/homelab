@@ -43,8 +43,12 @@ Explicitly set `services.kanidm.package = pkgs.kanidmWithSecretProvisioning_1_9`
 
 nixos-26.05 marks Kanidm 1.9 and 1.10 as EOL (`knownVulnerabilities`). Kanidm only supports
 upgrading one minor version at a time and its DB migration is one-way, so the pin was stepped
-1.9 → 1.10 → 1.11 with one pebble deploy per step (1.9 and 1.10 temporarily allowed via
-`nixpkgs.config.permittedInsecurePackages`). Current pin: `pkgs.kanidmWithSecretProvisioning_1_11`.
+1.9 → 1.10 → 1.11 → 1.12 with one pebble deploy per step (1.9 and 1.10 temporarily allowed via
+`nixpkgs.config.permittedInsecurePackages`). 1.11 was already deprecated (EOL 2026-12-01, evaluation warning), so the chain continued to 1.12.
+Current pin: `pkgs.kanidmWithSecretProvisioning_1_12`.
+
+Expect a Kanidm minor to stay supported in nixpkgs only a few months: watch for
+`kanidm 1.x is deprecated` evaluation warnings after each flake update and step up early.
 
 Per-step procedure:
 1. `sudo -u kanidm kanidmd domain upgrade-check -c /etc/kanidm/server.toml` — all items PASS

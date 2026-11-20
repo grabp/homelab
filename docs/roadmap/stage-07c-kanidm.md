@@ -20,7 +20,7 @@ COMPLETE (verified 2026-04-16)
 - `machines/nixos/pebble/default.nix` — added `my.services.kanidm.enable = true`
 
 ## Configuration Notes
-- **Package override required**: nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` (EOL, removed). Must explicitly set `services.kanidm.package`. Originally pinned to `_1_9`; since nixos-26.05 pinned to `pkgs.kanidmWithSecretProvisioning_1_11` (upgraded stepwise 1.9 → 1.10 → 1.11, see ADR 0005).
+- **Package override required**: nixos-25.11 `services.kanidm` module defaults to `pkgs.kanidm_1_4` (EOL, removed). Must explicitly set `services.kanidm.package`. Originally pinned to `_1_9`; since nixos-26.05 pinned to `pkgs.kanidmWithSecretProvisioning_1_12` (upgraded stepwise 1.9 → 1.10 → 1.11 → 1.12, see ADR 0005).
 - **"admin" username is reserved**: Kanidm has a built-in system account named `admin`. Provisioning a person named `admin` → 409 Conflict. Use a distinct username (`grabowskip`).
 - **sops secret ownership**: provisioning `ExecStartPost` runs as the `kanidm` user. Default `root:root 0400` → permission denied. Fix: `sops.secrets."kanidm/admin_password" = { owner = "kanidm"; }` (same for `idm_admin_password`).
 - **Self-signed cert must have `CA:FALSE`**: OpenSSL default self-signed certs have `CA:TRUE`. Kanidm 1.9's strict TLS rejects them (`CaUsedAsEndEntity` error). The oneshot script uses `-addext "basicConstraints=CA:FALSE"` + `-addext "subjectAltName=IP:127.0.0.1,DNS:id.<domain>"`. Also detects and regenerates old bad certs.

@@ -12,7 +12,7 @@ let
   # DB migration is one-way. Step through each minor with a separate deploy and run
   # `kanidmd domain upgrade-check` before each. withSecretProvisioning includes the
   # kanidm-provision helper. See docs/architecture/adr/0005-kanidm-1_9-pin.md.
-  kanidmPackage = pkgs.kanidmWithSecretProvisioning_1_11;
+  kanidmPackage = pkgs.kanidmWithSecretProvisioning_1_12;
 in
 {
   options.my.services.kanidm.enable = lib.mkEnableOption "Kanidm OIDC + LDAP identity provider";
