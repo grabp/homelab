@@ -43,7 +43,7 @@
 
 ---
 
-## Maintenance: NixOS 26.05 upgrade
+## Maintenance: NixOS 26.05 upgrade — ✅ COMPLETE
 
 `system.stateVersion` stays `"25.11"` on all hosts. Deploy order: vps → boulder → pebble. Snapshot Kanidm + Grafana state on pebble before deploying (one-way migrations).
 
@@ -58,7 +58,26 @@ Lessons from the 25.11 → 26.05 switch:
 | 2 | Kanidm 1.9 → 1.10 (pebble deploy, `kanidmd domain upgrade-check` first) | ✅ COMPLETE |
 | 3 | Kanidm 1.10 → 1.11, drop `permittedInsecurePackages`; update ADR 0005, stage-07c, pattern 21 | ✅ COMPLETE |
 | 3b | Kanidm 1.11 → 1.12 (1.11 deprecated, EOL 2026-12-01) | ✅ COMPLETE — 1.12.1, domain level 16 |
-| 4 | Grafana secret_key rotation: stop Grafana, re-encrypt `grafana.db` with grafana-secretkey-rotation-tool, put new random key in sops, deploy | 🔄 IN PROGRESS |
+| 4 | Grafana secret_key rotation: stop Grafana, re-encrypt `grafana.db` with grafana-secretkey-rotation-tool, put new random key in sops, deploy | ✅ COMPLETE — rotated 2026-11-20 |
+
+---
+
+## Maintenance: container image updates (2026-11)
+
+Pins are `tag@sha256:<linux/amd64 manifest digest>` (oci-digest skill). Deploy and verify each group before the next.
+
+Lessons:
+- **Pebble resolv.conf had only `127.0.0.1`**: openresolv drops non-local nameservers when a local one is listed (`resolv_conf_local_only` defaults to YES). Activation stops Pi-hole before pulling new images, so pulls failed with `no such host`. Fixed with `networking.resolvconf.extraConfig = "resolv_conf_local_only=NO"`. For Pi-hole image bumps, pre-pulling on pebble is still the safest option.
+- **PostgreSQL collation mismatch after glibc 2.40 → 2.42** (26.05): `REINDEX DATABASE` + `ALTER DATABASE … REFRESH COLLATION VERSION` for every database on boulder. Repeat after any glibc bump that warns.
+- **matterjs-server runs as UID 1000**; if the Python server ran again in between (rollback), re-`chown -R 1000:1000 /var/lib/matter-server` before retrying.
+
+| Step | Images | Host | Status |
+|------|--------|------|--------|
+| 1 | oauth2-proxy v7.15.6, pihole 2026.11.0, esphome 2026.11.0, code-server 4.146.0, calibre-web-automated v4.0.8 (`latest` → version tags) | pebble, boulder | ✅ COMPLETE — deployed 2026-11-21 |
+| 2 | stirling-pdf 0.42.0 → 3.4.0 (env vars renamed; old `/configs` moved aside) | boulder | ✅ COMPLETE — deployed 2026-11-21 |
+| 3 | paperless-ngx 2.20.15 → 3.5.1 + redis 7 → 8 (`PAPERLESS_SECRET_KEY`, keep rejecting duplicates) | boulder | ✅ COMPLETE — deployed 2026-11-21 |
+| 4 | python-matter-server → matterjs-server 1.6.0 (data migrated on first start, runs as UID 1000) | pebble | ✅ COMPLETE — deployed 2026-11-21 |
+| 5 | home-assistant 2026.4.3 → 2026.11.2 (review breaking changes for used integrations first) | pebble | ⬜ NOT STARTED |
 
 ---
 
