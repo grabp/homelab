@@ -26,7 +26,7 @@ in
       # Plugin pinned to 2026-03-23 (a8737d0) — compatible with libdns v1.1.0 / Caddy 2.11.x
       package = pkgs.caddy.withPlugins {
         plugins = [ "github.com/caddy-dns/cloudflare@v0.0.0-20260323191214-a8737d095ad5" ];
-        hash = "sha256-LB0Y7Mc6K2h/2WfYrf3UbzCSVbvPDoK3WsBmi2Busng=";
+        hash = "sha256-G2kKWG2ipzQ2aFex4yP7psJ6BsHXCQaf4zraqfDxbOw=";
       };
 
       globalConfig = ''

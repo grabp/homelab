@@ -8,6 +8,11 @@
 
 let
   cfg = config.my.services.kanidm;
+  # Kanidm only supports upgrading one minor version at a time (N-1 → N), and the
+  # DB migration is one-way. Step through each minor with a separate deploy and run
+  # `kanidmd domain upgrade-check` before each. withSecretProvisioning includes the
+  # kanidm-provision helper. See docs/architecture/adr/0005-kanidm-1_9-pin.md.
+  kanidmPackage = pkgs.kanidmWithSecretProvisioning_1_9;
 in
 {
   options.my.services.kanidm.enable = lib.mkEnableOption "Kanidm OIDC + LDAP identity provider";
@@ -62,14 +67,16 @@ in
     # Kanidm server
     # -------------------------------------------------------------------------
     # kanidm CLI available system-wide without enableClient (which requires clientSettings).
-    environment.systemPackages = [ pkgs.kanidmWithSecretProvisioning_1_9 ];
+    environment.systemPackages = [ kanidmPackage ];
+
+    # 1.9 and 1.10 are EOL (knownVulnerabilities) in nixos-26.05. Temporary allowance
+    # while stepping 1.9 → 1.10 → 1.11; remove once on 1.11.
+    nixpkgs.config.permittedInsecurePackages = [ kanidmPackage.name ];
 
     services.kanidm = {
-      enableServer = true;
-      # nixos-25.11 module defaults to kanidm_1_4 which is EOL and removed.
-      # Pin to 1.9; withSecretProvisioning includes the kanidm-provision helper.
-      package = pkgs.kanidmWithSecretProvisioning_1_9;
-      serverSettings = {
+      server.enable = true;
+      package = kanidmPackage;
+      server.settings = {
         origin = "https://id.${vars.domain}";
         domain = "id.${vars.domain}";
         bindaddress = "127.0.0.1:8443";

@@ -14,7 +14,7 @@ Extend the existing `mkNixos`/`mkMerge` helpers (Pattern 2) to manage both `pebb
   description = "Homelab NixOS configuration — pebble (homelab) + vps (NetBird)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     deploy-rs = { url = "github:serokell/deploy-rs"; inputs.nixpkgs.follows = "nixpkgs"; };
     disko    = { url = "github:nix-community/disko/latest"; inputs.nixpkgs.follows = "nixpkgs"; };
     sops-nix = { url = "github:Mic92/sops-nix"; inputs.nixpkgs.follows = "nixpkgs"; };

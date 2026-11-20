@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Project
-NixOS homelab. One flake managing **three machines**: homelab server + media server + VPS control plane. Target: nixos-25.11.
+NixOS homelab. One flake managing **three machines**: homelab server + media server + VPS control plane. Target: nixos-26.05.
 
 **Machines:**
 - `pebble` — HP ProDesk (homelab server, deployed, behind CGNAT)

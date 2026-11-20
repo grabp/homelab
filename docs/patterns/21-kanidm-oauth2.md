@@ -48,11 +48,11 @@ Kanidm's `services.kanidm.provision` block lets you define users, groups, and OA
   };
 
   services.kanidm = {
-    enableServer = true;
+    server.enable = true;
     # nixos-25.11 module defaults to kanidm_1_4 (EOL, removed from nixpkgs).
     # _1_7 is also gone (insecure). Must pin explicitly.
     package = pkgs.kanidmWithSecretProvisioning_1_9;
-    serverSettings = {
+    server.settings = {
       origin          = "https://id.${vars.domain}";
       domain          = "id.${vars.domain}";
       bindaddress     = "127.0.0.1:8443";
@@ -120,6 +120,8 @@ kanidm --url https://id.grab-lab.gg person credential create-reset-token <userna
 
 **Known gotchas:**
 - **`kanidm_1_4` removed** — explicitly set `package = pkgs.kanidmWithSecretProvisioning_1_9`
+- **nixos-26.05 renames** — `enableServer`/`serverSettings` → `server.enable`/`server.settings` (same for client/unix)
+- **One minor version per upgrade** — Kanidm only migrates from N-1 → N, one-way. Step through each minor with its own deploy; run `kanidmd domain upgrade-check` first
 - **"admin" username reserved** — use a distinct person username
 - **sops ownership** — password secrets need `owner = "kanidm"`; OAuth2 secret needs `mode = "0444"`
 - **CA:FALSE required** — self-signed cert must not have `CA:TRUE` (kanidm 1.9 CaUsedAsEndEntity error)

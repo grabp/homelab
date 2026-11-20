@@ -43,6 +43,19 @@
 
 ---
 
+## Maintenance: NixOS 26.05 upgrade
+
+`system.stateVersion` stays `"25.11"` on all hosts. Deploy order: vps → boulder → pebble. Snapshot Kanidm + Grafana state on pebble before deploying (one-way migrations).
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1 | nixpkgs → nixos-26.05; Kanidm option renames (`server.enable`/`server.settings`), 1.9 kept via `permittedInsecurePackages`; Grafana `secret_key` from sops (`grafana/secret_key`, old default value); Caddy plugin hash; `nixfmt-rfc-style` → `nixfmt` | 🔄 IN PROGRESS — all 3 hosts build, `just check` passes, not deployed |
+| 2 | Kanidm 1.9 → 1.10 (pebble deploy, `kanidmd domain upgrade-check` first) | ⬜ NOT STARTED |
+| 3 | Kanidm 1.10 → 1.11, drop `permittedInsecurePackages`; update ADR 0005, stage-07c, pattern 21 | ⬜ NOT STARTED |
+| 4 | Grafana secret_key rotation: stop Grafana, re-encrypt `grafana.db` with grafana-secretkey-rotation-tool, put new random key in sops, deploy | ⬜ NOT STARTED |
+
+---
+
 ## Quick Commands
 
 ```bash

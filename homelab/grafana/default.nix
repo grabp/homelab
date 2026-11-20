@@ -33,6 +33,10 @@ in
           # $__file{...} is Grafana's native file-interpolation syntax —
           # written verbatim to grafana.ini and resolved at runtime.
           admin_password = "$__file{${config.sops.secrets."grafana/admin_password".path}}";
+          # Required since nixos-26.05 (no default). Encrypts secrets stored in
+          # grafana.db — changing it requires re-encrypting the DB first
+          # (grafana-secretkey-rotation-tool), otherwise stored secrets become unreadable.
+          secret_key = "$__file{${config.sops.secrets."grafana/secret_key".path}}";
         };
 
         # Kanidm OIDC — per-client issuer URL pattern (not a global issuer).
@@ -82,6 +86,12 @@ in
     # grafana/admin_password must contain the plaintext password (one line, no key=value).
     # Add with: just edit-secrets
     sops.secrets."grafana/admin_password" = {
+      owner = "grafana";
+      restartUnits = [ "grafana.service" ];
+    };
+
+    # grafana/secret_key: database encryption key (one line). See secret_key above.
+    sops.secrets."grafana/secret_key" = {
       owner = "grafana";
       restartUnits = [ "grafana.service" ];
     };

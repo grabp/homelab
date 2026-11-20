@@ -30,8 +30,8 @@ Kanidm is a modern identity platform with native NixOS module support.
 
 ```nix
 services.kanidm = {
-  enableServer = true;
-  serverSettings = {
+  server.enable = true;
+  server.settings = {
     origin = "https://id.grab-lab.gg";
     bindaddress = "127.0.0.1:8443";
     ldapbindaddress = "127.0.0.1:636";

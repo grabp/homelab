@@ -24,9 +24,10 @@ group members get Admin role, everyone else gets Viewer.
 | Secret key | Format | Purpose |
 |------------|--------|---------|
 | `grafana/admin_password` | plaintext password | Grafana local admin fallback |
+| `grafana/secret_key` | plaintext key (one line) | `security.secret_key` — encrypts secrets stored in `grafana.db` |
 | `kanidm/grafana_client_secret` | plaintext secret | OAuth2 client secret for Kanidm OIDC |
 
-Secret ownership: `grafana/admin_password` → owner `grafana`; `kanidm/grafana_client_secret` → owner `kanidm`, group `grafana`, mode `0440` (both services need read access).
+Secret ownership: `grafana/admin_password`, `grafana/secret_key` → owner `grafana`; `kanidm/grafana_client_secret` → owner `kanidm`, group `grafana`, mode `0440` (both services need read access).
 
 ## Depends on
 
@@ -61,6 +62,11 @@ Server-side token/userinfo calls go to `https://127.0.0.1:8443` with
   "Invalid state / No PKCE code challenge" errors.
 - Use `$__file{/run/secrets/...}` syntax for `admin_password` — written
   verbatim into `grafana.ini` and resolved at runtime.
+- `security.secret_key` has no default since nixos-26.05. Never just change
+  `grafana/secret_key`: re-encrypt `grafana.db` first with
+  [grafana-secretkey-rotation-tool](https://github.com/erooke/grafana-secretkey-rotation-tool)
+  (Grafana stopped), otherwise stored secrets become unreadable. Initially set
+  to the old built-in default `SW2YcwTIb9zpOOhoPsMm` to keep the existing DB readable.
 
 ## Backup / restore
 

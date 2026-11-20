@@ -2,7 +2,7 @@
   description = "Homelab NixOS configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     deploy-rs = {
       url = "github:serokell/deploy-rs";
@@ -89,13 +89,13 @@
           '';
         };
 
-        formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt-rfc-style;
+        formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
 
         devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
           packages = with nixpkgs.legacyPackages.x86_64-linux; [
             pre-commit
             gitleaks
-            nixfmt-rfc-style
+            nixfmt
           ];
           shellHook = "pre-commit install";
         };

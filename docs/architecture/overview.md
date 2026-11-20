@@ -12,9 +12,9 @@ This document describes the high-level topology, machine roles, and network arch
 
 | Machine | Role | Hardware | Network | Host |
 |---------|------|----------|---------|------|
-| **pebble** | Homelab server, primary service host, NetBird routing peer | HP ProDesk 600 G1 | 192.168.10.50/24 (LAN), CGNAT | NixOS 25.11, ZFS |
-| **vps** | NetBird control plane, Pocket ID IdP, public entry point | Hetzner CX22 | `<VPS_IP>` (public, from vars.nix) | NixOS 25.11, ext4 |
-| **boulder** | Future media server, document management | HP EliteDesk (planned) | 192.168.10.51/24 (LAN) | NixOS 25.11, ZFS |
+| **pebble** | Homelab server, primary service host, NetBird routing peer | HP ProDesk 600 G1 | 192.168.10.50/24 (LAN), CGNAT | NixOS 26.05, ZFS |
+| **vps** | NetBird control plane, Pocket ID IdP, public entry point | Hetzner CX22 | `<VPS_IP>` (public, from vars.nix) | NixOS 26.05, ext4 |
+| **boulder** | Future media server, document management | HP EliteDesk (planned) | 192.168.10.51/24 (LAN) | NixOS 26.05, ZFS |
 
 ## Network Topology
 
