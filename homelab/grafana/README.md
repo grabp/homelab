@@ -65,8 +65,12 @@ Server-side token/userinfo calls go to `https://127.0.0.1:8443` with
 - `security.secret_key` has no default since nixos-26.05. Never just change
   `grafana/secret_key`: re-encrypt `grafana.db` first with
   [grafana-secretkey-rotation-tool](https://github.com/erooke/grafana-secretkey-rotation-tool)
-  (Grafana stopped), otherwise stored secrets become unreadable. Initially set
-  to the old built-in default `SW2YcwTIb9zpOOhoPsMm` to keep the existing DB readable.
+  (Grafana stopped), otherwise stored secrets become unreadable. The tool reads
+  the old key from an ini via regex, so pass a temp ini with the literal key
+  (`secret_key = <old>`), not the real `grafana.ini` (which holds `$__file{...}`).
+  It generates the new key itself and leaves a world-readable
+  `grafana.db.rotation_*` backup — delete it after verifying.
+  Rotated from the old built-in default on 2026-11-20.
 
 ## Backup / restore
 
