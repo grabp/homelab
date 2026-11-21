@@ -6,6 +6,12 @@ tags: [home-assistant, hacs, systemd]
 
 # Pattern 11: HACS auto-installation via systemd oneshot
 
+> **⚠️ Obsolete since Home Assistant 2026.11.** HACS is built into Home Assistant as the
+> **Marketplace** (Settings → Marketplace). On the first start after updating, HA migrates
+> HACS and deletes `custom_components/hacs`; the HACS installer refuses to run and HA blocks
+> the old integration. Do not install HACS on 2026.11+. The `hacs-install` service was removed
+> from `homelab/home-assistant/default.nix` (2026-11-21). Kept for reference only.
+
 HACS is a custom component (Python files) placed in the HA config directory — it is not a NixOS package. Since HA's config directory is bind-mounted from the host, a systemd oneshot service can install HACS before HA starts on every fresh deployment.
 
 Two approaches are shown. **Approach A** (downloads latest on first boot) is simpler. **Approach B** (pinned version, Nix-pure) is reproducible and avoids network access at boot.

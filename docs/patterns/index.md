@@ -19,7 +19,7 @@ This directory contains verified NixOS patterns extracted from the original `doc
 | 8 | [08-systemd-sops-service](./08-systemd-sops-service.md) | systemd service with sops-nix secrets injection | [systemd, secrets, hardening] |
 | 9 | [09-justfile-commands](./09-justfile-commands.md) | Justfile for NixOS homelab operations | [just, justfile, commands] |
 | 10 | [10-wyoming-procsubset](./10-wyoming-procsubset.md) | Native Wyoming service with systemd ProcSubset override | [wyoming, home-assistant, systemd, hardening] |
-| 11 | [11-hacs-install](./11-hacs-install.md) | HACS auto-installation via systemd oneshot | [home-assistant, hacs, systemd] |
+| 11 | [11-hacs-install](./11-hacs-install.md) | HACS auto-installation via systemd oneshot (obsolete since HA 2026.11 — Marketplace) | [home-assistant, hacs, systemd] |
 | 12 | [12-multi-machine-flake](./12-multi-machine-flake.md) | Multi-machine flake with deploy-rs (homelab + VPS) | [flake, deploy-rs, multi-machine] |
 | 13 | [13-nixos-anywhere-vps](./13-nixos-anywhere-vps.md) | nixos-anywhere VPS provisioning with minimal ext4 disko | [vps, nixos-anywhere, provisioning, ext4] |
 | 14 | [14-netbird-client](./14-netbird-client.md) ⚠️ archived | NetBird client — superseded by Pattern 24 | [netbird, client, vpn] |

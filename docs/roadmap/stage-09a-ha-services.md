@@ -24,7 +24,7 @@ COMPLETE (verified 2026-04-18)
 ## Configuration Notes
 - Mosquitto: native `services.mosquitto`; per-listener password auth (NixOS module enforces `per_listener_settings = true`). Pre-hashed passwords inline in config — generate with `mosquitto_passwd`, replace `REPLACE_ME` placeholder before first deploy.
 - Home Assistant: `ghcr.io/home-assistant/home-assistant:stable` OCI image. Volumes: `/var/lib/homeassistant:/config`, `/etc/localtime`. Activation script writes minimal `configuration.yaml` (with Caddy trusted proxy config) only on first deploy — does not overwrite on subsequent rebuilds.
-- HACS: `systemd.services.hacs-install` oneshot runs before `podman-homeassistant.service`. Downloads latest HACS zip from GitHub, idempotent. Requires completing GitHub OAuth device flow in HA UI after first boot.
+- HACS: `systemd.services.hacs-install` oneshot runs before `podman-homeassistant.service`. Downloads latest HACS zip from GitHub, idempotent. Requires completing GitHub OAuth device flow in HA UI after first boot. **Removed 2026-11: HA 2026.11 replaces HACS with the built-in Marketplace (see Pattern 11).**
 - Uptime Kuma: native `services.uptime-kuma`, binds to 127.0.0.1:3001, proxied via Caddy. No sops secrets needed; internal auth handles login.
 - HA → Mosquitto soft ordering: `wants/after = ["mosquitto.service"]` on `podman-homeassistant.service` — HA works without MQTT but prefers it to be up first.
 

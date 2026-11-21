@@ -51,7 +51,7 @@ in
 
     image = lib.mkOption {
       type = lib.types.str;
-      default = "ghcr.io/home-assistant/home-assistant:2026.4.3@sha256:ae0800c81fea16bc1241ce03bddb9c6260566e90f58b09d3e5a629e4f68bdc0b";
+      default = "ghcr.io/home-assistant/home-assistant:2026.11.2@sha256:69193f00e76147a1649a910d39673680e37ce4362dfb410a328a806a824f2000";
       description = "OCI image tag — pin to a specific release for reproducibility, e.g. 2026.4.3";
     };
 
@@ -140,39 +140,9 @@ in
                 fi
       '';
 
-      # HACS installation — runs once before the HA container starts.
-      # Idempotent: skipped if __init__.py already exists (i.e. HACS is installed).
-      # Pattern 11: docs/patterns/11-hacs-install.md (Approach A — download latest on first boot)
-      systemd.services.hacs-install = {
-        description = "Install HACS custom component for Home Assistant";
-        wantedBy = [ "multi-user.target" ];
-        before = [ "podman-homeassistant.service" ];
-        requiredBy = [ "podman-homeassistant.service" ];
-        path = with pkgs; [
-          wget
-          unzip
-          coreutils
-        ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-        };
-        script = ''
-          HACS_DIR="${cfg.configDir}/custom_components/hacs"
-          if [ ! -f "$HACS_DIR/__init__.py" ]; then
-            echo "Installing HACS..."
-            wget -q -O /tmp/hacs.zip \
-              "https://github.com/hacs/integration/releases/latest/download/hacs.zip"
-            rm -rf "$HACS_DIR"
-            mkdir -p "$HACS_DIR"
-            unzip -o /tmp/hacs.zip -d "$HACS_DIR"
-            rm -f /tmp/hacs.zip
-            echo "HACS installed."
-          else
-            echo "HACS already present, skipping."
-          fi
-        '';
-      };
+      # HACS: no longer installed here. Since HA 2026.11 HACS is built in as the
+      # Marketplace (Settings → Marketplace); HA migrates and deletes
+      # custom_components/hacs on first start and blocks the old integration.
 
       virtualisation.oci-containers.containers.homeassistant = {
         image = cfg.image;

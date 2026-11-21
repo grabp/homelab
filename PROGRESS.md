@@ -77,7 +77,7 @@ Lessons:
 | 2 | stirling-pdf 0.42.0 → 3.4.0 (env vars renamed; old `/configs` moved aside) | boulder | ✅ COMPLETE — deployed 2026-11-21 |
 | 3 | paperless-ngx 2.20.15 → 3.5.1 + redis 7 → 8 (`PAPERLESS_SECRET_KEY`, keep rejecting duplicates) | boulder | ✅ COMPLETE — deployed 2026-11-21 |
 | 4 | python-matter-server → matterjs-server 1.6.0 (data migrated on first start, runs as UID 1000) | pebble | ✅ COMPLETE — deployed 2026-11-21 |
-| 5 | home-assistant 2026.4.3 → 2026.11.2 (review breaking changes for used integrations first) | pebble | ⬜ NOT STARTED |
+| 5 | home-assistant 2026.4.3 → 2026.11.2 (review breaking changes for used integrations first) | pebble | 🔄 code done, not deployed |
 
 ---
 
