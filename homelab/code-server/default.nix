@@ -4,12 +4,14 @@
 # workspace path. Intended for editing Home Assistant configuration files
 # but usable for any host directory.
 #
-# Proxied by Caddy on pebble: https://code.grab-lab.gg → localhost:8484
+# Auth: Kanidm OIDC via oauth2-proxy (same pattern as Homepage); code-server's
+# own password is disabled (no PASSWORD/HASHED_PASSWORD → linuxserver image runs
+# with auth none). Only Kanidm group homelab_admins can obtain a token.
+#   Caddy (code.grab-lab.gg) → oauth2-proxy 127.0.0.1:4181 → code-server 127.0.0.1:8484
 #
-# PRE-DEPLOY (pebble):
-#   just edit-secrets-pebble → add:
-#     code-server/env: |
-#       PASSWORD=<your-password>
+# Secrets (pebble): kanidm/vscode_client_secret, oauth2-proxy/vscode_env
+#   (OAUTH2_PROXY_CLIENT_SECRET=<same as kanidm/vscode_client_secret>,
+#    OAUTH2_PROXY_COOKIE_SECRET=<32 chars>).
 {
   config,
   lib,
@@ -27,7 +29,13 @@ in
     port = lib.mkOption {
       type = lib.types.port;
       default = 8484;
-      description = "code-server web port (bound to loopback, proxied by Caddy).";
+      description = "code-server web port (bound to loopback, only reachable via oauth2-proxy).";
+    };
+
+    oauth2ProxyPort = lib.mkOption {
+      type = lib.types.port;
+      default = 4181;
+      description = "oauth2-proxy listen port (loopback) — Caddy proxies code.<domain> here.";
     };
 
     workspacePath = lib.mkOption {
@@ -60,12 +68,9 @@ in
 
   config = lib.mkIf cfg.enable {
 
-    # code-server/env must contain:
-    #   PASSWORD=<your-password>
-    # Add with: just edit-secrets-pebble
-    sops.secrets."code-server/env" = {
-      mode = "0400";
-      restartUnits = [ "podman-code-server.service" ];
+    # OAUTH2_PROXY_CLIENT_SECRET + OAUTH2_PROXY_COOKIE_SECRET for oauth2-proxy.
+    sops.secrets."oauth2-proxy/vscode_env" = {
+      restartUnits = [ "podman-oauth2-proxy-vscode.service" ];
     };
 
     # /var/lib/code-server holds VS Code extensions and user settings.
@@ -89,18 +94,44 @@ in
         PGID = toString cfg.pgid;
         DEFAULT_WORKSPACE = cfg.workspacePath;
       };
-      # PASSWORD injected from sops secret — keeps it out of the Nix store.
-      environmentFiles = [ config.sops.secrets."code-server/env".path ];
+      # No PASSWORD/HASHED_PASSWORD: authentication is done by oauth2-proxy.
+    };
+
+    # ── oauth2-proxy (Kanidm OIDC) ───────────────────────────────────────────
+    # Same setup as oauth2-proxy-homepage. --network=host: upstream (code-server
+    # on 127.0.0.1:${toString cfg.port}) and listen address are on the host stack.
+    # WebSockets (required by code-server) are proxied by default.
+    virtualisation.oci-containers.containers.oauth2-proxy-vscode = {
+      image = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.6@sha256:01da265f8e371e6d3043b97829e171f3e4d53f9dc3817be15fb4fc29c92fe2a6";
+      # Trailing slash required; --upstream as CLI arg (env var not reliably read).
+      cmd = [ "--upstream=http://127.0.0.1:${toString cfg.port}/" ];
+      environment = {
+        OAUTH2_PROXY_PROVIDER = "oidc";
+        OAUTH2_PROXY_OIDC_ISSUER_URL = "https://id.${vars.domain}/oauth2/openid/vscode";
+        OAUTH2_PROXY_CLIENT_ID = "vscode";
+        OAUTH2_PROXY_REDIRECT_URL = "https://code.${vars.domain}/oauth2/callback";
+        OAUTH2_PROXY_HTTP_ADDRESS = "127.0.0.1:${toString cfg.oauth2ProxyPort}";
+        OAUTH2_PROXY_EMAIL_DOMAINS = "*"; # access is restricted by the Kanidm scope map
+        OAUTH2_PROXY_SCOPE = "openid profile email";
+        OAUTH2_PROXY_CODE_CHALLENGE_METHOD = "S256"; # PKCE — required by Kanidm
+        OAUTH2_PROXY_SKIP_PROVIDER_BUTTON = "true";
+        OAUTH2_PROXY_COOKIE_SECURE = "true";
+        # Lax works inside the HA iframe: ha.* and code.* are the same site.
+        OAUTH2_PROXY_COOKIE_SAMESITE = "lax";
+      };
+      environmentFiles = [ config.sops.secrets."oauth2-proxy/vscode_env".path ];
+      extraOptions = [ "--network=host" ];
+    };
+
+    systemd.services.podman-oauth2-proxy-vscode = {
+      after = [ "sops-install-secrets.service" ];
+      wants = [ "sops-install-secrets.service" ];
     };
 
     # Pattern 19: NixOS firewall reload flushes Netavark DNAT rules — restart
     # the container so its port mapping is re-registered.
     systemd.services.podman-code-server = {
-      after = [
-        "sops-install-secrets.service"
-        "firewall.service"
-      ];
-      wants = [ "sops-install-secrets.service" ];
+      after = [ "firewall.service" ];
       partOf = [ "firewall.service" ];
     };
   };

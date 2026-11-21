@@ -19,22 +19,27 @@ Proxied by Caddy on pebble. Accessible at `https://code.grab-lab.gg`.
 
 | Port | Interface | Service |
 |------|-----------|---------|
-| 8484 | 127.0.0.1 | code-server web UI |
+| 8484 | 127.0.0.1 | code-server web UI (no own auth) |
+| 4181 | 127.0.0.1 | oauth2-proxy (Kanidm OIDC) |
 
-Bound to loopback only — Caddy terminates TLS and proxies inbound HTTPS.
-Not opened in the firewall.
+Both bound to loopback — Caddy terminates TLS and proxies `code.<domain>` to
+oauth2-proxy, which proxies authenticated requests to code-server. Not opened
+in the firewall.
+
+## Authentication
+
+Kanidm OAuth2 client `vscode`, scope map **`homelab_admins` only** (code-server
+has write access to the HA config and a shell). code-server itself runs without
+a password. The oauth2-proxy session cookie is same-site with `ha.<domain>`, so
+the HA "Webpage" dashboard embeds it without a prompt — but the first login must
+happen in a normal tab (Kanidm's login page cannot be framed).
 
 ## Secrets
 
 | Key | File | Format | Purpose |
 |-----|------|--------|---------|
-| `code-server/env` | `secrets/pebble.yaml` | env file (`PASSWORD=<pw>`) | Web UI login password |
-
-Add via `just edit-secrets-pebble`:
-```yaml
-code-server/env: |
-  PASSWORD=your-password-here
-```
+| `kanidm/vscode_client_secret` | `secrets/pebble.yaml` | plain (64 hex) | read by Kanidm provisioning |
+| `oauth2-proxy/vscode_env` | `secrets/pebble.yaml` | env file | `OAUTH2_PROXY_CLIENT_SECRET=<same value>`, `OAUTH2_PROXY_COOKIE_SECRET=<32 chars>` |
 
 ## Depends on
 

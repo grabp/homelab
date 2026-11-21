@@ -115,6 +115,22 @@ in
           ];
         };
 
+        # --- code-server (VS Code) OAuth2 client ------------------------------
+        # oauth2-proxy in front of code-server (same pattern as Homepage).
+        # Only homelab_admins get a scope map: code-server has write access to the
+        # HA config and a shell on pebble, so other users must be denied a token.
+        systems.oauth2."vscode" = {
+          displayName = "VS Code";
+          originUrl = "https://code.${vars.domain}/oauth2/callback";
+          originLanding = "https://code.${vars.domain}";
+          basicSecretFile = config.sops.secrets."kanidm/vscode_client_secret".path;
+          scopeMaps."homelab_admins" = [
+            "openid"
+            "profile"
+            "email"
+          ];
+        };
+
         # --- Grafana OAuth2 client -------------------------------------------
         # Co-located here per STRUCTURE.md convention (auth config lives alongside
         # the IdP config, not centralised in kanidm/default.nix for the service).
@@ -179,6 +195,12 @@ in
     # client credential. oauth2-proxy reads its copy from oauth2-proxy/homepage_env
     # (a separate sops secret) so this stays owner=kanidm, 0400.
     sops.secrets."kanidm/homepage_client_secret" = {
+      owner = "kanidm";
+    };
+
+    # VS Code (code-server) client secret — kanidm provisioning reads this copy;
+    # oauth2-proxy reads the same value from oauth2-proxy/vscode_env.
+    sops.secrets."kanidm/vscode_client_secret" = {
       owner = "kanidm";
     };
 
