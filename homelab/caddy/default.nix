@@ -50,15 +50,22 @@ in
           }
 
           # Security headers applied to all responses from this wildcard block.
-          # X-Frame-Options SAMEORIGIN prevents clickjacking.
           # HSTS with preload and includeSubDomains enforces HTTPS for all subdomains.
           # -Server strips the Caddy version banner from responses.
           header {
             Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
             X-Content-Type-Options "nosniff"
-            X-Frame-Options "SAMEORIGIN"
             -Server
           }
+
+          # Clickjacking protection. Services embedded as Home Assistant "Webpage"
+          # dashboards may only be framed by HA itself (CSP frame-ancestors);
+          # everything else keeps X-Frame-Options SAMEORIGIN. The two matchers are
+          # disjoint, so directive ordering does not matter.
+          @embeddedInHa host esphome.${vars.domain} code.${vars.domain} zigbee.${vars.domain}
+          @notEmbeddedInHa not host esphome.${vars.domain} code.${vars.domain} zigbee.${vars.domain}
+          header @embeddedInHa Content-Security-Policy "frame-ancestors 'self' https://ha.${vars.domain}"
+          header @notEmbeddedInHa X-Frame-Options "SAMEORIGIN"
 
           @pihole host pihole.${vars.domain}
           handle @pihole {
@@ -118,7 +125,8 @@ in
 
           @code host code.${vars.domain}
           handle @code {
-            reverse_proxy localhost:${toString config.my.services.codeServer.port}
+            # oauth2-proxy (Kanidm OIDC, homelab_admins only) in front of code-server.
+            reverse_proxy localhost:${toString config.my.services.codeServer.oauth2ProxyPort}
           }
 
           @zigbee host zigbee.${vars.domain}
